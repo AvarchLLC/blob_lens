@@ -1,0 +1,45 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python (if any)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
