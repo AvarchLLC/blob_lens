@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlobLens - EIP-4844 Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🔍 BlobLens</h1>
+                <p>Real-time EIP-4844 Blob Analytics</p>
+                <div class="status">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Live</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-blobs">-</div>
+                <div class="stat-label">Total Blobs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-txs">-</div>
+                <div class="stat-label">Transactions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-fee">-</div>
+                <div class="stat-label">Avg Fee (gwei)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="network">-</div>
+                <div class="stat-label">Network</div>
+            </div>
+        </section>
+
+        <!-- Charts Grid -->
+        <section class="charts-grid">
+            <!-- Rollup Distribution -->
+            <div class="chart-container">
+                <h3>Blobs by Rollup</h3>
+                <canvas id="rollupChart"></canvas>
+            </div>
+
+            <!-- Hourly Activity -->
+            <div class="chart-container">
+                <h3>Hourly Activity (24h)</h3>
+                <canvas id="activityChart"></canvas>
+            </div>
+
+            <!-- Fee Trend -->
+            <div class="chart-container full-width">
+                <h3>Fee Trend (7 days)</h3>
+                <canvas id="feeChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Recent Transactions -->
+        <section class="recent-section">
+            <h3>Recent Transactions</h3>
+            <div class="table-container">
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Block</th>
+                            <th>Blobs</th>
+                            <th>Rollup</th>
+                            <th>Fee (gwei)</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactions-tbody">
+                        <tr><td colspan="5">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Last updated: <span id="last-update">-</span></p>
+            <p>Powered by BlobLens • <a href="https://eips.ethereum.org/EIPS/eip-4844" target="_blank">EIP-4844</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
