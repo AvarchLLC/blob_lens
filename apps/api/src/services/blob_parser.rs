@@ -30,7 +30,11 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
     // 3. Subscribe to new blocks for full transaction data
     let mut sub = provider.subscribe_blocks().await?.into_stream();
 
-    let rollup_registry = rollup_registry::get_rollup_registry();
+    let mut rollup_registry = rollup_registry::get_rollup_registry();
+    match rollup_registry::merge_db_rollup_registry(pool, &mut rollup_registry).await {
+        Ok(()) => info!("Loaded {} rollup mappings", rollup_registry.len()),
+        Err(e) => warn!("Failed to load DB rollup registry, using static map only: {}", e),
+    }
 
     while let Some(block) = sub.next().await {
         let block_hash = block.header.hash;

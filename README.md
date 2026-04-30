@@ -91,7 +91,7 @@ docker-compose exec postgres psql -U postgres -d blob_lens
 
 ```env
 ALCHEMY_KEY=your_api_key_here
-DATABASE_URL=postgresql://postgres:password@localhost:5432/blob_lens
+DATABASE_URL=postgresql://postgres:password@localhost:5433/blob_lens
 RUST_LOG=info  # trace, debug, info, warn, error
 ```
 

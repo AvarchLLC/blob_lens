@@ -1,0 +1,10 @@
+{
+  "name": "blob-lens",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @blob-lens/web dev",
+    "build": "pnpm --filter @blob-lens/web build",
+    "lint": "pnpm --filter @blob-lens/web lint"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

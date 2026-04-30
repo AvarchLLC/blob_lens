@@ -34,9 +34,6 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/target/release/blob_lens /app/blob_lens
 
-# Copy .env.example (user should mount .env)
-COPY .env.example /app/.env.example
-
 # Create non-root user for security
 RUN groupadd -g 1000 boblens && \
     useradd -d /app -u 1000 -g boblens -s /sbin/nologin boblens && \

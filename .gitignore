@@ -1,6 +1,6 @@
 # Rust
-/target/
-Cargo.lock
+apps/api/target/
+apps/api/Cargo.lock
 **/*.rs.bk
 *.pdb
 
@@ -31,10 +31,11 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Node (if any)
+# Node
 node_modules/
-package-lock.json
-yarn.lock
+.next/
+.turbo/
+pnpm-lock.yaml
 
 # Python (if any)
 __pycache__/

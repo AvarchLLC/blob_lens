@@ -1,4 +1,5 @@
 use axum::{
+    extract::Query,
     extract::State,
     http::StatusCode,
     routing::get,
@@ -45,6 +46,20 @@ pub struct FeeTrend {
     pub min_fee: i64,
     pub max_fee: i64,
     pub avg_fee: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UnknownSenderStat {
+    pub from_address: String,
+    pub tx_count: i64,
+    pub total_blobs: i64,
+    pub last_seen: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UnknownTopQuery {
+    pub hours: Option<i64>,
+    pub limit: Option<i64>,
 }
 
 // GET /api/stats
@@ -191,6 +206,49 @@ async fn fee_trend_handler(State(pool): State<PgPool>) -> Result<Json<Vec<FeeTre
     Ok(Json(trends))
 }
 
+// GET /api/blobs/unknown-top?hours=24&limit=20
+async fn unknown_top_handler(
+    State(pool): State<PgPool>,
+    Query(params): Query<UnknownTopQuery>,
+) -> Result<Json<Vec<UnknownSenderStat>>, StatusCode> {
+    let hours = params.hours.unwrap_or(24).clamp(1, 24 * 30);
+    let limit = params.limit.unwrap_or(20).clamp(1, 200);
+
+    let rows: Vec<(String, i64, i64, String)> = sqlx::query_as(
+        "SELECT
+            from_address,
+            COUNT(*)::bigint AS tx_count,
+            COALESCE(SUM(num_blobs), 0)::bigint AS total_blobs,
+            MAX(created_at)::text AS last_seen
+         FROM blob_transactions
+         WHERE rollup = 'UNKNOWN'
+           AND created_at > NOW() - INTERVAL '1 hour' * $1
+         GROUP BY from_address
+         ORDER BY total_blobs DESC, tx_count DESC
+         LIMIT $2"
+    )
+    .bind(hours)
+    .bind(limit)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("unknown_top_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let stats = rows
+        .into_iter()
+        .map(|(from_address, tx_count, total_blobs, last_seen)| UnknownSenderStat {
+            from_address,
+            tx_count,
+            total_blobs,
+            last_seen,
+        })
+        .collect();
+
+    Ok(Json(stats))
+}
+
 // GET /health
 async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
@@ -201,6 +259,7 @@ pub fn api_router(pool: PgPool) -> Router {
         .route("/api/stats", get(stats_handler))
         .route("/api/blobs/by-rollup", get(rollup_stats_handler))
         .route("/api/blobs/recent", get(recent_blobs_handler))
+        .route("/api/blobs/unknown-top", get(unknown_top_handler))
         .route("/api/activity/hourly", get(activity_hourly_handler))
         .route("/api/fees/trend", get(fee_trend_handler))
         .route("/health", get(health_handler))
