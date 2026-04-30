@@ -12,14 +12,14 @@
 
 - ✅ Real-time WebSocket listener (Alchemy)
 - ✅ Type 3 blob transaction detection
-- ✅ Rollup attribution (15+ chains supported)
+- ✅ Rollup attribution (15+ chains)
 - ✅ PostgreSQL persistence with indexes
 - ✅ Health checks & auto-restart
 - ✅ Structured JSON logging
 
 ---
 
-## � Quick Start
+## 🚀 Quick Start
 
 ### Docker (Recommended)
 ```bash
@@ -64,109 +64,25 @@ blob_lens/
 
 ---
 
-## 📊 Database Schema
+## 📊 Database
 
-### `blob_transactions`
+Schema:
+- `blob_transactions`: tx_hash, block_number, num_blobs, rollup, max_fee_per_blob_gas, created_at
+- Indexes: (rollup, block_number)
+
+Quick queries:
 ```sql
-CREATE TABLE blob_transactions (
-    id BIGSERIAL PRIMARY KEY,
-    tx_hash VARCHAR(255) UNIQUE NOT NULL,
-    block_number BIGINT NOT NULL,
-    block_hash VARCHAR(255) NOT NULL,
-    from_address VARCHAR(255) NOT NULL,
-    to_address VARCHAR(255),
-    num_blobs INT NOT NULL,
-    max_fee_per_blob_gas VARCHAR(255) NOT NULL,
-    blob_hashes TEXT[] NOT NULL,
-    rollup VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
+-- Count blobs
+SELECT COUNT(*) FROM blob_transactions;
 
-### `blob_hashes`
-- Per-blob tracking with index and versioned hash
-- Foreign key to `blob_transactions`
+-- Latest blobs
+SELECT tx_hash, num_blobs, rollup FROM blob_transactions ORDER BY created_at DESC LIMIT 10;
 
-### `rollup_registry`
-- Address → rollup name mapping
-- Covered rollups: Base, OP Mainnet, Arbitrum, zkSync, Scroll, Starknet, Linea, Taiko, Mantle, Polygon zkEVM, and more
+-- By rollup
+SELECT rollup, COUNT(*), SUM(num_blobs) FROM blob_transactions GROUP BY rollup ORDER BY COUNT(*) DESC;
 
----
-
-## � Check What's Been Collected
-
-### Easiest Way (Automated Script)
-```bash
-# Run our inspector script
-python3 check_blobs.py
-
-# Output shows:
-# • Total transactions indexed
-# • Total blobs collected
-# • Latest 5 transactions
-# • Blobs by rollup
-# • Average fees
-# • Blocks with most blobs
-```
-
-### Manual Database Queries
-
-### Get Latest Blob Transactions
-```sql
-SELECT tx_hash, block_number, rollup, num_blobs, max_fee_per_blob_gas, created_at
-FROM blob_transactions
-ORDER BY created_at DESC
-LIMIT 10;
-```
-
-### Blob Count by Rollup
-```sql
-SELECT rollup, COUNT(*) as tx_count, SUM(num_blobs) as total_blobs
-FROM blob_transactions
-GROUP BY rollup
-ORDER BY total_blobs DESC;
-```
-
-### Fee Trends (Hourly Average)
-```sql
-SELECT DATE_TRUNC('hour', created_at) as hour, 
-       AVG(CAST(max_fee_per_blob_gas AS BIGINT)) as avg_fee,
-       COUNT(*) as tx_count
-FROM blob_transactions
-GROUP BY DATE_TRUNC('hour', created_at)
-ORDER BY hour DESC;
-```
-
-### Connect to Database
-```bash
-# Docker
-docker exec -it blob-lens-postgres psql -U postgres -d blob_lens
-
-# Local
-psql -U postgres -d blob_lens -h localhost
-```
-
----
-
-## 📁 Project Structure
-
-```
-blob_lens/
-├── src/
-│   ├── main.rs                 Entry point
-│   ├── services/
-│   │   └── blob_parser.rs      WebSocket listener & TX processing
-│   ├── db/
-│   │   ├── mod.rs              Pool, schema, queries
-│   │   └── models.rs           Database record types
-│   └── rollup_registry.rs      Address → rollup mapping
-├── Cargo.toml                  Dependencies
-├── Dockerfile                  Multi-stage build
-├── docker-compose.yml          Postgres + App orchestration
-├── .env.example                Configuration template
-├── README.md                   This file
-├── SETUP.md                    Detailed setup guide
-└── DOCKER.md                   Docker-specific documentation
+-- Connect
+docker-compose exec postgres psql -U postgres -d blob_lens
 ```
 
 ---
@@ -175,7 +91,7 @@ blob_lens/
 
 ```env
 ALCHEMY_KEY=your_api_key_here
-DATABASE_URL=postgresql://postgres:password@localhost:5432/blob_lens
+DATABASE_URL=postgresql://postgres:password@localhost:5433/blob_lens
 RUST_LOG=info  # trace, debug, info, warn, error
 ```
 
@@ -195,9 +111,11 @@ RUST_LOG=info  # trace, debug, info, warn, error
 ## 📚 References
 
 - **[EIP-4844](https://eips.ethereum.org/EIPS/eip-4844)** — Proto-Danksharding
-- **[Alchemy](https://alchemy.com)** — WebSocket API provider
+- **[Alchemy](https://alchemy.com)** — WebSocket API
 - **[Alloy-rs](https://alloy-rs.github.io/)** — Rust Ethereum library
 - **[SQLx](https://sqlx.rs/)** — Type-safe async SQL
 - **[Tokio](https://tokio.rs/)** — Async runtime
 
+---
 
+**MIT License** | Building blob analytics, one transaction at a time. 🔍

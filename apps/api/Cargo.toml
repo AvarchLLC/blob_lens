@@ -44,5 +44,10 @@ anyhow = "1.0"
 # Performance
 parking_lot = "0.12"
 
+# Web server
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace", "fs", "cors"] }
+
 # Pin home to avoid edition 2024 requirement
 home = "<0.5.12"
