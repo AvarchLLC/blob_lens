@@ -3,11 +3,11 @@
 import { classifyRegime } from "@/lib/utils";
 import type { MarketHour } from "@/types";
 
-const REGIME_BG: Record<string, string> = {
-  undersaturated: "bg-slate-600",
-  healthy: "bg-emerald-500",
-  congested: "bg-amber-500",
-  spike: "bg-red-500",
+const REGIME_COLOR: Record<string, string> = {
+  undersaturated: "#3D3D4E",
+  healthy: "#1A8C6A",
+  congested: "#C4822A",
+  spike: "#C0394A",
 };
 
 interface Props {
@@ -25,7 +25,8 @@ export function MarketRegimeTimeline({ data }: Props) {
         return (
           <div
             key={i}
-            className={`flex-1 ${REGIME_BG[regime]}`}
+            className="flex-1"
+            style={{ backgroundColor: REGIME_COLOR[regime], opacity: 0.85 }}
             title={`${d.hour} — ${regime} (max ${d.max_blobs_in_block} blobs)`}
           />
         );

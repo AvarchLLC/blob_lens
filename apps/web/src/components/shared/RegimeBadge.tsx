@@ -19,7 +19,9 @@ export function RegimeBadge({ maxBlobsInBlock, size = "sm" }: Props) {
       className={cn(
         "inline-flex items-center rounded-full border font-medium",
         regimeColor(regime),
-        size === "lg" ? "px-4 py-1.5 text-sm" : "px-2.5 py-0.5 text-xs"
+        size === "lg"
+          ? "px-4 py-1.5 text-sm"
+          : "px-3 py-1 text-[0.72rem] uppercase tracking-[0.08em]"
       )}
     >
       {labels[regime]}

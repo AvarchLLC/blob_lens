@@ -10,15 +10,18 @@ interface Props {
 
 export function StatCard({ label, value, sub, className }: Props) {
   return (
-    <Card className={cn("", className)}>
-      <CardHeader className="pb-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
+    <Card
+      className={cn("group", className)}
+      style={{ borderTop: "1px solid rgba(138, 79, 216, 0.4)" }}
+    >
+      <CardHeader className="pb-1 min-h-0">
+        <p className="stat-label">{label}</p>
       </CardHeader>
       <CardContent>
-        <p className="font-mono text-2xl font-bold text-foreground">{value}</p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+        <p className="font-display text-[1.95rem] font-medium leading-none text-foreground sm:text-[2.15rem]">
+          {value}
+        </p>
+        {sub && <p className="mt-2 caption">{sub}</p>}
       </CardContent>
     </Card>
   );

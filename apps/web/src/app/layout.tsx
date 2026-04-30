@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -10,6 +10,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -31,10 +37,32 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full bg-background text-foreground flex flex-col">
         {children}
+        <footer className="mt-auto border-t border-[#1a1a1a] py-4 text-center">
+          <p className="caption">
+            Built on{" "}
+            <a
+              href="https://eipsinsight.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#5C5575] hover:text-[#9D93B8] transition-colors underline-offset-2 hover:underline"
+            >
+              EIPsInsight
+            </a>
+            {" "}· Ethereum governance analytics ·{" "}
+            <a
+              href="https://eipsinsight.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#5C5575] hover:text-[#9D93B8] transition-colors"
+            >
+              eipsinsight.com
+            </a>
+          </p>
+        </footer>
       </body>
     </html>
   );

@@ -15,12 +15,37 @@ export function classifyRegime(maxBlobsInBlock: number): MarketRegime {
 
 export function regimeColor(regime: MarketRegime): string {
   const map: Record<MarketRegime, string> = {
-    undersaturated: "bg-slate-700/50 text-slate-300 border-slate-600",
-    healthy: "bg-emerald-900/50 text-emerald-300 border-emerald-700",
-    congested: "bg-amber-900/50 text-amber-300 border-amber-700",
-    spike: "bg-red-900/50 text-red-300 border-red-700",
+    undersaturated: "border-[#3D3D4E]/50 bg-[#3D3D4E]/15 text-[#5C5575]",
+    healthy: "border-[#1A8C6A]/40 bg-[#1A8C6A]/12 text-[#1A8C6A]",
+    congested: "border-[#C4822A]/40 bg-[#C4822A]/12 text-[#C4822A]",
+    spike: "border-[#C0394A]/40 bg-[#C0394A]/15 text-[#C0394A]",
   };
   return map[regime];
+}
+
+export const ROLLUP_COLORS: Record<string, string> = {
+  Base: "#3D5AFE",
+  "Arbitrum One": "#1A2B6D",
+  "Arbitrum Nova": "#2B4CA0",
+  "OP Mainnet": "#E8445A",
+  Blast: "#F5A623",
+  "zkSync Era": "#8A4FD8",
+  Scroll: "#A87AE8",
+  Linea: "#6B3FA0",
+  Starknet: "#5D56E0",
+  Mantle: "#00C48C",
+  Taiko: "#E879F9",
+  "World Chain": "#7C6BE9",
+  Mode: "#7C3AED",
+  Unichain: "#6366F1",
+  Soneium: "#60A5FA",
+  Ink: "#22D3EE",
+  "Metal L2": "#F59E0B",
+  UNKNOWN: "#3D3D4E",
+};
+
+export function rollupColor(rollup: string): string {
+  return ROLLUP_COLORS[rollup] ?? "#6B7280";
 }
 
 export function formatFee(weiString: string): string {
@@ -44,5 +69,5 @@ export function timeAgo(dateString: string): string {
 }
 
 export function shortHash(hash: string): string {
-  return `${hash.slice(0, 8)}…${hash.slice(-6)}`;
+  return `${hash.slice(0, 8)}...${hash.slice(-4)}`;
 }

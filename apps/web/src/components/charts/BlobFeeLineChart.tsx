@@ -1,15 +1,7 @@
 "use client";
 
 import type { MarketHour } from "@/types";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import ReactECharts from "echarts-for-react";
 
 function shortHour(iso: string) {
   const d = new Date(iso);
@@ -22,22 +14,61 @@ interface Props {
 
 export function BlobFeeLineChart({ data }: Props) {
   if (!data.length)
-    return <p className="py-8 text-center text-sm text-muted-foreground">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
 
-  const chartData = data.map((d) => ({
-    ts: shortHour(d.hour),
-    avgFee: parseFloat((Number(d.avg_fee) / 1e9).toFixed(6)),
-  }));
+  const labels = data.map((d) => shortHour(d.hour));
+  const values = data.map((d) => parseFloat((Number(d.avg_fee) / 1e9).toFixed(6)));
 
-  return (
-    <ResponsiveContainer width="100%" height={240}>
-      <LineChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis dataKey="ts" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-        <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`${v} gwei`, "Avg fee"]} />
-        <Line type="monotone" dataKey="avgFee" stroke="var(--primary)" strokeWidth={2} dot={false} name="Avg fee" />
-      </LineChart>
-    </ResponsiveContainer>
-  );
+  const option = {
+    animation: true,
+    animationEasing: "cubicOut" as const,
+    animationDuration: 600,
+    grid: { top: 8, right: 8, bottom: 24, left: 0, containLabel: true },
+    xAxis: {
+      type: "category" as const,
+      data: labels,
+      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      boundaryGap: false,
+    },
+    yAxis: {
+      type: "value" as const,
+      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
+    },
+    tooltip: {
+      trigger: "axis" as const,
+      backgroundColor: "#141414",
+      borderColor: "#242424",
+      borderWidth: 1,
+      textStyle: { color: "#F0EEF6", fontSize: 12 },
+      formatter: (params: { axisValue: string; value: number }[]) =>
+        `<span style="color:#5C5575;font-size:11px">${params[0].axisValue}</span><br/><b>${params[0].value} gwei</b>`,
+    },
+    series: [
+      {
+        type: "line" as const,
+        data: values,
+        smooth: 0.4,
+        lineStyle: { color: "#8A4FD8", width: 2.2 },
+        symbol: "none",
+        areaStyle: {
+          color: {
+            type: "linear" as const,
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(138,79,216,0.22)" },
+              { offset: 1, color: "rgba(138,79,216,0)" },
+            ],
+          },
+        },
+      },
+    ],
+  };
+
+  return <ReactECharts option={option} style={{ height: "280px", width: "100%" }} />;
 }

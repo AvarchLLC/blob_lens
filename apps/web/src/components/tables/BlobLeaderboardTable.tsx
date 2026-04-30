@@ -64,14 +64,14 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
   const SortIcon = ({ k }: { k: SortKey }) =>
     sortKey === k ? (
       sortDir === "desc" ? (
-        <ArrowDown className="inline h-3 w-3 ml-1" />
+        <ArrowDown className="ml-1 inline h-3 w-3" />
       ) : (
-        <ArrowUp className="inline h-3 w-3 ml-1" />
+        <ArrowUp className="ml-1 inline h-3 w-3" />
       )
     ) : null;
 
   const th =
-    "pb-3 pr-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors";
+    "pb-3 pr-4 text-left text-xs font-medium text-[#9D93B8] uppercase tracking-[0.08em] cursor-pointer select-none hover:text-foreground transition-colors";
 
   return (
     <div className="space-y-3">
@@ -84,52 +84,27 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="pb-3 pr-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-6">#</th>
-              <th className="pb-3 pr-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Rollup</th>
-              <th className={th} onClick={() => toggleSort("total_blobs")}>
-                Total Blobs <SortIcon k="total_blobs" />
-              </th>
-              <th className={th} onClick={() => toggleSort("tx_count")}>
-                TX Count <SortIcon k="tx_count" />
-              </th>
-              <th className={th} onClick={() => toggleSort("avg_blobs_per_tx")}>
-                Avg / TX <SortIcon k="avg_blobs_per_tx" />
-              </th>
-              <th className={th} onClick={() => toggleSort("avg_fee")}>
-                Avg Fee <SortIcon k="avg_fee" />
-              </th>
-              <th className="pb-3 pr-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">24h Trend</th>
-              <th className="pb-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Active</th>
+              <th className="w-6 pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#5C5575]">#</th>
+              <th className="w-64 pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9D93B8]">Rollup</th>
+              <th className={th} onClick={() => toggleSort("total_blobs")}>Total Blobs <SortIcon k="total_blobs" /></th>
+              <th className={th} onClick={() => toggleSort("tx_count")}>TX Count <SortIcon k="tx_count" /></th>
+              <th className={th} onClick={() => toggleSort("avg_blobs_per_tx")}>Avg / TX <SortIcon k="avg_blobs_per_tx" /></th>
+              <th className={th} onClick={() => toggleSort("avg_fee")}>Avg Fee <SortIcon k="avg_fee" /></th>
+              <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9D93B8]">24H Trend</th>
+              <th className="pb-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9D93B8]">Last Active</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((row, i) => (
-              <tr
-                key={row.rollup}
-                className="border-b border-border last:border-0 hover:bg-accent/30 transition-colors"
-              >
-                <td className="py-3 pr-4 text-muted-foreground text-xs">{i + 1}</td>
-                <td className="py-3 pr-4">
-                  <RollupBadge rollup={row.rollup} linkable />
-                </td>
-                <td className="py-3 pr-4 font-mono text-foreground">
-                  {formatNumber(Number(row.total_blobs))}
-                </td>
-                <td className="py-3 pr-4 font-mono text-muted-foreground">
-                  {formatNumber(Number(row.tx_count))}
-                </td>
-                <td className="py-3 pr-4 font-mono text-muted-foreground">
-                  {Number(row.avg_blobs_per_tx).toFixed(2)}
-                </td>
-                <td className="py-3 pr-4 font-mono text-muted-foreground">
-                  {formatFee(row.avg_fee)}
-                </td>
-                <td className="py-3 pr-4">
-                  <BlobSparkline points={sparklinesMap[row.rollup] ?? []} />
-                </td>
-                <td className="py-3 text-xs text-muted-foreground">
-                  {new Date(row.last_seen).toLocaleString()}
-                </td>
+              <tr key={row.rollup} className="border-b border-border/70 transition-colors hover:bg-accent/30">
+                <td className="py-3 pr-4 font-mono text-xs text-[#5C5575]">{i + 1}</td>
+                <td className="py-3 pr-4"><RollupBadge rollup={row.rollup} linkable /></td>
+                <td className="py-3 pr-4 font-mono text-foreground">{formatNumber(Number(row.total_blobs))}</td>
+                <td className="py-3 pr-4 font-mono text-[#9D93B8]">{formatNumber(Number(row.tx_count))}</td>
+                <td className="py-3 pr-4 font-mono text-[#9D93B8]">{Number(row.avg_blobs_per_tx).toFixed(2)}</td>
+                <td className="py-3 pr-4 font-mono text-[#9D93B8]">{formatFee(row.avg_fee)}</td>
+                <td className="py-3 pr-4"><BlobSparkline points={sparklinesMap[row.rollup] ?? []} /></td>
+                <td className="py-3 text-xs text-[#9D93B8]">{new Date(row.last_seen).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
