@@ -1,0 +1,177 @@
+name: Deploy BlobLens to Production Server
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: blob-lens-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Notify Deployment Start
+        if: ${{ secrets.DISCORD_WEBHOOK != '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        uses: tsickert/discord-webhook@v7.0.0
+        with:
+          webhook-url: ${{ env.DISCORD_WEBHOOK }}
+          embed-title: "Deploy Started (BlobLens)"
+          embed-description: |
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Deployment has started.
+          embed-color: 16776960
+          embed-footer-text: "GitHub Actions Deployment Bot"
+          embed-timestamp: ${{ github.event.head_commit.timestamp }}
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v0.1.7
+        env:
+          DEPLOY_REPO_URL: ${{ secrets.DEPLOY_REPO_URL }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          timeout: 60m
+          command_timeout: 55m
+          envs: DEPLOY_REPO_URL
+          script: |
+            set -Eeuo pipefail
+
+            BASE_DIR=/opt/blob-lens
+            RELEASES_DIR=$BASE_DIR/releases
+            SHARED_DIR=$BASE_DIR/shared
+            CURRENT_DIR=$BASE_DIR/current
+            RELEASE_NAME=$(date +"%Y%m%d_%H%M%S")
+            NEW_RELEASE=$RELEASES_DIR/$RELEASE_NAME
+            BRANCH=main
+            REPO_URL="${DEPLOY_REPO_URL:-https://github.com/${{ github.repository }}.git}"
+
+            echo "Preparing directories"
+            mkdir -p "$RELEASES_DIR" "$SHARED_DIR/env" "$SHARED_DIR/logs"
+
+            if [ ! -f "$SHARED_DIR/env/api.env" ]; then
+              echo "Missing $SHARED_DIR/env/api.env"
+              exit 1
+            fi
+
+            if [ ! -f "$SHARED_DIR/env/web.env" ]; then
+              echo "Missing $SHARED_DIR/env/web.env"
+              exit 1
+            fi
+
+            echo "Creating release: $RELEASE_NAME"
+            git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$NEW_RELEASE"
+
+            ln -sfn "$SHARED_DIR/env/api.env" "$NEW_RELEASE/apps/api/.env"
+            ln -sfn "$SHARED_DIR/env/web.env" "$NEW_RELEASE/apps/web/.env.local"
+
+            if [ -s "$HOME/.nvm/nvm.sh" ]; then
+              . "$HOME/.nvm/nvm.sh"
+            else
+              echo "Installing nvm"
+              curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+              . "$HOME/.nvm/nvm.sh"
+            fi
+
+            nvm install 20
+            nvm use 20
+
+            corepack enable
+            corepack prepare pnpm@9.15.0 --activate
+            pnpm --version
+
+            if [ ! -x "$HOME/.cargo/bin/rustc" ]; then
+              echo "Installing Rust toolchain"
+              curl https://sh.rustup.rs -sSf | sh -s -- -y
+            fi
+
+            . "$HOME/.cargo/env"
+            rustup default stable
+            rustc --version
+            cargo --version
+
+            if ! command -v pm2 >/dev/null 2>&1; then
+              npm install -g pm2
+            fi
+
+            cd "$NEW_RELEASE"
+            echo "Installing workspace dependencies"
+            pnpm install --frozen-lockfile
+
+            echo "Building Next.js web app"
+            pnpm --filter web build
+
+            echo "Building Rust indexer/api"
+            cd "$NEW_RELEASE/apps/api"
+            cargo build --release
+
+            echo "Switching current symlink"
+            ln -sfn "$NEW_RELEASE" "$CURRENT_DIR"
+
+            echo "Reloading PM2 processes"
+            pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --env production --update-env
+            pm2 save
+
+            echo "Running health checks"
+            sleep 10
+            if ! curl -fsS http://127.0.0.1:3000/api/health >/dev/null || ! curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              echo "Health check failed. Rolling back."
+              PREVIOUS_RELEASE=$(ls -dt "$RELEASES_DIR"/* | sed -n '2p')
+              if [ -n "${PREVIOUS_RELEASE:-}" ]; then
+                ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_DIR"
+                pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --env production --update-env || true
+                pm2 save || true
+              fi
+              exit 1
+            fi
+
+            echo "Cleaning old releases (keep last 5)"
+            cd "$RELEASES_DIR"
+            ls -dt */ | tail -n +6 | xargs -r rm -rf
+
+            echo "Deployment completed successfully"
+
+      - name: Discord Notification - Success
+        if: ${{ success() && secrets.DISCORD_WEBHOOK != '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        uses: tsickert/discord-webhook@v7.0.0
+        with:
+          webhook-url: ${{ env.DISCORD_WEBHOOK }}
+          embed-title: "Deploy Successful (BlobLens)"
+          embed-description: |
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            Production updated successfully.
+          embed-color: 3066993
+          embed-footer-text: "GitHub Actions Deployment Bot"
+          embed-timestamp: ${{ github.event.head_commit.timestamp }}
+
+      - name: Discord Notification - Failure
+        if: ${{ failure() && secrets.DISCORD_WEBHOOK != '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        uses: tsickert/discord-webhook@v7.0.0
+        with:
+          webhook-url: ${{ env.DISCORD_WEBHOOK }}
+          embed-title: "Deploy Failed (BlobLens)"
+          embed-description: |
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            Deployment failed. Check action logs.
+          embed-color: 15158332
+          embed-footer-text: "GitHub Actions Deployment Bot"
+          embed-timestamp: ${{ github.event.head_commit.timestamp }}
