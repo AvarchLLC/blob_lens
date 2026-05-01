@@ -5,10 +5,10 @@ import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
 
 const REGIME_FILL: Record<string, string> = {
-  undersaturated: "#3D3D4E",
-  healthy: "#1A8C6A",
-  congested: "#C4822A",
-  spike: "#C0394A",
+  undersaturated: "#3D4F6B",
+  healthy:        "#10B981",
+  congested:      "#F59E0B",
+  spike:          "#EF4444",
 };
 
 function shortHour(iso: string) {
@@ -22,15 +22,15 @@ interface Props {
 
 export function BlobsPerBlockChart({ data }: Props) {
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
 
   const labels = data.map((d) => shortHour(d.hour));
   const seriesData = data.map((d) => ({
     value: d.blob_count,
     itemStyle: {
       color: REGIME_FILL[classifyRegime(d.max_blobs_in_block)],
-      opacity: 0.78,
-      borderRadius: [3, 3, 0, 0],
+      opacity: 0.80,
+      borderRadius: [2, 2, 0, 0],
     },
   }));
 
@@ -42,25 +42,25 @@ export function BlobsPerBlockChart({ data }: Props) {
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: false },
     },
     yAxis: {
       type: "value" as const,
-      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#141414",
-      borderColor: "#242424",
+      backgroundColor: "#1A2235",
+      borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
-      textStyle: { color: "#F0EEF6", fontSize: 12 },
-      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(138,79,216,0.06)" } },
+      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
+      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(16,185,129,0.06)" } },
     },
     series: [
       {

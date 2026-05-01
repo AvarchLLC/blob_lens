@@ -63,7 +63,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          passphrase: tatsui
+          passphrase: ${{ secrets.SERVER_SSH_PASSPHRASE }}
           port: 22
           timeout: 60m
           command_timeout: 55m
@@ -107,45 +107,50 @@ jobs:
             ln -sfn "$SHARED_DIR/env/api.env" "$NEW_RELEASE/apps/api/.env"
             ln -sfn "$SHARED_DIR/env/web.env" "$NEW_RELEASE/apps/web/.env.local"
 
-            if [ -s "$HOME/.nvm/nvm.sh" ]; then
-              . "$HOME/.nvm/nvm.sh"
-            else
-              echo "Installing nvm"
-              curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-              . "$HOME/.nvm/nvm.sh"
+            NEEDS_NODE=false
+            if [ "$BUILD_WEB" = "true" ]; then
+              NEEDS_NODE=true
             fi
-
-            nvm install 20
-            nvm use 20
-
-            corepack enable
-            corepack prepare pnpm@9.15.0 --activate
-            pnpm --version
-
-            if [ ! -x "$HOME/.cargo/bin/rustc" ]; then
-              echo "Installing Rust toolchain"
-              curl https://sh.rustup.rs -sSf | sh -s -- -y
-            fi
-
-            . "$HOME/.cargo/env"
-            rustup default stable
-            rustc --version
-            cargo --version
-
             if ! command -v pm2 >/dev/null 2>&1; then
-              npm install -g pm2
+              NEEDS_NODE=true
+            fi
+
+            if [ "$NEEDS_NODE" = "true" ]; then
+              if [ -s "$HOME/.nvm/nvm.sh" ]; then
+                . "$HOME/.nvm/nvm.sh"
+              else
+                echo "Installing nvm"
+                curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+                . "$HOME/.nvm/nvm.sh"
+              fi
+
+              nvm install 20
+              nvm use 20
+
+              if [ "$BUILD_WEB" = "true" ]; then
+                corepack enable
+                corepack prepare pnpm@9.15.0 --activate
+                pnpm --version
+              fi
+
+              if ! command -v pm2 >/dev/null 2>&1; then
+                npm install -g pm2
+              fi
+            else
+              echo "Skipping Node setup (no web build and PM2 already present)"
             fi
 
             cd "$NEW_RELEASE"
-            echo "Installing workspace dependencies"
-            if [ -f "pnpm-lock.yaml" ]; then
-              pnpm install --frozen-lockfile
-            else
-              echo "pnpm-lock.yaml not found; falling back to non-frozen install"
-              pnpm install --no-frozen-lockfile
-            fi
 
             if [ "$BUILD_WEB" = "true" ]; then
+              echo "Installing workspace dependencies for web build"
+              if [ -f "pnpm-lock.yaml" ]; then
+                pnpm install --frozen-lockfile
+              else
+                echo "pnpm-lock.yaml not found; falling back to non-frozen install"
+                pnpm install --no-frozen-lockfile
+              fi
+
               echo "Building Next.js web app"
               pnpm --filter web build
             else
@@ -153,6 +158,16 @@ jobs:
             fi
 
             if [ "$BUILD_API" = "true" ]; then
+              if [ ! -x "$HOME/.cargo/bin/rustc" ]; then
+                echo "Installing Rust toolchain"
+                curl https://sh.rustup.rs -sSf | sh -s -- -y
+              fi
+
+              . "$HOME/.cargo/env"
+              rustup default stable
+              rustc --version
+              cargo --version
+
               echo "Building Rust indexer/api"
               cd "$NEW_RELEASE/apps/api"
               cargo build --release

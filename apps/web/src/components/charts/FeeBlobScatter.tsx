@@ -5,10 +5,10 @@ import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
 
 const REGIME_COLOR: Record<string, string> = {
-  undersaturated: "#3D3D4E",
-  healthy: "#1A8C6A",
-  congested: "#C4822A",
-  spike: "#C0394A",
+  undersaturated: "#3D4F6B",
+  healthy:        "#10B981",
+  congested:      "#F59E0B",
+  spike:          "#EF4444",
 };
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 
 export function FeeBlobScatter({ data }: Props) {
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
 
   const seriesData = data.map((d) => {
     const regime = classifyRegime(d.max_blobs_in_block);
@@ -37,8 +37,8 @@ export function FeeBlobScatter({ data }: Props) {
     xAxis: {
       type: "value" as const,
       name: "Blob count",
-      nameTextStyle: { color: "#5C5575", fontSize: 11 },
-      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      nameTextStyle: { color: "#4B5563", fontSize: 11 },
+      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
@@ -46,28 +46,28 @@ export function FeeBlobScatter({ data }: Props) {
     yAxis: {
       type: "value" as const,
       name: "Avg fee (gwei)",
-      nameTextStyle: { color: "#5C5575", fontSize: 11 },
-      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      nameTextStyle: { color: "#4B5563", fontSize: 11 },
+      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
     },
     tooltip: {
       trigger: "item" as const,
-      backgroundColor: "#141414",
-      borderColor: "#242424",
+      backgroundColor: "#1A2235",
+      borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
-      textStyle: { color: "#F0EEF6", fontSize: 12 },
+      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
       formatter: (params: { data: { value: [number, number]; ts: string; regime: string } }) => {
         const [blobs, fee] = params.data.value;
-        return `<span style="color:#5C5575;font-size:11px">${new Date(params.data.ts).toLocaleString()}</span><br/>Blobs: <b>${blobs}</b><br/>Fee: <b>${fee.toFixed(4)} gwei</b><br/>Regime: <b>${params.data.regime}</b>`;
+        return `<span style="color:#4B5563;font-size:11px">${new Date(params.data.ts).toLocaleString()}</span><br/>Blobs: <b>${blobs}</b><br/>Fee: <b style="font-family:monospace;color:#6EE7B7">${fee.toFixed(4)} gwei</b><br/>Regime: <b>${params.data.regime}</b>`;
       },
     },
     series: [
       {
         type: "scatter" as const,
         data: seriesData,
-        symbolSize: 8,
+        symbolSize: 7,
       },
     ],
   };

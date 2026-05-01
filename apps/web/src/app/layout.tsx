@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -12,10 +13,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const averiaSerif = Averia_Serif_Libre({
+  variable: "--font-averia",
   subsets: ["latin"],
-  weight: ["300", "400", "500"],
+  weight: ["300", "400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -37,31 +38,34 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${geistMono.variable} ${averiaSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-background text-foreground flex flex-col">
         {children}
-        <footer className="mt-auto border-t border-[#1a1a1a] py-4 text-center">
-          <p className="caption">
-            Built on{" "}
-            <a
-              href="https://eipsinsight.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#5C5575] hover:text-[#9D93B8] transition-colors underline-offset-2 hover:underline"
-            >
-              EIPsInsight
-            </a>
-            {" "}· Ethereum governance analytics ·{" "}
-            <a
-              href="https://eipsinsight.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#5C5575] hover:text-[#9D93B8] transition-colors"
-            >
-              eipsinsight.com
-            </a>
-          </p>
+        <footer className="mt-auto border-t border-[#1E2D45] py-8">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div>
+                <p className="text-[0.8125rem] font-medium text-[#9CA3AF]">
+                  BlobLens · An EIPsInsight extension · Ethereum blob economics analytics
+                </p>
+                <p className="mt-1 caption">Built in public · MIT Licensed · No paywalls</p>
+              </div>
+              <div className="flex items-center gap-4 caption">
+                <a href="https://eipsinsight.com" target="_blank" rel="noreferrer" className="hover:text-[#10B981] transition-colors">
+                  eipsinsight.com
+                </a>
+                <span className="text-[#1E2D45]">·</span>
+                <a href="https://github.com/AvarchLLC/EIPsInsight" target="_blank" rel="noreferrer" className="hover:text-[#10B981] transition-colors">
+                  GitHub
+                </a>
+                <span className="text-[#1E2D45]">·</span>
+                <a href="https://giveth.io" target="_blank" rel="noreferrer" className="hover:text-[#10B981] transition-colors">
+                  Giveth
+                </a>
+              </div>
+            </div>
+          </div>
         </footer>
       </body>
     </html>

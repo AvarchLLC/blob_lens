@@ -1,9 +1,8 @@
 "use client";
 
+import { rollupColor } from "@/lib/utils";
 import type { LeaderboardRow } from "@/types";
 import ReactECharts from "echarts-for-react";
-
-const DONUT_COLORS = ["#8A4FD8", "#6B3FA0", "#4F2D7F", "#3A1F5E", "#271440", "#1A0D2E"];
 
 interface Props {
   data: LeaderboardRow[];
@@ -11,7 +10,7 @@ interface Props {
 
 export function RollupShareDonut({ data }: Props) {
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
 
   const sorted = [...data]
     .filter((d) => d.rollup !== "UNKNOWN")
@@ -21,9 +20,9 @@ export function RollupShareDonut({ data }: Props) {
     .filter((d) => d.rollup === "UNKNOWN")
     .reduce((s, d) => s + Number(d.total_blobs), 0);
 
-  const top = sorted.slice(0, 5).map((d) => ({ name: d.rollup, value: Number(d.total_blobs) }));
+  const top = sorted.slice(0, 8).map((d) => ({ name: d.rollup, value: Number(d.total_blobs) }));
   const otherValue =
-    sorted.slice(5).reduce((s, d) => s + Number(d.total_blobs), 0) + unknownBlobs;
+    sorted.slice(8).reduce((s, d) => s + Number(d.total_blobs), 0) + unknownBlobs;
   const chartData = otherValue > 0 ? [...top, { name: "Other", value: otherValue }] : top;
   const total = chartData.reduce((s, d) => s + d.value, 0);
 
@@ -33,10 +32,10 @@ export function RollupShareDonut({ data }: Props) {
     animationDuration: 700,
     tooltip: {
       trigger: "item" as const,
-      backgroundColor: "#141414",
-      borderColor: "#242424",
+      backgroundColor: "#1A2235",
+      borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
-      textStyle: { color: "#F0EEF6", fontSize: 12 },
+      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
       formatter: (params: { name: string; value: number; percent: number }) =>
         `<b>${params.name}</b><br/>${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)`,
     },
@@ -47,7 +46,7 @@ export function RollupShareDonut({ data }: Props) {
         top: "42%",
         style: {
           text: total.toLocaleString(),
-          fill: "#F0EEF6",
+          fill: "#F9FAFB",
           fontSize: 17,
           fontWeight: "700",
           fontFamily: "var(--font-geist-mono)",
@@ -59,10 +58,10 @@ export function RollupShareDonut({ data }: Props) {
         left: "center",
         top: "53%",
         style: {
-          text: "total blobs",
-          fill: "#5C5575",
-          fontSize: 11,
-          fontFamily: "var(--font-geist-sans)",
+          text: "TOTAL BLOBS",
+          fill: "#4B5563",
+          fontSize: 10,
+          fontFamily: "Space Grotesk, system-ui",
           textAlign: "center",
         },
       },
@@ -71,18 +70,23 @@ export function RollupShareDonut({ data }: Props) {
       {
         type: "pie" as const,
         radius: ["62%", "80%"],
-        padAngle: 3,
+        padAngle: 2,
         center: ["50%", "50%"],
-        data: chartData.map((d, i) => ({
+        data: chartData.map((d) => ({
           name: d.name,
           value: d.value,
-          itemStyle: { color: DONUT_COLORS[Math.min(i, DONUT_COLORS.length - 1)] },
+          itemStyle: {
+            color: d.name === "Other" ? "#374151" : rollupColor(d.name),
+          },
         })),
         label: { show: false },
         emphasis: {
           scale: true,
           scaleSize: 4,
-          itemStyle: { shadowBlur: 12, shadowColor: "rgba(138,79,216,0.5)" },
+          itemStyle: {
+            shadowBlur: 16,
+            shadowColor: "rgba(0,0,0,0.4)",
+          },
         },
       },
     ],

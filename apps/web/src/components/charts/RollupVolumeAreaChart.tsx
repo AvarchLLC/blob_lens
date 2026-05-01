@@ -43,9 +43,9 @@ export function RollupVolumeAreaChart({ data }: Props) {
       type: "category" as const,
       data: xLabels,
       axisLabel: {
-        color: "#5C5575",
+        color: "#4B5563",
         fontSize: 11,
-        fontFamily: "var(--font-geist-sans)",
+        fontFamily: "Space Grotesk, system-ui",
       },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -54,9 +54,9 @@ export function RollupVolumeAreaChart({ data }: Props) {
     yAxis: {
       type: "value" as const,
       axisLabel: {
-        color: "#9D93B8",
+        color: "#4B5563",
         fontSize: 11,
-        fontFamily: "var(--font-geist-sans)",
+        fontFamily: "Space Grotesk, system-ui",
         formatter: (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(v)),
       },
       axisLine: { show: false },
@@ -65,11 +65,11 @@ export function RollupVolumeAreaChart({ data }: Props) {
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#EDEAF5",
-      borderColor: "#7C3AED",
+      backgroundColor: "#1A2235",
+      borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
-      textStyle: { color: "#1A1428", fontSize: 12, fontFamily: "var(--font-geist-sans)" },
-      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(124,58,237,0.10)" } },
+      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
+      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(16,185,129,0.06)" } },
       formatter: (
         params: { axisValue: string; seriesName: string; value: number; marker: string }[]
       ) => {
@@ -93,21 +93,21 @@ export function RollupVolumeAreaChart({ data }: Props) {
             const pct = total > 0 ? ` (${((v / total) * 100).toFixed(2)}%)` : "";
             const valueLabel = v > 0 ? formatNumber(v) : "-";
             return `<div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;">
-                <span style="display:flex;align-items:center;gap:7px;color:#1A1428;">
+                <span style="display:flex;align-items:center;gap:7px;color:#9CA3AF;">
                   <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${rollupColor(rollup)}"></span>
                   ${rollup}
                 </span>
-                <span style="color:#1A1428;font-weight:600;">${valueLabel}<span style="color:#6E6782;font-weight:500;">${v > 0 ? pct : ""}</span></span>
+                <span style="color:#F9FAFB;font-weight:600;">${valueLabel}<span style="color:#4B5563;font-weight:500;">${v > 0 ? pct : ""}</span></span>
               </div>`;
           })
           .join("");
 
         return `<div style="min-width:280px;">
-          <div style="font-weight:700;margin-bottom:8px;">${weekday}, ${month}, ${day} ${year}</div>
+          <div style="font-weight:700;margin-bottom:8px;color:#F9FAFB;">${weekday}, ${month}, ${day} ${year}</div>
           ${rows}
-          <div style="border-top:1px solid rgba(26,20,40,0.2);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;">
-            <span style="font-weight:700;">Total</span>
-            <span style="font-weight:700;">${formatNumber(total)}</span>
+          <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;">
+            <span style="font-weight:700;color:#F9FAFB;">Total</span>
+            <span style="font-weight:700;color:#10B981;">${formatNumber(total)}</span>
           </div>
         </div>`;
       },

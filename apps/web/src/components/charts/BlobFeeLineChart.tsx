@@ -14,10 +14,11 @@ interface Props {
 
 export function BlobFeeLineChart({ data }: Props) {
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
 
   const labels = data.map((d) => shortHour(d.hour));
   const values = data.map((d) => parseFloat((Number(d.avg_fee) / 1e9).toFixed(6)));
+  const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 
   const option = {
     animation: true,
@@ -27,7 +28,7 @@ export function BlobFeeLineChart({ data }: Props) {
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: false },
@@ -35,36 +36,43 @@ export function BlobFeeLineChart({ data }: Props) {
     },
     yAxis: {
       type: "value" as const,
-      axisLabel: { color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#141414",
-      borderColor: "#242424",
+      backgroundColor: "#1A2235",
+      borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
-      textStyle: { color: "#F0EEF6", fontSize: 12 },
+      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
       formatter: (params: { axisValue: string; value: number }[]) =>
-        `<span style="color:#5C5575;font-size:11px">${params[0].axisValue}</span><br/><b>${params[0].value} gwei</b>`,
+        `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${params[0].value} gwei</b>`,
     },
     series: [
       {
         type: "line" as const,
         data: values,
         smooth: 0.4,
-        lineStyle: { color: "#8A4FD8", width: 2.2 },
+        lineStyle: { color: "#10B981", width: 2 },
         symbol: "none",
         areaStyle: {
           color: {
             type: "linear" as const,
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(138,79,216,0.22)" },
-              { offset: 1, color: "rgba(138,79,216,0)" },
+              { offset: 0, color: "rgba(16,185,129,0.15)" },
+              { offset: 1, color: "rgba(16,185,129,0)" },
             ],
           },
+        },
+        markLine: {
+          silent: true,
+          symbol: "none",
+          lineStyle: { color: "rgba(16,185,129,0.3)", type: "dashed" as const, width: 1 },
+          label: { formatter: "avg", color: "#4B5563", fontSize: 10, position: "end" as const },
+          data: [{ yAxis: avg }],
         },
       },
     ],
