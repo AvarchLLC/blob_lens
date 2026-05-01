@@ -12,15 +12,15 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Notify Deployment Start
-        if: ${{ secrets.DISCORD_WEBHOOK != '' }}
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        if: ${{ env.DISCORD_WEBHOOK != '' }}
         uses: tsickert/discord-webhook@v7.0.0
         with:
           webhook-url: ${{ env.DISCORD_WEBHOOK }}
@@ -143,9 +143,7 @@ jobs:
             echo "Deployment completed successfully"
 
       - name: Discord Notification - Success
-        if: ${{ success() && secrets.DISCORD_WEBHOOK != '' }}
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        if: ${{ success() && env.DISCORD_WEBHOOK != '' }}
         uses: tsickert/discord-webhook@v7.0.0
         with:
           webhook-url: ${{ env.DISCORD_WEBHOOK }}
@@ -160,9 +158,7 @@ jobs:
           embed-timestamp: ${{ github.event.head_commit.timestamp }}
 
       - name: Discord Notification - Failure
-        if: ${{ failure() && secrets.DISCORD_WEBHOOK != '' }}
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        if: ${{ failure() && env.DISCORD_WEBHOOK != '' }}
         uses: tsickert/discord-webhook@v7.0.0
         with:
           webhook-url: ${{ env.DISCORD_WEBHOOK }}
