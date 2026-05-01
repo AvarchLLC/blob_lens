@@ -6,19 +6,23 @@ interface Props {
   value: string | number;
   sub?: string;
   className?: string;
+  valueColor?: string;
 }
 
-export function StatCard({ label, value, sub, className }: Props) {
+export function StatCard({ label, value, sub, className, valueColor }: Props) {
   return (
     <Card
       className={cn("group", className)}
-      style={{ borderTop: "1px solid rgba(138, 79, 216, 0.4)" }}
+      style={{ borderTop: "2px solid #10B981" }}
     >
       <CardHeader className="pb-1 min-h-0">
         <p className="stat-label">{label}</p>
       </CardHeader>
       <CardContent>
-        <p className="font-display text-[1.95rem] font-medium leading-none text-foreground sm:text-[2.15rem]">
+        <p
+          className="font-display text-[1.95rem] font-bold leading-none sm:text-[2.15rem]"
+          style={{ color: valueColor ?? "var(--foreground)" }}
+        >
           {value}
         </p>
         {sub && <p className="mt-2 caption">{sub}</p>}

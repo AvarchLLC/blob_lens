@@ -43,16 +43,16 @@ export function LiveBlobFeed() {
               className="absolute left-0 top-0 bottom-0 rounded-r-sm"
               style={{ width: "3px", backgroundColor: accent }}
             />
-            <span className="w-28 shrink-0 font-mono text-xs text-[#9D93B8] pl-1">
+            <span className="w-28 shrink-0 font-mono text-xs text-[#6EE7B7] pl-1">
               {shortHash(b.tx_hash)}
             </span>
-            <span className="w-24 shrink-0 caption">#{b.block_number.toLocaleString()}</span>
+            <span className="w-24 shrink-0 caption font-mono text-[#6EE7B7]">#{b.block_number.toLocaleString()}</span>
             <span className="shrink-0">
               <RollupBadge rollup={rollup} linkable />
             </span>
-            <span className="ml-auto shrink-0 text-xs text-[#9D93B8]">{b.num_blobs} blobs</span>
+            <span className="ml-auto shrink-0 text-xs text-[#9CA3AF]">{b.num_blobs} blobs</span>
             <span className="hidden sm:flex shrink-0 flex-col items-end w-28">
-              <span className="font-mono text-xs text-[#9D93B8]">{formatFee(b.blob_base_fee)}</span>
+              <span className="font-mono text-xs text-[#6EE7B7]">{formatFee(b.blob_base_fee)}</span>
               <span className="caption">base fee</span>
             </span>
             <span className="w-16 shrink-0 text-right caption">{timeAgo(b.created_at)}</span>

@@ -15,37 +15,101 @@ export function classifyRegime(maxBlobsInBlock: number): MarketRegime {
 
 export function regimeColor(regime: MarketRegime): string {
   const map: Record<MarketRegime, string> = {
-    undersaturated: "border-[#3D3D4E]/50 bg-[#3D3D4E]/15 text-[#5C5575]",
-    healthy: "border-[#1A8C6A]/40 bg-[#1A8C6A]/12 text-[#1A8C6A]",
-    congested: "border-[#C4822A]/40 bg-[#C4822A]/12 text-[#C4822A]",
-    spike: "border-[#C0394A]/40 bg-[#C0394A]/15 text-[#C0394A]",
+    undersaturated: "border-[#3D4F6B]/50 bg-[#3D4F6B]/15 text-[#4B5563]",
+    healthy:        "border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]",
+    congested:      "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]",
+    spike:          "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]",
   };
   return map[regime];
 }
 
 export const ROLLUP_COLORS: Record<string, string> = {
-  Base: "#3D5AFE",
-  "Arbitrum One": "#1A2B6D",
-  "Arbitrum Nova": "#2B4CA0",
-  "OP Mainnet": "#E8445A",
-  Blast: "#F5A623",
-  "zkSync Era": "#8A4FD8",
-  Scroll: "#A87AE8",
-  Linea: "#6B3FA0",
-  Starknet: "#5D56E0",
-  Mantle: "#00C48C",
-  Taiko: "#E879F9",
-  "World Chain": "#7C6BE9",
-  Mode: "#7C3AED",
-  Unichain: "#6366F1",
-  Soneium: "#60A5FA",
-  Ink: "#22D3EE",
-  "Metal L2": "#F59E0B",
-  UNKNOWN: "#3D3D4E",
+  Base:                   "#2563EB",
+  "Arbitrum One":         "#1D4ED8",
+  "Arbitrum Nova":        "#1E40AF",
+  "OP Mainnet":           "#DC2626",
+  Blast:                  "#CA8A04",
+  "zkSync Era":           "#7C3AED",
+  Scroll:                 "#D97706",
+  Linea:                  "#0D9488",
+  Starknet:               "#BE185D",
+  Mantle:                 "#0E7490",
+  Taiko:                  "#EA580C",
+  WorldChain:             "#4F46E5",
+  "World Chain":          "#4F46E5",
+  Mode:                   "#15803D",
+  Zora:                   "#9333EA",
+  Unichain:               "#0891B2",
+  Soneium:                "#1E40AF",
+  Ink:                    "#6D28D9",
+  "Metal L2":             "#92400E",
+  Hemi:                   "#3730A3",
+  Fraxtal:                "#065F46",
+  Lisk:                   "#1E3A5F",
+  Cyber:                  "#155E75",
+  Derive:                 "#1C1917",
+  Zircuit:                "#4338CA",
+  "Swell Chain":          "#0369A1",
+  SwellChain:             "#0369A1",
+  "Swan Chain":           "#7E22CE",
+  SwanChain:              "#7E22CE",
+  SuperSeed:              "#0F766E",
+  Superlumio:             "#6D28D9",
+  "Zero Network":         "#1F2937",
+  ZeroNetwork:            "#1F2937",
+  "The Binary Holdings":  "#92400E",
+  "Polygon zkEVM":        "#7B3FE4",
+  "Polygon ZkEVM":        "#7B3FE4",
+  UNKNOWN:                "#374151",
+};
+
+// Maps display name → icon filename in /public/l2/icons/
+export const ROLLUP_ICONS: Record<string, string> = {
+  Base:                   "base.png",
+  "Arbitrum One":         "arbitrum.png",
+  "Arbitrum Nova":        "nova.png",
+  "OP Mainnet":           "op-mainnet.png",
+  Blast:                  "blast.png",
+  "zkSync Era":           "zksync-era.png",
+  Scroll:                 "scroll.png",
+  Linea:                  "linea.png",
+  Starknet:               "starknet.png",
+  Mantle:                 "mantle.png",
+  Taiko:                  "taiko.png",
+  WorldChain:             "world.png",
+  "World Chain":          "world.png",
+  Mode:                   "mode.png",
+  Zora:                   "zora.png",
+  Unichain:               "unichain.png",
+  Soneium:                "soneium.png",
+  Ink:                    "ink.png",
+  "Metal L2":             "metal.png",
+  Hemi:                   "hemi.png",
+  Fraxtal:                "fraxtal.png",
+  Lisk:                   "lisk.png",
+  Cyber:                  "cyber.png",
+  Derive:                 "derive.png",
+  Zircuit:                "zircuit.png",
+  "Swell Chain":          "swell.png",
+  SwellChain:             "swell.png",
+  "Swan Chain":           "swan.png",
+  SwanChain:              "swan.png",
+  SuperSeed:              "superseed.png",
+  Superlumio:             "superlumio.png",
+  "Zero Network":         "zeronetwork.png",
+  ZeroNetwork:            "zeronetwork.png",
+  "The Binary Holdings":  "thebinaryholdings.png",
+  "Polygon zkEVM":        "polygonzkevm.png",
+  "Polygon ZkEVM":        "polygonzkevm.png",
 };
 
 export function rollupColor(rollup: string): string {
   return ROLLUP_COLORS[rollup] ?? "#6B7280";
+}
+
+export function rollupIcon(rollup: string): string | null {
+  const file = ROLLUP_ICONS[rollup];
+  return file ? `/l2/icons/${file}` : null;
 }
 
 export function formatFee(weiString: string): string {
