@@ -33,10 +33,32 @@ jobs:
           embed-footer-text: "GitHub Actions Deployment Bot"
           embed-timestamp: ${{ github.event.head_commit.timestamp }}
 
+      - name: Detect Changed Paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+            api:
+              - 'apps/api/**'
+            infra:
+              - 'ops/**'
+              - '.github/workflows/deploy-production.yml'
+              - 'docs/PRODUCTION_DEPLOYMENT.md'
+              - '.env.example'
+
       - name: Deploy to Server
+        if: ${{ steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true' || steps.changes.outputs.infra == 'true' }}
         uses: appleboy/ssh-action@v0.1.7
         env:
           DEPLOY_REPO_URL: ${{ secrets.DEPLOY_REPO_URL }}
+          WEB_CHANGED: ${{ steps.changes.outputs.web }}
+          API_CHANGED: ${{ steps.changes.outputs.api }}
+          INFRA_CHANGED: ${{ steps.changes.outputs.infra }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -45,7 +67,7 @@ jobs:
           port: 22
           timeout: 60m
           command_timeout: 55m
-          envs: DEPLOY_REPO_URL
+          envs: DEPLOY_REPO_URL,WEB_CHANGED,API_CHANGED,INFRA_CHANGED
           script: |
             set -Eeuo pipefail
 
@@ -57,6 +79,14 @@ jobs:
             NEW_RELEASE=$RELEASES_DIR/$RELEASE_NAME
             BRANCH=main
             REPO_URL="${DEPLOY_REPO_URL:-https://github.com/${{ github.repository }}.git}"
+            BUILD_WEB="${WEB_CHANGED:-false}"
+            BUILD_API="${API_CHANGED:-false}"
+            INFRA="${INFRA_CHANGED:-false}"
+
+            if [ "$INFRA" = "true" ]; then
+              BUILD_WEB=true
+              BUILD_API=true
+            fi
 
             echo "Preparing directories"
             mkdir -p "$RELEASES_DIR" "$SHARED_DIR/env" "$SHARED_DIR/logs"
@@ -115,23 +145,45 @@ jobs:
               pnpm install --no-frozen-lockfile
             fi
 
-            echo "Building Next.js web app"
-            pnpm --filter web build
+            if [ "$BUILD_WEB" = "true" ]; then
+              echo "Building Next.js web app"
+              pnpm --filter web build
+            else
+              echo "Skipping web build (no web changes detected)"
+            fi
 
-            echo "Building Rust indexer/api"
-            cd "$NEW_RELEASE/apps/api"
-            cargo build --release
+            if [ "$BUILD_API" = "true" ]; then
+              echo "Building Rust indexer/api"
+              cd "$NEW_RELEASE/apps/api"
+              cargo build --release
+              cd "$NEW_RELEASE"
+            else
+              echo "Skipping API build (no api changes detected)"
+            fi
 
             echo "Switching current symlink"
             ln -sfn "$NEW_RELEASE" "$CURRENT_DIR"
 
             echo "Reloading PM2 processes"
-            pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --env production --update-env
+            if [ "$BUILD_WEB" = "true" ] && [ "$BUILD_API" = "true" ]; then
+              pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --env production --update-env
+            elif [ "$BUILD_WEB" = "true" ]; then
+              pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --only blob-lens-web --env production --update-env
+            elif [ "$BUILD_API" = "true" ]; then
+              pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --only blob-lens-indexer --env production --update-env
+            fi
             pm2 save
 
             echo "Running health checks"
             sleep 10
-            if ! curl -fsS http://127.0.0.1:3000/api/health >/dev/null || ! curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+            FAIL=0
+            if [ "$BUILD_WEB" = "true" ] && ! curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+              FAIL=1
+            fi
+            if [ "$BUILD_API" = "true" ] && ! curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              FAIL=1
+            fi
+            if [ "$FAIL" -eq 1 ]; then
               echo "Health check failed. Rolling back."
               PREVIOUS_RELEASE=$(ls -dt "$RELEASES_DIR"/* | sed -n '2p')
               if [ -n "${PREVIOUS_RELEASE:-}" ]; then
@@ -147,6 +199,10 @@ jobs:
             ls -dt */ | tail -n +6 | xargs -r rm -rf
 
             echo "Deployment completed successfully"
+
+      - name: Skip Deploy (No Relevant Changes)
+        if: ${{ steps.changes.outputs.web != 'true' && steps.changes.outputs.api != 'true' && steps.changes.outputs.infra != 'true' }}
+        run: echo "No web/api/infra changes detected. Skipping deployment."
 
       - name: Discord Notification - Success
         if: ${{ success() && env.DISCORD_WEBHOOK != '' }}
