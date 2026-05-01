@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      force_web:
+        description: "Force rebuild web (Next.js)"
+        type: boolean
+        default: false
+      force_api:
+        description: "Force rebuild API (Rust)"
+        type: boolean
+        default: false
 
 concurrency:
   group: blob-lens-production
@@ -52,12 +62,12 @@ jobs:
               - '.env.example'
 
       - name: Deploy to Server
-        if: ${{ steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true' || steps.changes.outputs.infra == 'true' }}
+        if: ${{ steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true' || steps.changes.outputs.infra == 'true' || inputs.force_web == true || inputs.force_api == true }}
         uses: appleboy/ssh-action@v1.2.0
         env:
           DEPLOY_REPO_URL: ${{ secrets.DEPLOY_REPO_URL }}
-          WEB_CHANGED: ${{ steps.changes.outputs.web }}
-          API_CHANGED: ${{ steps.changes.outputs.api }}
+          WEB_CHANGED: ${{ steps.changes.outputs.web == 'true' || inputs.force_web == true }}
+          API_CHANGED: ${{ steps.changes.outputs.api == 'true' || inputs.force_api == true }}
           INFRA_CHANGED: ${{ steps.changes.outputs.infra }}
         with:
           host: ${{ secrets.SERVER_HOST }}
