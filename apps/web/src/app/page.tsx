@@ -9,17 +9,23 @@ import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getLeaderboard, getMarketActivity, getOverviewStats } from "@/lib/queries";
+import {
+  getDailyRollupBreakdown,
+  getLeaderboard,
+  getMarketActivity,
+  getOverviewStats,
+} from "@/lib/queries";
 import { formatNumber } from "@/lib/utils";
 import { Activity, BarChart3, Layers, PieChart } from "lucide-react";
 
 export const revalidate = 60;
 
 export default async function OverviewPage() {
-  const [stats, leaderboard, market] = await Promise.all([
+  const [stats, leaderboard, market, dailyRollups] = await Promise.all([
     getOverviewStats().catch(() => null),
     getLeaderboard(24).catch(() => []),
     getMarketActivity(24).catch(() => []),
+    getDailyRollupBreakdown(30, 16).catch(() => []),
   ]);
 
   const latestMaxBlobs = market.length > 0 ? Math.max(...market.map((m) => m.max_blobs_in_block)) : 0;
@@ -50,11 +56,11 @@ export default async function OverviewPage() {
             <CardHeader>
               <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
                 <BarChart3 className="h-4 w-4" />
-                <h2 className="section-title">Blob Volume by Rollup</h2>
+                <h2 className="section-title">Total Blobs</h2>
               </div>
             </CardHeader>
             <CardContent>
-              <RollupVolumeAreaChart data={leaderboard} />
+              <RollupVolumeAreaChart data={dailyRollups} />
             </CardContent>
           </Card>
 

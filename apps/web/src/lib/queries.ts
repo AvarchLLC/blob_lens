@@ -1,6 +1,7 @@
 import type {
   BlockRow,
   BlobTransaction,
+  DailyRollupBlob,
   LeaderboardRow,
   MarketHour,
   OverviewStats,
@@ -133,5 +134,35 @@ export async function getRollupSparklines(): Promise<SparklinePoint[]> {
       AND rollup IS NOT NULL
     GROUP BY rollup, DATE_TRUNC('hour', created_at)
     ORDER BY rollup, DATE_TRUNC('hour', created_at) ASC
+  `;
+}
+
+export async function getDailyRollupBreakdown(
+  days = 30,
+  topRollups = 16
+): Promise<DailyRollupBlob[]> {
+  return sql<DailyRollupBlob[]>`
+    WITH daily AS (
+      SELECT
+        DATE_TRUNC('day', created_at)::text             AS day,
+        rollup,
+        COALESCE(SUM(num_blobs), 0)::bigint             AS blobs
+      FROM blob_transactions
+      WHERE created_at > NOW() - INTERVAL '1 day' * ${days}
+        AND rollup IS NOT NULL
+        AND rollup <> 'UNKNOWN'
+      GROUP BY DATE_TRUNC('day', created_at), rollup
+    ),
+    top AS (
+      SELECT rollup
+      FROM daily
+      GROUP BY rollup
+      ORDER BY COALESCE(SUM(blobs), 0) DESC
+      LIMIT ${topRollups}
+    )
+    SELECT d.day, d.rollup, d.blobs
+    FROM daily d
+    JOIN top t ON t.rollup = d.rollup
+    ORDER BY d.day ASC, d.rollup ASC
   `;
 }

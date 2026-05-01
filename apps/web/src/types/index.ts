@@ -46,6 +46,12 @@ export interface SparklinePoint {
   blobs: number;
 }
 
+export interface DailyRollupBlob {
+  day: string;
+  rollup: string;
+  blobs: number;
+}
+
 export interface BlockRow {
   block_number: number;
   blob_base_fee: string;

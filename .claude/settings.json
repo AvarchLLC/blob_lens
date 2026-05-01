@@ -5,7 +5,10 @@
       "Bash(~/.cargo/bin/cargo check *)",
       "Read(//usr/local/**)",
       "Bash(echo \"TS EXIT:$?\")",
-      "Bash(pnpm tsc *)"
+      "Bash(pnpm tsc *)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/Blobscan/blobscan/main/packages/rollups/src/index.ts\")",
+      "Bash(curl -s \"https://api.github.com/repos/Blobscan/blobscan/contents/packages/rollups/src\")",
+      "WebSearch"
     ]
   }
 }

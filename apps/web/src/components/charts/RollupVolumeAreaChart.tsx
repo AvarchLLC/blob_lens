@@ -1,71 +1,128 @@
 "use client";
 
-import type { LeaderboardRow } from "@/types";
+import { formatNumber, rollupColor } from "@/lib/utils";
+import type { DailyRollupBlob } from "@/types";
 import ReactECharts from "echarts-for-react";
 
 interface Props {
-  data: LeaderboardRow[];
+  data: DailyRollupBlob[];
 }
 
 export function RollupVolumeAreaChart({ data }: Props) {
   if (!data.length)
     return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
 
-  const top10 = [...data].slice(0, 10);
-  const labels = top10.map((d) =>
-    d.rollup.length > 14 ? d.rollup.slice(0, 14) + "…" : d.rollup
+  const byDay = new Map<string, Map<string, number>>();
+  const totalsByRollup = new Map<string, number>();
+  const dayKeys = [...new Set(data.map((d) => d.day))].sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
   );
-  const values = top10.map((d, i) => ({
-    value: Number(d.total_blobs),
-    itemStyle: {
-      color: `rgba(138,79,216,${Math.max(0.38, 1 - i * 0.09)})`,
-      borderRadius: [0, 3, 3, 0],
-    },
-  }));
+
+  for (const row of data) {
+    const day = row.day;
+    if (!byDay.has(day)) byDay.set(day, new Map<string, number>());
+    const dayMap = byDay.get(day)!;
+    dayMap.set(row.rollup, Number(row.blobs));
+    totalsByRollup.set(row.rollup, (totalsByRollup.get(row.rollup) ?? 0) + Number(row.blobs));
+  }
+
+  const rollups = [...totalsByRollup.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([rollup]) => rollup);
+
+  const xLabels = dayKeys.map((day) =>
+    new Date(day).toLocaleDateString("en-US", { month: "short", day: "2-digit" })
+  );
 
   const option = {
     animation: true,
     animationEasing: "cubicOut" as const,
     animationDuration: 700,
-    grid: { top: 4, right: 16, bottom: 4, left: 0, containLabel: true },
+    grid: { top: 8, right: 16, bottom: 8, left: 0, containLabel: true },
     xAxis: {
-      type: "value" as const,
-      axisLabel: {
-        color: "#5C5575", fontSize: 11, fontFamily: "var(--font-geist-sans)",
-        formatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v),
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
-    },
-    yAxis: {
       type: "category" as const,
-      data: labels,
-      inverse: true,
-      axisLabel: { color: "#9D93B8", fontSize: 11, fontFamily: "var(--font-geist-sans)" },
+      data: xLabels,
+      axisLabel: {
+        color: "#5C5575",
+        fontSize: 11,
+        fontFamily: "var(--font-geist-sans)",
+      },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: false },
     },
+    yAxis: {
+      type: "value" as const,
+      axisLabel: {
+        color: "#9D93B8",
+        fontSize: 11,
+        fontFamily: "var(--font-geist-sans)",
+        formatter: (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(v)),
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)" } },
+    },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#141414",
-      borderColor: "#242424",
+      backgroundColor: "#EDEAF5",
+      borderColor: "#7C3AED",
       borderWidth: 1,
-      textStyle: { color: "#F0EEF6", fontSize: 12 },
-      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(138,79,216,0.06)" } },
-      formatter: (params: { name: string; value: number }[]) =>
-        `<b>${params[0].name}</b><br/>${params[0].value.toLocaleString()} blobs`,
-    },
-    series: [
-      {
-        type: "bar" as const,
-        data: values,
-        barCategoryGap: "32%",
-        name: "Blobs",
+      textStyle: { color: "#1A1428", fontSize: 12, fontFamily: "var(--font-geist-sans)" },
+      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(124,58,237,0.10)" } },
+      formatter: (
+        params: { axisValue: string; seriesName: string; value: number; marker: string }[]
+      ) => {
+        if (!params.length) return "";
+
+        const dayIdx = xLabels.findIndex((l) => l === params[0].axisValue);
+        const dayKey = dayKeys[Math.max(0, dayIdx)];
+        const dayDate = new Date(dayKey);
+        const weekday = dayDate.toLocaleDateString("en-US", { weekday: "long" });
+        const month = dayDate.toLocaleDateString("en-US", { month: "long" });
+        const day = dayDate.toLocaleDateString("en-US", { day: "2-digit" });
+        const year = dayDate.toLocaleDateString("en-US", { year: "numeric" });
+        const total = params.reduce((sum, p) => sum + Number(p.value || 0), 0);
+
+        const values = new Map<string, number>();
+        for (const p of params) values.set(p.seriesName, Number(p.value || 0));
+
+        const rows = rollups
+          .map((rollup) => {
+            const v = values.get(rollup) ?? 0;
+            const pct = total > 0 ? ` (${((v / total) * 100).toFixed(2)}%)` : "";
+            const valueLabel = v > 0 ? formatNumber(v) : "-";
+            return `<div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;">
+                <span style="display:flex;align-items:center;gap:7px;color:#1A1428;">
+                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${rollupColor(rollup)}"></span>
+                  ${rollup}
+                </span>
+                <span style="color:#1A1428;font-weight:600;">${valueLabel}<span style="color:#6E6782;font-weight:500;">${v > 0 ? pct : ""}</span></span>
+              </div>`;
+          })
+          .join("");
+
+        return `<div style="min-width:280px;">
+          <div style="font-weight:700;margin-bottom:8px;">${weekday}, ${month}, ${day} ${year}</div>
+          ${rows}
+          <div style="border-top:1px solid rgba(26,20,40,0.2);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;">
+            <span style="font-weight:700;">Total</span>
+            <span style="font-weight:700;">${formatNumber(total)}</span>
+          </div>
+        </div>`;
       },
-    ],
+    },
+    legend: { show: false },
+    series: rollups.map((rollup) => ({
+      name: rollup,
+      type: "bar" as const,
+      stack: "blobs",
+      barMaxWidth: 28,
+      itemStyle: { color: rollupColor(rollup) },
+      emphasis: { focus: "series" as const },
+      data: dayKeys.map((day) => byDay.get(day)?.get(rollup) ?? 0),
+    })),
   };
 
-  return <ReactECharts option={option} style={{ height: "280px", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "340px", width: "100%" }} />;
 }
