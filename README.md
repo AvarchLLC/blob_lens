@@ -97,6 +97,17 @@ RUST_LOG=info  # trace, debug, info, warn, error
 
 ---
 
+## 🚢 Production Deploy
+
+For VPS/server deployment with GitHub Actions + PM2 + Nginx reverse proxy:
+
+- See **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)**
+- Workflow file: **`.github/workflows/deploy-production.yml`**
+- PM2 config: **`ops/pm2/ecosystem.config.cjs`**
+- Nginx config template: **`ops/nginx/blob-lens.conf`**
+
+---
+
 ## 🛠️ Troubleshooting
 
 | Issue | Fix |

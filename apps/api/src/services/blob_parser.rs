@@ -1,4 +1,3 @@
-
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::client::WsConnect;
 use futures_util::StreamExt;
@@ -10,8 +9,32 @@ use crate::rollup_registry;
 use eyre::Result;
 use tracing::{info, error, warn};
 
+// EIP-4844 constants
+const BLOB_BASE_FEE_UPDATE_FRACTION: u128 = 3_338_477;
+const MIN_BLOB_BASE_FEE: u128 = 1;
+const GAS_PER_BLOB: u64 = 131_072;           // each blob costs exactly 131,072 blob gas
+const MAX_BLOB_GAS_PER_BLOCK: f64 = 786_432.0; // 6 blobs × 131,072
+
+/// EIP-4844 blob base fee: fake_exponential(1, excess_blob_gas, 3_338_477)
+fn calc_blob_fee(excess_blob_gas: u64) -> i64 {
+    fake_exponential(MIN_BLOB_BASE_FEE, excess_blob_gas as u128, BLOB_BASE_FEE_UPDATE_FRACTION) as i64
+}
+
+fn fake_exponential(factor: u128, numerator: u128, denominator: u128) -> u128 {
+    let mut i: u128 = 1;
+    let mut output: u128 = 0;
+    let mut numerator_accum = factor.saturating_mul(denominator);
+    while numerator_accum > 0 {
+        output = output.saturating_add(numerator_accum);
+        numerator_accum = numerator_accum
+            .saturating_mul(numerator)
+            / denominator.saturating_mul(i);
+        i += 1;
+    }
+    output / denominator
+}
+
 pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
-    // 1. Setup Alchemy WebSocket URL
     dotenv().ok();
     let alchemy_key = env::var("ALCHEMY_KEY")
         .map_err(|_| eyre::eyre!("ALCHEMY_KEY not set in .env"))?;
@@ -19,7 +42,6 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
 
     info!("Connecting to Alchemy WebSocket: {}", ws_url);
 
-    // 2. Initialize the WS Provider
     let ws = WsConnect::new(ws_url);
     let provider = ProviderBuilder::new()
         .on_ws(ws)
@@ -27,7 +49,6 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
 
     info!("✓ Connected to Alchemy WebSocket. Listening for Type 3 (Blob) Transactions...");
 
-    // 3. Subscribe to new blocks for full transaction data
     let mut sub = provider.subscribe_blocks().await?.into_stream();
 
     let mut rollup_registry = rollup_registry::get_rollup_registry();
@@ -42,19 +63,43 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
 
         info!("📦 Processing Block #{} ({})", block_number, block_hash);
 
-        // 4. Fetch full block details to see all transactions
         match provider.get_block_by_hash(block_hash, alloy::rpc::types::BlockTransactionsKind::Full).await {
             Ok(Some(full_block)) => {
-                let mut blob_count = 0;
+                // ── Per-block blob metrics from execution header ──────────────
+                let excess_blob_gas = full_block.header.excess_blob_gas.unwrap_or(0);
+                let blob_gas_used   = full_block.header.blob_gas_used.unwrap_or(0) as i32;
+                let blob_base_fee   = calc_blob_fee(excess_blob_gas);
+                let blob_count      = blob_gas_used / GAS_PER_BLOB as i32;
+                let utilization     = blob_gas_used as f64 / MAX_BLOB_GAS_PER_BLOCK;
+
+                // Store block-level stats (once per block, regardless of tx count)
+                if let Err(e) = crate::db::insert_block_stats(
+                    pool,
+                    block_number,
+                    blob_base_fee,
+                    blob_gas_used,
+                    blob_count,
+                    utilization,
+                ).await {
+                    error!("Failed to insert block stats for #{}: {}", block_number, e);
+                }
+
+                info!(
+                    "  📊 Block #{}: base_fee={}wei blobs={}/6 utilization={:.1}%",
+                    block_number, blob_base_fee, blob_count,
+                    utilization * 100.0
+                );
+
+                // ── Per-transaction blob data ─────────────────────────────────
+                let mut blob_tx_count = 0;
 
                 for tx in full_block.transactions.into_transactions() {
-                    // 5. Check for Transaction Type 0x03 (Blob transactions)
                     if tx.transaction_type == Some(3) {
-                        blob_count += 1;
+                        blob_tx_count += 1;
 
-                        let tx_hash = tx.hash.to_string();
-                        let from_address = tx.from.to_string();
-                        let to_address = tx.to.map(|addr| addr.to_string());
+                        let tx_hash          = tx.hash.to_string();
+                        let from_address     = tx.from.to_string();
+                        let to_address       = tx.to.map(|addr| addr.to_string());
                         let max_fee_per_blob_gas = tx.max_fee_per_blob_gas
                             .map(|val| val.to_string())
                             .unwrap_or_else(|| "0".to_string());
@@ -67,19 +112,15 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                             .collect::<Vec<_>>();
 
                         let num_blobs = blob_hashes.len() as i32;
-
-                        // Resolve rollup from from/to addresses
-                        let rollup = rollup_registry::resolve_rollup(&from_address, to_address.as_deref(), &rollup_registry);
-
-                        info!(
-                            "  🔹 Blob Tx: {} | Rollup: {} | Blobs: {} | Max Fee: {}",
-                            &tx_hash[..10],
-                            rollup,
-                            num_blobs,
-                            max_fee_per_blob_gas
+                        let rollup    = rollup_registry::resolve_rollup(
+                            &from_address, to_address.as_deref(), &rollup_registry
                         );
 
-                        // Store in PostgreSQL
+                        info!(
+                            "  🔹 Blob Tx: {} | Rollup: {} | Blobs: {} | Base Fee: {}wei | Max Bid: {}",
+                            &tx_hash[..10], rollup, num_blobs, blob_base_fee, max_fee_per_blob_gas
+                        );
+
                         if let Err(e) = crate::db::insert_blob_transaction(
                             pool,
                             &tx_hash,
@@ -89,6 +130,7 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                             to_address.as_deref(),
                             num_blobs,
                             &max_fee_per_blob_gas,
+                            blob_base_fee,
                             blob_hashes.clone(),
                             &rollup,
                         ).await {
@@ -97,8 +139,8 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                     }
                 }
 
-                if blob_count > 0 {
-                    info!("✓ Block #{} contained {} blob transactions", block_number, blob_count);
+                if blob_tx_count > 0 {
+                    info!("✓ Block #{} had {} blob txs", block_number, blob_tx_count);
                 }
             }
             Ok(None) => {

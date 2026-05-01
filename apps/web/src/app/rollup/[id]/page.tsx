@@ -37,6 +37,7 @@ function toMarketHours(txs: BlobTransaction[]): MarketHour[] {
         blob_count: tx.num_blobs,
         max_blobs_in_block: tx.num_blobs,
         avg_fee: String(fee),
+        avg_utilization: 0,
       });
     }
   }
@@ -115,7 +116,8 @@ export default async function RollupPage({ params }: Props) {
                         <th className="pb-3 pr-4">Tx Hash</th>
                         <th className="pb-3 pr-4">Block</th>
                         <th className="pb-3 pr-4 text-right">Blobs</th>
-                        <th className="pb-3 pr-4 text-right">Fee</th>
+                        <th className="pb-3 pr-4 text-right">Base Fee</th>
+                        <th className="pb-3 pr-4 text-right">Max Bid</th>
                         <th className="pb-3 text-right">Time</th>
                       </tr>
                     </thead>
@@ -134,7 +136,8 @@ export default async function RollupPage({ params }: Props) {
                           </td>
                           <td className="py-2.5 pr-4 text-xs text-[#9D93B8]">#{tx.block_number.toLocaleString()}</td>
                           <td className="py-2.5 pr-4 text-right text-foreground">{tx.num_blobs}</td>
-                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#9D93B8]">{formatFee(tx.max_fee_per_blob_gas)}</td>
+                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#9D93B8]">{formatFee(tx.blob_base_fee)}</td>
+                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#5C5575]">{formatFee(tx.max_fee_per_blob_gas)}</td>
                           <td className="py-2.5 text-right text-xs text-[#5C5575]">{timeAgo(tx.created_at)}</td>
                         </tr>
                       ))}

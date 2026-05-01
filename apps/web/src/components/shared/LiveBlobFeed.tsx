@@ -51,8 +51,9 @@ export function LiveBlobFeed() {
               <RollupBadge rollup={rollup} linkable />
             </span>
             <span className="ml-auto shrink-0 text-xs text-[#9D93B8]">{b.num_blobs} blobs</span>
-            <span className="w-28 shrink-0 text-right font-mono text-xs text-[#9D93B8]">
-              {formatFee(b.max_fee_per_blob_gas)}
+            <span className="hidden sm:flex shrink-0 flex-col items-end w-28">
+              <span className="font-mono text-xs text-[#9D93B8]">{formatFee(b.blob_base_fee)}</span>
+              <span className="caption">base fee</span>
             </span>
             <span className="w-16 shrink-0 text-right caption">{timeAgo(b.created_at)}</span>
           </div>
