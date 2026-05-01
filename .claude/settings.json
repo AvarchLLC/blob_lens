@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check *)",
+      "Bash(~/.cargo/bin/cargo check *)",
+      "Read(//usr/local/**)",
+      "Bash(echo \"TS EXIT:$?\")",
+      "Bash(pnpm tsc *)"
+    ]
+  }
+}

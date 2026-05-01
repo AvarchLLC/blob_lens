@@ -6,6 +6,7 @@ export interface BlobTransaction {
   num_blobs: number;
   rollup: string | null;
   max_fee_per_blob_gas: string;
+  blob_base_fee: string;
   created_at: string;
 }
 
@@ -22,8 +23,12 @@ export interface MarketHour {
   hour: string;
   tx_count: number;
   blob_count: number;
+  /** Actual blob base fee (wei) averaged across blocks in this hour bucket */
   avg_fee: string;
+  /** Real blobs-per-block: MAX(block_blob_stats.blob_count) in this hour */
   max_blobs_in_block: number;
+  /** Average blob market utilization 0–100 for this hour (from block_blob_stats) */
+  avg_utilization: number;
 }
 
 export interface OverviewStats {
@@ -32,10 +37,22 @@ export interface OverviewStats {
   rollup_count: number;
   last_indexed: string;
   last_block: number;
+  avg_utilization_24h: number;
 }
 
 export interface SparklinePoint {
   rollup: string;
   hour: string;
   blobs: number;
+}
+
+export interface BlockRow {
+  block_number: number;
+  blob_base_fee: string;
+  blob_gas_used: number;
+  blob_count: number;
+  utilization: number;
+  tx_count: number;
+  rollups: string[];
+  created_at: string;
 }
