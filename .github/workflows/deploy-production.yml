@@ -108,7 +108,12 @@ jobs:
 
             cd "$NEW_RELEASE"
             echo "Installing workspace dependencies"
-            pnpm install --frozen-lockfile
+            if [ -f "pnpm-lock.yaml" ]; then
+              pnpm install --frozen-lockfile
+            else
+              echo "pnpm-lock.yaml not found; falling back to non-frozen install"
+              pnpm install --no-frozen-lockfile
+            fi
 
             echo "Building Next.js web app"
             pnpm --filter web build
