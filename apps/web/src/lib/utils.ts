@@ -112,8 +112,8 @@ export function rollupIcon(rollup: string): string | null {
   return file ? `/l2/icons/${file}` : null;
 }
 
-export function formatFee(weiString: string): string {
-  const gwei = Number(weiString) / 1e9;
+export function formatFee(weiValue: string | number): string {
+  const gwei = Number(weiValue) / 1e9;
   if (gwei < 0.0001) return "< 0.0001 gwei";
   return `${gwei.toFixed(4)} gwei`;
 }

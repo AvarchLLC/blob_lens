@@ -52,6 +52,12 @@ export interface DailyRollupBlob {
   blobs: number;
 }
 
+export interface UnknownSender {
+  from_address: string;
+  tx_count: number;
+  total_blobs: number;
+}
+
 export interface BlockRow {
   block_number: number;
   blob_base_fee: string;

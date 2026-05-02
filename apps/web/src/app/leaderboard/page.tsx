@@ -1,15 +1,17 @@
 import { LeaderboardClient } from "@/app/leaderboard/LeaderboardClient";
 import { AppHeader } from "@/components/shared/AppHeader";
+import { UnknownSendersSection } from "@/components/shared/UnknownSendersSection";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { getLeaderboard, getRollupSparklines } from "@/lib/queries";
+import { getLeaderboard, getRollupSparklines, getUnknownSenders } from "@/lib/queries";
 import { Trophy } from "lucide-react";
 
 export const revalidate = 30;
 
 export default async function LeaderboardPage() {
-  const [initialLeaderboard, sparklines] = await Promise.all([
+  const [initialLeaderboard, sparklines, unknownSenders] = await Promise.all([
     getLeaderboard(24).catch(() => []),
     getRollupSparklines().catch(() => []),
+    getUnknownSenders().catch(() => []),
   ]);
 
   return (
@@ -28,6 +30,8 @@ export default async function LeaderboardPage() {
             <LeaderboardClient initialLeaderboard={initialLeaderboard} sparklines={sparklines} />
           </CardContent>
         </Card>
+
+        <UnknownSendersSection senders={unknownSenders} />
       </main>
     </div>
   );

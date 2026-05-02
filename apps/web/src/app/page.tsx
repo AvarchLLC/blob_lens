@@ -51,6 +51,29 @@ export default async function OverviewPage() {
           />
         </section>
 
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
+              <Layers className="h-4 w-4" />
+              <h2 className="section-title">Live Feed</h2>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="blocks">
+              <TabsList className="mb-4">
+                <TabsTrigger value="blocks">Blocks</TabsTrigger>
+                <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              </TabsList>
+              <TabsContent value="blocks">
+                <BlockFeed />
+              </TabsContent>
+              <TabsContent value="transactions">
+                <LiveBlobFeed />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -81,6 +104,18 @@ export default async function OverviewPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
+                <BarChart3 className="h-4 w-4" />
+                <h2 className="section-title">Cumulative Blob Growth</h2>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CumulativeBlobGrowth data={market} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
                 <Activity className="h-4 w-4" />
                 <h2 className="section-title">Blobs per Block</h2>
               </div>
@@ -89,39 +124,7 @@ export default async function OverviewPage() {
               <BlobsPerBlockChart data={market} />
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <h2 className="section-title">Cumulative Blob Growth</h2>
-            </CardHeader>
-            <CardContent>
-              <CumulativeBlobGrowth data={market} />
-            </CardContent>
-          </Card>
         </section>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
-              <Layers className="h-4 w-4" />
-              <h2 className="section-title">Live Feed</h2>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="blocks">
-              <TabsList className="mb-4">
-                <TabsTrigger value="blocks">Blocks</TabsTrigger>
-                <TabsTrigger value="transactions">Transactions</TabsTrigger>
-              </TabsList>
-              <TabsContent value="blocks">
-                <BlockFeed />
-              </TabsContent>
-              <TabsContent value="transactions">
-                <LiveBlobFeed />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
       </main>
     </div>
   );

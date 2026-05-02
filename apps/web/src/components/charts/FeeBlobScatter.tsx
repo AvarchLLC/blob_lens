@@ -47,7 +47,10 @@ export function FeeBlobScatter({ data }: Props) {
       type: "value" as const,
       name: "Avg fee (gwei)",
       nameTextStyle: { color: "#4B5563", fontSize: 11 },
-      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
+      axisLabel: {
+        color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
+        formatter: (v: number) => v < 0.0001 ? "< 0.0001" : v.toFixed(4),
+      },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
@@ -60,7 +63,8 @@ export function FeeBlobScatter({ data }: Props) {
       textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
       formatter: (params: { data: { value: [number, number]; ts: string; regime: string } }) => {
         const [blobs, fee] = params.data.value;
-        return `<span style="color:#4B5563;font-size:11px">${new Date(params.data.ts).toLocaleString()}</span><br/>Blobs: <b>${blobs}</b><br/>Fee: <b style="font-family:monospace;color:#6EE7B7">${fee.toFixed(4)} gwei</b><br/>Regime: <b>${params.data.regime}</b>`;
+        const feeStr = fee < 0.0001 ? "< 0.0001 gwei" : `${fee.toFixed(4)} gwei`;
+        return `<span style="color:#4B5563;font-size:11px">${new Date(params.data.ts).toLocaleString()}</span><br/>Blobs: <b>${blobs}</b><br/>Fee: <b style="font-family:monospace;color:#6EE7B7">${feeStr}</b><br/>Regime: <b>${params.data.regime}</b>`;
       },
     },
     series: [
