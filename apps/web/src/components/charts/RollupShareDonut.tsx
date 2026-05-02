@@ -12,19 +12,24 @@ export function RollupShareDonut({ data }: Props) {
   if (!data.length)
     return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
 
-  const sorted = [...data]
-    .filter((d) => d.rollup !== "UNKNOWN")
-    .sort((a, b) => Number(b.total_blobs) - Number(a.total_blobs));
+  const grandTotal = data.reduce((s, d) => s + Number(d.total_blobs), 0);
 
-  const unknownBlobs = data
-    .filter((d) => d.rollup === "UNKNOWN")
-    .reduce((s, d) => s + Number(d.total_blobs), 0);
+  const named: { name: string; value: number }[] = [];
+  let otherValue = 0;
 
-  const top = sorted.slice(0, 8).map((d) => ({ name: d.rollup, value: Number(d.total_blobs) }));
-  const otherValue =
-    sorted.slice(8).reduce((s, d) => s + Number(d.total_blobs), 0) + unknownBlobs;
-  const chartData = otherValue > 0 ? [...top, { name: "Other", value: otherValue }] : top;
-  const total = chartData.reduce((s, d) => s + d.value, 0);
+  for (const d of data) {
+    const v = Number(d.total_blobs);
+    const pct = grandTotal > 0 ? v / grandTotal : 0;
+    if (d.rollup === "UNKNOWN" || pct < 0.01) {
+      otherValue += v;
+    } else {
+      named.push({ name: d.rollup, value: v });
+    }
+  }
+
+  named.sort((a, b) => b.value - a.value);
+  const chartData = otherValue > 0 ? [...named, { name: "Other", value: otherValue }] : named;
+  const total = grandTotal;
 
   const option = {
     animation: true,

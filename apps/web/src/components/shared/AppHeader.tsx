@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -20,8 +21,16 @@ export function AppHeader({ active, regimeBadge }: Props) {
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-end gap-3">
-          <Link href="/" className="wordmark leading-none">
-            BlobLens
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image
+              src="/brand/bloblogo.png"
+              alt="BlobLens"
+              width={44}
+              height={44}
+              className="shrink-0"
+              priority
+            />
+            <span className="wordmark leading-none">BlobLens</span>
           </Link>
           <div className="flex flex-col justify-end pb-0.5 gap-0.5">
             <p className="wordmark-sub">EIP-4844 ANALYTICS</p>

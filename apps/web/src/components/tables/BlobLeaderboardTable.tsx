@@ -5,7 +5,8 @@ import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Button } from "@/components/ui/button";
 import { formatFee, formatNumber } from "@/lib/utils";
 import type { LeaderboardRow, SparklinePoint } from "@/types";
-import { ArrowDown, ArrowUp, Download } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Download } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 type SortKey = keyof Pick<
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function BlobLeaderboardTable({ rows, sparklines }: Props) {
+  const router = useRouter();
   const [sortKey, setSortKey] = React.useState<SortKey>("total_blobs");
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
 
@@ -92,21 +94,32 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
               <th className={th} onClick={() => toggleSort("avg_fee")}>Avg Fee <SortIcon k="avg_fee" /></th>
               <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9CA3AF]">24H Trend</th>
               <th className="pb-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9CA3AF]">Last Active</th>
+              <th className="pb-3 w-4" />
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row, i) => (
-              <tr key={row.rollup} className="border-b border-border/70 transition-colors hover:bg-accent/30">
-                <td className="py-3 pr-4 font-mono text-xs text-[#4B5563]">{i + 1}</td>
-                <td className="py-3 pr-4"><RollupBadge rollup={row.rollup} linkable /></td>
-                <td className="py-3 pr-4 font-mono text-foreground">{formatNumber(Number(row.total_blobs))}</td>
-                <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{formatNumber(Number(row.tx_count))}</td>
-                <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{Number(row.avg_blobs_per_tx).toFixed(2)}</td>
-                <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{formatFee(row.avg_fee)}</td>
-                <td className="py-3 pr-4"><BlobSparkline points={sparklinesMap[row.rollup] ?? []} /></td>
-                <td className="py-3 text-xs text-[#9CA3AF]">{new Date(row.last_seen).toLocaleString()}</td>
-              </tr>
-            ))}
+            {sorted.map((row, i) => {
+              const isNavigable = row.rollup !== "UNKNOWN";
+              return (
+                <tr
+                  key={row.rollup}
+                  className={`group border-b border-border/70 transition-colors hover:bg-accent/30 ${isNavigable ? "cursor-pointer" : ""}`}
+                  onClick={isNavigable ? () => router.push(`/rollup/${encodeURIComponent(row.rollup)}`) : undefined}
+                >
+                  <td className="py-3 pr-4 font-mono text-xs text-[#4B5563]">{i + 1}</td>
+                  <td className="py-3 pr-4"><RollupBadge rollup={row.rollup} linkable={false} /></td>
+                  <td className="py-3 pr-4 font-mono text-foreground">{formatNumber(Number(row.total_blobs))}</td>
+                  <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{formatNumber(Number(row.tx_count))}</td>
+                  <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{Number(row.avg_blobs_per_tx).toFixed(2)}</td>
+                  <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{formatFee(row.avg_fee)}</td>
+                  <td className="py-3 pr-4"><BlobSparkline points={sparklinesMap[row.rollup] ?? []} /></td>
+                  <td className="py-3 text-xs text-[#9CA3AF]">{new Date(row.last_seen).toLocaleString()}</td>
+                  <td className="py-3 w-4 text-[#4B5563]">
+                    {isNavigable && <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

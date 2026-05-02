@@ -6,6 +6,7 @@ import type {
   MarketHour,
   OverviewStats,
   SparklinePoint,
+  UnknownSender,
 } from "@/types";
 import sql from "./db";
 
@@ -42,6 +43,20 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
       AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
     GROUP BY rollup
     ORDER BY total_blobs DESC
+  `;
+}
+
+export async function getUnknownSenders(): Promise<UnknownSender[]> {
+  return sql<UnknownSender[]>`
+    SELECT
+      from_address,
+      COUNT(*)::bigint                    AS tx_count,
+      COALESCE(SUM(num_blobs), 0)::bigint AS total_blobs
+    FROM blob_transactions
+    WHERE rollup = 'UNKNOWN'
+    GROUP BY from_address
+    ORDER BY total_blobs DESC
+    LIMIT 10
   `;
 }
 

@@ -36,7 +36,10 @@ export function BlobFeeLineChart({ data }: Props) {
     },
     yAxis: {
       type: "value" as const,
-      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
+      axisLabel: {
+        color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
+        formatter: (v: number) => v < 0.0001 ? "< 0.0001" : v.toFixed(4),
+      },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
@@ -47,8 +50,11 @@ export function BlobFeeLineChart({ data }: Props) {
       borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
       textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
-      formatter: (params: { axisValue: string; value: number }[]) =>
-        `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${params[0].value} gwei</b>`,
+      formatter: (params: { axisValue: string; value: number }[]) => {
+        const v = params[0].value;
+        const feeStr = v < 0.0001 ? "< 0.0001 gwei" : `${v.toFixed(4)} gwei`;
+        return `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${feeStr}</b>`;
+      },
     },
     series: [
       {
