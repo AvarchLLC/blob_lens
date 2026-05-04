@@ -49,18 +49,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         axum::serve(listener, app).await.unwrap();
     });
 
-    // Start blob listener in parallel
+    // Start blob listener with auto-retry so the HTTP server stays alive
+    // even when the Alchemy WebSocket connection drops or errors.
     let blob_handle = tokio::spawn(async move {
-        tracing::info!("Starting blob transaction listener...");
-        if let Err(e) = blob_parser::fetch_blob(&pool).await {
-            tracing::error!("Blob parser error: {}", e);
+        let mut attempt: u32 = 0;
+        loop {
+            attempt += 1;
+            tracing::info!("Starting blob transaction listener (attempt {})...", attempt);
+            match blob_parser::fetch_blob(&pool).await {
+                Ok(_)  => tracing::warn!("Blob parser exited cleanly; reconnecting in 30s"),
+                Err(e) => tracing::error!("Blob parser error: {}; reconnecting in 30s", e),
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
         }
     });
 
-    // Wait for both tasks
+    // Only the API server exiting should bring down the process.
+    // The blob handle is an infinite retry loop and never resolves.
     tokio::select! {
-        _ = api_handle => tracing::error!("API server stopped"),
-        _ = blob_handle => tracing::error!("Blob parser stopped"),
+        _ = api_handle  => tracing::error!("API server stopped unexpectedly"),
+        _ = blob_handle => tracing::error!("Blob parser task stopped unexpectedly"),
     }
 
     Ok(())
