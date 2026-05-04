@@ -1,56 +1,97 @@
-import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
-import { CumulativeBlobGrowth } from "@/components/charts/CumulativeBlobGrowth";
-import { RollupShareDonut } from "@/components/charts/RollupShareDonut";
+import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
+import { CostHeatmap } from "@/components/charts/CostHeatmap";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
 import { AppHeader } from "@/components/shared/AppHeader";
 import { BlockFeed } from "@/components/shared/BlockFeed";
 import { LiveBlobFeed } from "@/components/shared/LiveBlobFeed";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
-import { StatCard } from "@/components/shared/StatCard";
+import { RollupShareCard } from "@/components/shared/RollupShareCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
 import {
   getDailyRollupBreakdown,
   getLeaderboard,
   getMarketActivity,
-  getOverviewStats,
 } from "@/lib/queries";
-import { formatNumber } from "@/lib/utils";
-import { Activity, BarChart3, Layers, PieChart } from "lucide-react";
+import { Layers, TrendingDown, Zap } from "lucide-react";
 
 export const revalidate = 60;
 
 export default async function OverviewPage() {
-  const [stats, leaderboard, market, dailyRollups] = await Promise.all([
-    getOverviewStats().catch(() => null),
+  const [leaderboard, market, dailyRollups, ethUsd] = await Promise.all([
     getLeaderboard(24).catch(() => []),
-    getMarketActivity(24).catch(() => []),
+    getMarketActivity(168).catch(() => []),
     getDailyRollupBreakdown(30, 16).catch(() => []),
+    getEthPrice().catch(() => null),
   ]);
 
+  const market24h = market.slice(-24);
+  const latestHour = market.length > 0 ? market[market.length - 1] : null;
   const latestMaxBlobs = market.length > 0 ? Math.max(...market.map((m) => m.max_blobs_in_block)) : 0;
+
+  const currentCostUsd = latestHour && ethUsd ? blobCostUsd(latestHour.avg_fee, ethUsd) : null;
+  const currentFeeGwei = latestHour ? (Number(latestHour.avg_fee) / 1e9).toFixed(4) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader active="overview" regimeBadge={<RegimeBadge maxBlobsInBlock={latestMaxBlobs} size="sm" />} />
 
       <main className="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-        <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          <StatCard label="Total Blobs" value={stats ? formatNumber(Number(stats.total_blobs)) : "—"} />
-          <StatCard label="Transactions" value={stats ? formatNumber(Number(stats.total_txs)) : "—"} />
-          <StatCard label="Rollups Tracked" value={stats ? String(stats.rollup_count) : "—"} />
-          <StatCard
-            label="Last Block"
-            value={stats ? `#${formatNumber(Number(stats.last_block))}` : "—"}
-            sub={stats?.last_indexed ? new Date(stats.last_indexed).toLocaleTimeString() : undefined}
-          />
-          <StatCard
-            label="Avg Utilization (24h)"
-            value={stats ? `${Number(stats.avg_utilization_24h).toFixed(1)}%` : "—"}
-            sub="blob slot fill rate"
-          />
+
+        {/* Hero Cards — Historical Cost + Current Cost */}
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
+                <TrendingDown className="h-4 w-4" />
+                <h2 className="section-title">Historical Blob Cost</h2>
+                {ethUsd && (
+                  <span className="ml-auto caption">1 ETH = ${ethUsd.toLocaleString()}</span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {ethUsd ? (
+                <BlobFeeLineChart data={market24h} ethUsd={ethUsd} />
+              ) : (
+                <BlobFeeLineChart data={market24h} />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
+                <Zap className="h-4 w-4" />
+                <h2 className="section-title">Current Transaction Cost</h2>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
+                <p className="font-mono text-5xl font-bold tracking-tight text-foreground">
+                  {currentCostUsd !== null ? formatUsd(currentCostUsd) : "—"}
+                </p>
+                <p className="caption">per blob · last hour average</p>
+                {currentFeeGwei && (
+                  <p className="caption">
+                    blob base fee: <span className="font-mono text-[#9CA3AF]">{currentFeeGwei} gwei</span>
+                  </p>
+                )}
+                {ethUsd && (
+                  <p className="mt-2 caption text-[#4B5563]">
+                    ETH / USD: <span className="font-mono">${ethUsd.toLocaleString()}</span>
+                  </p>
+                )}
+                {!ethUsd && (
+                  <p className="caption text-[#4B5563]">ETH price unavailable — showing gwei only</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
+        {/* Live Feed */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
@@ -74,11 +115,11 @@ export default async function OverviewPage() {
           </CardContent>
         </Card>
 
+        {/* Row 1: Total Blobs daily stacked + Rollup Share with time selector */}
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
-                <BarChart3 className="h-4 w-4" />
                 <h2 className="section-title">Total Blobs</h2>
               </div>
             </CardHeader>
@@ -87,44 +128,20 @@ export default async function OverviewPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
-                <PieChart className="h-4 w-4" />
-                <h2 className="section-title">Rollup Share</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RollupShareDonut data={leaderboard} />
-            </CardContent>
-          </Card>
+          <RollupShareCard initialData={leaderboard} />
         </section>
 
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Cost Heatmap — 7d × 24h */}
+        {ethUsd && (
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
-                <BarChart3 className="h-4 w-4" />
-                <h2 className="section-title">Cumulative Blob Growth</h2>
-              </div>
+              <h2 className="section-title">Cost Heatmap</h2>
             </CardHeader>
             <CardContent>
-              <CumulativeBlobGrowth data={market} />
+              <CostHeatmap data={market} ethUsd={ethUsd} />
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-[#9D93B8]">
-                <Activity className="h-4 w-4" />
-                <h2 className="section-title">Blobs per Block</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <BlobsPerBlockChart data={market} />
-            </CardContent>
-          </Card>
-        </section>
+        )}
       </main>
     </div>
   );

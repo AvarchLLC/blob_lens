@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 interface Props {
-  active: "overview" | "leaderboard" | "market" | "rollup";
+  active: "overview" | "leaderboard" | "market" | "rollup" | "research";
   regimeBadge?: ReactNode;
 }
 
@@ -54,6 +54,7 @@ export function AppHeader({ active, regimeBadge }: Props) {
             {navItem("/", "Overview", active === "overview")}
             {navItem("/leaderboard", "Leaderboard", active === "leaderboard")}
             {navItem("/market", "Market", active === "market")}
+            {navItem("/research", "Research", active === "research")}
           </nav>
           {regimeBadge ? <div className="hidden sm:block">{regimeBadge}</div> : null}
         </div>

@@ -16,22 +16,37 @@ const GAS_PER_BLOB: u64 = 131_072;           // each blob costs exactly 131,072 
 const MAX_BLOB_GAS_PER_BLOCK: f64 = 786_432.0; // 6 blobs × 131,072
 
 /// EIP-4844 blob base fee: fake_exponential(1, excess_blob_gas, 3_338_477)
+/// Returns wei per blob-gas unit, capped at 1 ETH (10^18) as a safety bound.
 fn calc_blob_fee(excess_blob_gas: u64) -> i64 {
     fake_exponential(MIN_BLOB_BASE_FEE, excess_blob_gas as u128, BLOB_BASE_FEE_UPDATE_FRACTION) as i64
 }
 
+// Safety cap: 1 ETH per blob-gas unit would be astronomical; this prevents
+// overflow from propagating into the DB as garbage values.
+const MAX_BLOB_FEE_WEI: u128 = 1_000_000_000_000_000_000; // 1 ETH
+
 fn fake_exponential(factor: u128, numerator: u128, denominator: u128) -> u128 {
     let mut i: u128 = 1;
     let mut output: u128 = 0;
-    let mut numerator_accum = factor.saturating_mul(denominator);
+    let mut numerator_accum = factor * denominator; // factor=1, denominator≈3.3M → no overflow
+
     while numerator_accum > 0 {
-        output = output.saturating_add(numerator_accum);
-        numerator_accum = numerator_accum
-            .saturating_mul(numerator)
-            / denominator.saturating_mul(i);
+        match output.checked_add(numerator_accum) {
+            Some(v) => output = v,
+            None => return MAX_BLOB_FEE_WEI, // accumulated sum overflows → cap
+        }
+
+        let new_num = match numerator_accum.checked_mul(numerator) {
+            Some(v) => v,
+            None => break, // next term overflows → stop summing (remaining terms negligible given cap)
+        };
+
+        // denominator * i: denominator≈3.3M, i≈≤100 before convergence → no overflow
+        numerator_accum = new_num / (denominator * i);
         i += 1;
     }
-    output / denominator
+
+    (output / denominator).min(MAX_BLOB_FEE_WEI)
 }
 
 pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
