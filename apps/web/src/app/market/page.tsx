@@ -7,15 +7,17 @@ import { AppHeader } from "@/components/shared/AppHeader";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
 import { getLeaderboard, getMarketActivity } from "@/lib/queries";
-import { formatFee, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 export const revalidate = 30;
 
 export default async function MarketPage() {
-  const [market, leaderboard] = await Promise.all([
+  const [market, leaderboard, ethUsd] = await Promise.all([
     getMarketActivity(24).catch(() => []),
     getLeaderboard(1).catch(() => []),
+    getEthPrice(),
   ]);
 
   const latest = market[market.length - 1];
@@ -37,9 +39,15 @@ export default async function MarketPage() {
 
         <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
-            label="Base Fee (last hr)"
-            value={latest ? formatFee(latest.avg_fee) : "—"}
-            sub="actual blob base fee"
+            label="Cost / Blob (last hr)"
+            value={
+              latest
+                ? ethUsd != null
+                  ? formatUsd(blobCostUsd(latest.avg_fee, ethUsd))
+                  : `${(Number(latest.avg_fee) / 1e9).toFixed(4)} gwei`
+                : "—"
+            }
+            sub="avg blob base fee"
           />
           <StatCard label="Blobs (last hr)" value={formatNumber(totalBlobsLastHour)} />
           <StatCard
@@ -65,7 +73,7 @@ export default async function MarketPage() {
               <h2 className="section-title">Blob Base Fee Trend</h2>
             </CardHeader>
             <CardContent>
-              <BlobFeeLineChart data={market} />
+              <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} />
             </CardContent>
           </Card>
 
@@ -94,7 +102,7 @@ export default async function MarketPage() {
               <h2 className="section-title">Fee vs Blob Count</h2>
             </CardHeader>
             <CardContent>
-              <FeeBlobScatter data={market} />
+              <FeeBlobScatter data={market} ethUsd={ethUsd} />
             </CardContent>
           </Card>
         </section>

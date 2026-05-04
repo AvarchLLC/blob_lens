@@ -3,7 +3,9 @@
 import { BlobSparkline } from "@/components/charts/BlobSparkline";
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Button } from "@/components/ui/button";
-import { formatFee, formatNumber } from "@/lib/utils";
+import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
+import { useEthPrice } from "@/lib/useEthPrice";
+import { formatNumber } from "@/lib/utils";
 import type { LeaderboardRow, SparklinePoint } from "@/types";
 import { ArrowDown, ArrowRight, ArrowUp, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,6 +23,7 @@ interface Props {
 
 export function BlobLeaderboardTable({ rows, sparklines }: Props) {
   const router = useRouter();
+  const ethUsd = useEthPrice();
   const [sortKey, setSortKey] = React.useState<SortKey>("total_blobs");
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
 
@@ -91,7 +94,7 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
               <th className={th} onClick={() => toggleSort("total_blobs")}>Total Blobs <SortIcon k="total_blobs" /></th>
               <th className={th} onClick={() => toggleSort("tx_count")}>TX Count <SortIcon k="tx_count" /></th>
               <th className={th} onClick={() => toggleSort("avg_blobs_per_tx")}>Avg / TX <SortIcon k="avg_blobs_per_tx" /></th>
-              <th className={th} onClick={() => toggleSort("avg_fee")}>Avg Fee <SortIcon k="avg_fee" /></th>
+              <th className={th} onClick={() => toggleSort("avg_fee")}>Avg Cost/Blob <SortIcon k="avg_fee" /></th>
               <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9CA3AF]">24H Trend</th>
               <th className="pb-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9CA3AF]">Last Active</th>
               <th className="pb-3 w-4" />
@@ -111,7 +114,11 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
                   <td className="py-3 pr-4 font-mono text-foreground">{formatNumber(Number(row.total_blobs))}</td>
                   <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{formatNumber(Number(row.tx_count))}</td>
                   <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{Number(row.avg_blobs_per_tx).toFixed(2)}</td>
-                  <td className="py-3 pr-4 font-mono text-[#9CA3AF]">{formatFee(row.avg_fee)}</td>
+                  <td className="py-3 pr-4 font-mono text-[#9CA3AF]">
+                    {ethUsd != null
+                      ? formatUsd(blobCostUsd(row.avg_fee, ethUsd))
+                      : `${(Number(row.avg_fee) / 1e9).toFixed(4)} gwei`}
+                  </td>
                   <td className="py-3 pr-4"><BlobSparkline points={sparklinesMap[row.rollup] ?? []} /></td>
                   <td className="py-3 text-xs text-[#9CA3AF]">{new Date(row.last_seen).toLocaleString()}</td>
                   <td className="py-3 w-4 text-[#4B5563]">

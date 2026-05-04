@@ -2,7 +2,9 @@
 
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatFee, timeAgo } from "@/lib/utils";
+import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
+import { useEthPrice } from "@/lib/useEthPrice";
+import { timeAgo } from "@/lib/utils";
 import type { BlockRow } from "@/types";
 import useSWR from "swr";
 
@@ -31,6 +33,7 @@ function UtilizationBar({ pct }: { pct: number }) {
 }
 
 export function BlockFeed() {
+  const ethUsd = useEthPrice();
   const { data, isLoading } = useSWR<{ data: BlockRow[] }>(
     "/api/blocks",
     fetcher,
@@ -63,7 +66,7 @@ export function BlockFeed() {
             <th className="pb-3 pr-4 text-right">Txs</th>
             <th className="pb-3 pr-4 text-right">Blobs</th>
             <th className="pb-3 pr-6">Blob Gas Usage</th>
-            <th className="pb-3 pr-4 text-right">Base Fee</th>
+            <th className="pb-3 pr-4 text-right">Cost / Blob</th>
             <th className="pb-3">Rollups</th>
           </tr>
         </thead>
@@ -90,7 +93,9 @@ export function BlockFeed() {
                 <UtilizationBar pct={b.utilization} />
               </td>
               <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#6EE7B7]">
-                {formatFee(b.blob_base_fee)}
+                {ethUsd != null
+                  ? formatUsd(blobCostUsd(b.blob_base_fee, ethUsd))
+                  : `${(Number(b.blob_base_fee) / 1e9).toFixed(4)} gwei`}
               </td>
               <td className="py-2.5">
                 <div className="flex flex-wrap gap-1">
