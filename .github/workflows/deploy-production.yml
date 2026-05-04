@@ -184,6 +184,19 @@ jobs:
               cd "$NEW_RELEASE"
             else
               echo "Skipping API build (no api changes detected)"
+              # The built binary lives inside target/ which is gitignored.
+              # Carry the existing binary forward so PM2 has something to run.
+              if [ -L "$CURRENT_DIR" ]; then
+                OLD_BIN="$(readlink -f "$CURRENT_DIR")/apps/api/target/release/blob_lens"
+                NEW_BIN="$NEW_RELEASE/apps/api/target/release/blob_lens"
+                if [ -f "$OLD_BIN" ]; then
+                  mkdir -p "$(dirname "$NEW_BIN")"
+                  cp "$OLD_BIN" "$NEW_BIN"
+                  echo "Carried forward existing indexer binary"
+                else
+                  echo "WARNING: No existing binary found at $OLD_BIN — indexer may not start"
+                fi
+              fi
             fi
 
             echo "Switching current symlink"
@@ -213,7 +226,13 @@ jobs:
               PREVIOUS_RELEASE=$(ls -dt "$RELEASES_DIR"/* | sed -n '2p')
               if [ -n "${PREVIOUS_RELEASE:-}" ]; then
                 ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_DIR"
-                pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --env production --update-env || true
+                # Older releases may predate ops/pm2/ecosystem.config.cjs;
+                # fall back to restarting existing PM2 processes by name.
+                if [ -f "$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs" ]; then
+                  pm2 startOrReload "$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs" --env production --update-env || true
+                else
+                  pm2 restart blob-lens-web blob-lens-indexer || true
+                fi
                 pm2 save || true
               fi
               exit 1
