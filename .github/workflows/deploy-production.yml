@@ -179,10 +179,15 @@ jobs:
             echo "==> Switching current → $RELEASE_NAME"
             ln -sfn "$NEW_RELEASE" "$CURRENT_DIR"
 
-            # ── Reload PM2 (always reload both so script paths stay in sync) ──
+            # ── Reload PM2 ────────────────────────────────────────────────────
+            # Delete + start the indexer rather than startOrReload so PM2 creates
+            # a fresh internal entry with interpreter:none.  If the old entry used
+            # Node.js fork() it won't change just from a reload — delete forces it.
             echo "==> Reloading PM2"
             ECOSYSTEM="$NEW_RELEASE/ops/pm2/ecosystem.config.cjs"
-            pm2 startOrReload "$ECOSYSTEM" --env production --update-env
+            pm2 delete blob-lens-indexer 2>/dev/null || true
+            pm2 delete blob-lens-web 2>/dev/null || true
+            pm2 start "$ECOSYSTEM" --env production
             pm2 save
 
             echo "==> PM2 status:"
@@ -220,8 +225,11 @@ jobs:
               PREVIOUS_RELEASE=$(ls -dt "$RELEASES_DIR"/*/ 2>/dev/null | grep -v "^$NEW_RELEASE/$" | head -1 | sed 's|/$||')
               if [ -n "${PREVIOUS_RELEASE:-}" ]; then
                 ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_DIR"
-                if [ -f "$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs" ]; then
-                  pm2 startOrReload "$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs" --env production --update-env || true
+                PREV_ECOSYSTEM="$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs"
+                if [ -f "$PREV_ECOSYSTEM" ]; then
+                  pm2 delete blob-lens-indexer 2>/dev/null || true
+                  pm2 delete blob-lens-web 2>/dev/null || true
+                  pm2 start "$PREV_ECOSYSTEM" --env production || true
                 else
                   pm2 restart blob-lens-web blob-lens-indexer || true
                 fi
