@@ -36,7 +36,7 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
       COUNT(*)::bigint                                    AS tx_count,
       COALESCE(SUM(num_blobs), 0)::bigint                 AS total_blobs,
       COALESCE(AVG(num_blobs), 0)::float8                 AS avg_blobs_per_tx,
-      COALESCE(AVG(blob_base_fee), 0)::text               AS avg_fee,
+      COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee < 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
       MAX(created_at)                                     AS last_seen
     FROM blob_transactions
     WHERE rollup IS NOT NULL
@@ -70,7 +70,7 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
       DATE_TRUNC('hour', bt.created_at)::text                             AS hour,
       COUNT(*)::bigint                                                     AS tx_count,
       COALESCE(SUM(bt.num_blobs), 0)::bigint                              AS blob_count,
-      COALESCE(AVG(bbs.blob_base_fee), 0)::text                          AS avg_fee,
+      COALESCE(AVG(CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000 THEN bbs.blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
       COALESCE(MAX(bbs.blob_count), 0)::int                              AS max_blobs_in_block,
       COALESCE(AVG(bbs.utilization) * 100, 0)::float8                    AS avg_utilization
     FROM blob_transactions bt
