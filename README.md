@@ -6,9 +6,7 @@
 
 **BlobLens v0.2.0** — Real-time indexer for Ethereum blob transactions (EIP-4844). Continuously listens to Alchemy WebSocket, detects Type 3 blobs, and stores data in PostgreSQL.
 
----
-
-## ✨ Features
+## Features
 
 - ✅ Real-time WebSocket listener (Alchemy)
 - ✅ Type 3 blob transaction detection
@@ -17,9 +15,7 @@
 - ✅ Health checks & auto-restart
 - ✅ Structured JSON logging
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Docker (Recommended)
 ```bash
@@ -43,9 +39,7 @@ python3 check_blobs.py    # Dashboard with all stats
 bash check-blobs.sh       # Shell version
 ```
 
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 blob_lens/
@@ -62,9 +56,7 @@ blob_lens/
 └── check_blobs.py                  # Data inspector
 ```
 
----
-
-## 📊 Database
+## Database
 
 Schema:
 - `blob_transactions`: tx_hash, block_number, num_blobs, rollup, max_fee_per_blob_gas, created_at
@@ -85,9 +77,7 @@ SELECT rollup, COUNT(*), SUM(num_blobs) FROM blob_transactions GROUP BY rollup O
 docker-compose exec postgres psql -U postgres -d blob_lens
 ```
 
----
-
-## ⚙️ Configuration
+## Configuration
 
 ```env
 ALCHEMY_KEY=your_api_key_here
@@ -95,9 +85,7 @@ DATABASE_URL=postgresql://postgres:password@localhost:5433/blob_lens
 RUST_LOG=info  # trace, debug, info, warn, error
 ```
 
----
-
-## 🚢 Production Deploy
+## Production Deploy
 
 For VPS/server deployment with GitHub Actions + PM2 + Nginx reverse proxy:
 
@@ -106,9 +94,7 @@ For VPS/server deployment with GitHub Actions + PM2 + Nginx reverse proxy:
 - PM2 config: **`ops/pm2/ecosystem.config.cjs`**
 - Nginx config template: **`ops/nginx/blob-lens.conf`**
 
----
-
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
@@ -117,9 +103,7 @@ For VPS/server deployment with GitHub Actions + PM2 + Nginx reverse proxy:
 | `Cannot connect to Docker` | Start Docker Desktop |
 | Database empty | Wait 2-3 minutes for first blobs |
 
----
-
-## 📚 References
+## References
 
 - **[EIP-4844](https://eips.ethereum.org/EIPS/eip-4844)** — Proto-Danksharding
 - **[Alchemy](https://alchemy.com)** — WebSocket API
@@ -127,6 +111,4 @@ For VPS/server deployment with GitHub Actions + PM2 + Nginx reverse proxy:
 - **[SQLx](https://sqlx.rs/)** — Type-safe async SQL
 - **[Tokio](https://tokio.rs/)** — Async runtime
 
----
-
-**MIT License** | Building blob analytics, one transaction at a time. 🔍
+**MIT License** | Building blob analytics, one transaction at a time. 
