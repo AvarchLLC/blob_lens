@@ -1,7 +1,10 @@
 const path = require("path");
 
+// __dirname = /opt/blob-lens/releases/<RELEASE>/ops/pm2
+// root      = /opt/blob-lens/releases/<RELEASE>
+// sharedLogs= /opt/blob-lens/shared/logs  (two levels up from root, then into shared/logs)
 const root = path.resolve(__dirname, "..", "..");
-const sharedLogs = path.resolve(root, "..", "shared", "logs");
+const sharedLogs = path.resolve(root, "..", "..", "shared", "logs");
 
 module.exports = {
   apps: [
@@ -26,6 +29,7 @@ module.exports = {
       name: "blob-lens-indexer",
       cwd: path.join(root, "apps", "api"),
       script: path.join(root, "apps", "api", "target", "release", "blob_lens"),
+      interpreter: "none",
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
