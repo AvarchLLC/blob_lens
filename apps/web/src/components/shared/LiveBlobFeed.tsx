@@ -2,7 +2,9 @@
 
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatFee, rollupColor, shortHash, timeAgo } from "@/lib/utils";
+import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
+import { useEthPrice } from "@/lib/useEthPrice";
+import { rollupColor, shortHash, timeAgo } from "@/lib/utils";
 import type { BlobTransaction } from "@/types";
 import useSWR from "swr";
 
@@ -10,6 +12,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const REFRESH_MS = Number(process.env.NEXT_PUBLIC_MARKET_REFRESH_MS ?? 12000);
 
 export function LiveBlobFeed() {
+  const ethUsd = useEthPrice();
   const { data, isLoading } = useSWR<{ data: BlobTransaction[] }>(
     "/api/blobs",
     fetcher,
@@ -52,8 +55,12 @@ export function LiveBlobFeed() {
             </span>
             <span className="ml-auto shrink-0 text-xs text-[#9CA3AF]">{b.num_blobs} blobs</span>
             <span className="hidden sm:flex shrink-0 flex-col items-end w-28">
-              <span className="font-mono text-xs text-[#6EE7B7]">{formatFee(b.blob_base_fee)}</span>
-              <span className="caption">base fee</span>
+              <span className="font-mono text-xs text-[#6EE7B7]">
+                {ethUsd != null
+                  ? formatUsd(blobCostUsd(b.blob_base_fee, ethUsd))
+                  : `${(Number(b.blob_base_fee) / 1e9).toFixed(4)} gwei`}
+              </span>
+              <span className="caption">{ethUsd != null ? "per blob" : "base fee"}</span>
             </span>
             <span className="w-16 shrink-0 text-right caption">{timeAgo(b.created_at)}</span>
           </div>

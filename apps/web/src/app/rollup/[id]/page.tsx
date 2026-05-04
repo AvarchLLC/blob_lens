@@ -6,8 +6,9 @@ import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
 import { getRollupTransactions } from "@/lib/queries";
-import { formatFee, formatNumber, shortHash, timeAgo } from "@/lib/utils";
+import { formatNumber, shortHash, timeAgo } from "@/lib/utils";
 import type { BlobTransaction, MarketHour } from "@/types";
 import { notFound } from "next/navigation";
 
@@ -48,7 +49,10 @@ export default async function RollupPage({ params }: Props) {
   const { id } = await params;
   const rollupName = decodeURIComponent(id);
 
-  const txs = await getRollupTransactions(rollupName).catch(() => null);
+  const [txs, ethUsd] = await Promise.all([
+    getRollupTransactions(rollupName).catch(() => null),
+    getEthPrice(),
+  ]);
   if (!txs || txs.length === 0) notFound();
 
   const totalBlobs = txs.reduce((s, t) => s + t.num_blobs, 0);
@@ -89,7 +93,7 @@ export default async function RollupPage({ params }: Props) {
                 <h2 className="section-title">Hourly Blob Activity</h2>
               </CardHeader>
               <CardContent>
-                <BlobFeeLineChart data={marketHours} />
+                <BlobFeeLineChart data={marketHours} ethUsd={ethUsd ?? undefined} />
               </CardContent>
             </Card>
 
@@ -116,8 +120,8 @@ export default async function RollupPage({ params }: Props) {
                         <th className="pb-3 pr-4">Tx Hash</th>
                         <th className="pb-3 pr-4">Block</th>
                         <th className="pb-3 pr-4 text-right">Blobs</th>
-                        <th className="pb-3 pr-4 text-right">Base Fee</th>
-                        <th className="pb-3 pr-4 text-right">Max Bid</th>
+                        <th className="pb-3 pr-4 text-right">{ethUsd != null ? "Cost / Blob" : "Base Fee"}</th>
+                        <th className="pb-3 pr-4 text-right">{ethUsd != null ? "Max Bid (USD)" : "Max Bid"}</th>
                         <th className="pb-3 text-right">Time</th>
                       </tr>
                     </thead>
@@ -136,8 +140,16 @@ export default async function RollupPage({ params }: Props) {
                           </td>
                           <td className="py-2.5 pr-4 text-xs text-[#9D93B8]">#{tx.block_number.toLocaleString()}</td>
                           <td className="py-2.5 pr-4 text-right text-foreground">{tx.num_blobs}</td>
-                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#9D93B8]">{formatFee(tx.blob_base_fee)}</td>
-                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#5C5575]">{formatFee(tx.max_fee_per_blob_gas)}</td>
+                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#9D93B8]">
+                            {ethUsd != null
+                              ? formatUsd(blobCostUsd(tx.blob_base_fee, ethUsd))
+                              : `${(Number(tx.blob_base_fee) / 1e9).toFixed(4)} gwei`}
+                          </td>
+                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#5C5575]">
+                            {ethUsd != null
+                              ? formatUsd(blobCostUsd(tx.max_fee_per_blob_gas, ethUsd))
+                              : `${(Number(tx.max_fee_per_blob_gas) / 1e9).toFixed(4)} gwei`}
+                          </td>
                           <td className="py-2.5 text-right text-xs text-[#5C5575]">{timeAgo(tx.created_at)}</td>
                         </tr>
                       ))}
@@ -154,7 +166,7 @@ export default async function RollupPage({ params }: Props) {
                 <h2 className="section-title">Fee History</h2>
               </CardHeader>
               <CardContent>
-                <BlobFeeLineChart data={marketHours} />
+                <BlobFeeLineChart data={marketHours} ethUsd={ethUsd ?? undefined} />
                 <p className="mt-3 text-xs text-[#9D93B8]">
                   First seen: {new Date(firstSeen).toLocaleString()} - Last seen: {new Date(lastSeen).toLocaleString()}
                 </p>
