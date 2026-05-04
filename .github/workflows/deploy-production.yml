@@ -213,12 +213,29 @@ jobs:
             pm2 save
 
             echo "Running health checks"
-            sleep 10
+            sleep 30
+
+            wait_for_http() {
+              local url="$1"
+              local label="$2"
+              for i in 1 2 3; do
+                if curl -fsS "$url" >/dev/null 2>&1; then
+                  echo "$label OK"
+                  return 0
+                fi
+                echo "$label not ready (attempt $i/3) — waiting 10s"
+                sleep 10
+              done
+              echo "$label FAILED after 3 attempts"
+              return 1
+            }
+
             FAIL=0
-            if [ "$BUILD_WEB" = "true" ] && ! curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+            if [ "$BUILD_WEB" = "true" ] && ! wait_for_http http://127.0.0.1:3000/api/health "Web"; then
               FAIL=1
             fi
-            if [ "$BUILD_API" = "true" ] && ! curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+            if [ "$BUILD_API" = "true" ] && ! wait_for_http http://127.0.0.1:8080/health "API"; then
+              pm2 logs blob-lens-indexer --lines 30 --nostream 2>&1 || true
               FAIL=1
             fi
             if [ "$FAIL" -eq 1 ]; then
