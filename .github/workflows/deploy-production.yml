@@ -98,171 +98,147 @@ jobs:
               BUILD_API=true
             fi
 
-            echo "Preparing directories"
+            # Always bootstrap nvm + Node 20 so pm2 and pnpm are reliably in PATH
+            if [ -s "$HOME/.nvm/nvm.sh" ]; then
+              . "$HOME/.nvm/nvm.sh"
+            else
+              echo "==> Installing nvm"
+              curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+              . "$HOME/.nvm/nvm.sh"
+            fi
+            nvm install 20 --no-progress
+            nvm use 20
+
+            if ! command -v pm2 >/dev/null 2>&1; then
+              echo "==> Installing pm2"
+              npm install -g pm2
+            fi
+
+            echo "==> Preparing directories"
             mkdir -p "$RELEASES_DIR" "$SHARED_DIR/env" "$SHARED_DIR/logs"
 
             if [ ! -f "$SHARED_DIR/env/api.env" ]; then
-              echo "Missing $SHARED_DIR/env/api.env"
-              exit 1
+              echo "ERROR: Missing $SHARED_DIR/env/api.env" && exit 1
             fi
-
             if [ ! -f "$SHARED_DIR/env/web.env" ]; then
-              echo "Missing $SHARED_DIR/env/web.env"
-              exit 1
+              echo "ERROR: Missing $SHARED_DIR/env/web.env" && exit 1
             fi
 
-            echo "Creating release: $RELEASE_NAME"
+            echo "==> Creating release $RELEASE_NAME"
             git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$NEW_RELEASE"
 
             ln -sfn "$SHARED_DIR/env/api.env" "$NEW_RELEASE/apps/api/.env"
             ln -sfn "$SHARED_DIR/env/web.env" "$NEW_RELEASE/apps/web/.env.local"
 
-            NEEDS_NODE=false
+            # ── Build web ──────────────────────────────────────────────────────
             if [ "$BUILD_WEB" = "true" ]; then
-              NEEDS_NODE=true
-            fi
-            if ! command -v pm2 >/dev/null 2>&1; then
-              NEEDS_NODE=true
-            fi
-
-            if [ "$NEEDS_NODE" = "true" ]; then
-              if [ -s "$HOME/.nvm/nvm.sh" ]; then
-                . "$HOME/.nvm/nvm.sh"
-              else
-                echo "Installing nvm"
-                curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-                . "$HOME/.nvm/nvm.sh"
-              fi
-
-              nvm install 20
-              nvm use 20
-
-              if [ "$BUILD_WEB" = "true" ]; then
-                corepack enable
-                corepack prepare pnpm@9.15.0 --activate
-                pnpm --version
-              fi
-
-              if ! command -v pm2 >/dev/null 2>&1; then
-                npm install -g pm2
-              fi
-            else
-              echo "Skipping Node setup (no web build and PM2 already present)"
-            fi
-
-            cd "$NEW_RELEASE"
-
-            if [ "$BUILD_WEB" = "true" ]; then
-              echo "Installing workspace dependencies for web build"
+              echo "==> Building Next.js"
+              corepack enable
+              corepack prepare pnpm@9.15.0 --activate
+              cd "$NEW_RELEASE"
               if [ -f "pnpm-lock.yaml" ]; then
                 pnpm install --frozen-lockfile
               else
-                echo "pnpm-lock.yaml not found; falling back to non-frozen install"
                 pnpm install --no-frozen-lockfile
               fi
-
-              echo "Building Next.js web app"
               pnpm --filter web build
             else
-              echo "Skipping web build (no web changes detected)"
+              echo "==> Skipping web build (no changes)"
             fi
 
+            # ── Build API ──────────────────────────────────────────────────────
             if [ "$BUILD_API" = "true" ]; then
+              echo "==> Building Rust indexer"
               if [ ! -x "$HOME/.cargo/bin/rustc" ]; then
                 echo "Installing Rust toolchain"
                 curl https://sh.rustup.rs -sSf | sh -s -- -y
               fi
-
               . "$HOME/.cargo/env"
               rustup default stable
-              rustc --version
-              cargo --version
-
-              echo "Building Rust indexer/api"
+              rustc --version && cargo --version
               cd "$NEW_RELEASE/apps/api"
               cargo build --release
-              cd "$NEW_RELEASE"
             else
-              echo "Skipping API build (no api changes detected)"
-              # The built binary lives inside target/ which is gitignored.
-              # Carry the existing binary forward so PM2 has something to run.
+              echo "==> Skipping API build — carrying binary forward"
+              # target/ is gitignored; copy the existing binary so PM2 can run it
+              # from the new release path (PM2 always reloads with the new config).
               if [ -L "$CURRENT_DIR" ]; then
                 OLD_BIN="$(readlink -f "$CURRENT_DIR")/apps/api/target/release/blob_lens"
                 NEW_BIN="$NEW_RELEASE/apps/api/target/release/blob_lens"
+                mkdir -p "$(dirname "$NEW_BIN")"
                 if [ -f "$OLD_BIN" ]; then
-                  mkdir -p "$(dirname "$NEW_BIN")"
                   cp "$OLD_BIN" "$NEW_BIN"
-                  echo "Carried forward existing indexer binary"
+                  echo "Carried forward binary from $(readlink -f "$CURRENT_DIR")"
                 else
-                  echo "WARNING: No existing binary found at $OLD_BIN — indexer may not start"
+                  echo "WARNING: No binary found at $OLD_BIN — indexer will not start"
                 fi
               fi
             fi
 
-            echo "Switching current symlink"
+            # ── Switch symlink ────────────────────────────────────────────────
+            echo "==> Switching current → $RELEASE_NAME"
             ln -sfn "$NEW_RELEASE" "$CURRENT_DIR"
 
-            echo "Reloading PM2 processes"
-            if [ "$BUILD_WEB" = "true" ] && [ "$BUILD_API" = "true" ]; then
-              pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --env production --update-env
-            elif [ "$BUILD_WEB" = "true" ]; then
-              pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --only blob-lens-web --env production --update-env
-            elif [ "$BUILD_API" = "true" ]; then
-              pm2 startOrReload "$CURRENT_DIR/ops/pm2/ecosystem.config.cjs" --only blob-lens-indexer --env production --update-env
-            fi
+            # ── Reload PM2 (always reload both so script paths stay in sync) ──
+            echo "==> Reloading PM2"
+            ECOSYSTEM="$NEW_RELEASE/ops/pm2/ecosystem.config.cjs"
+            pm2 startOrReload "$ECOSYSTEM" --env production --update-env
             pm2 save
 
-            echo "Running health checks"
-            sleep 30
+            echo "==> PM2 status:"
+            pm2 list
 
+            # ── Health checks ─────────────────────────────────────────────────
             wait_for_http() {
-              local url="$1"
-              local label="$2"
+              local url="$1" label="$2"
               for i in 1 2 3; do
                 if curl -fsS "$url" >/dev/null 2>&1; then
                   echo "$label OK"
                   return 0
                 fi
-                echo "$label not ready (attempt $i/3) — waiting 10s"
-                sleep 10
+                echo "$label not ready (attempt $i/3) — waiting 15s"
+                sleep 15
               done
               echo "$label FAILED after 3 attempts"
               return 1
             }
 
+            echo "==> Health checks (30s initial wait)"
+            sleep 30
+
             FAIL=0
-            if [ "$BUILD_WEB" = "true" ] && ! wait_for_http http://127.0.0.1:3000/api/health "Web"; then
+            wait_for_http http://127.0.0.1:3000/api/health "Web" || FAIL=1
+            if ! wait_for_http http://127.0.0.1:8080/health "API"; then
+              echo "--- indexer logs ---"
+              pm2 logs blob-lens-indexer --lines 40 --nostream 2>&1 || true
+              echo "--------------------"
               FAIL=1
             fi
-            if [ "$BUILD_API" = "true" ] && ! wait_for_http http://127.0.0.1:8080/health "API"; then
-              pm2 logs blob-lens-indexer --lines 30 --nostream 2>&1 || true
-              FAIL=1
-            fi
+
             if [ "$FAIL" -eq 1 ]; then
-              echo "Health check failed. Rolling back."
-              PREVIOUS_RELEASE=$(ls -dt "$RELEASES_DIR"/* | sed -n '2p')
+              echo "==> Health check failed — rolling back"
+              PREVIOUS_RELEASE=$(ls -dt "$RELEASES_DIR"/*/ 2>/dev/null | grep -v "^$NEW_RELEASE/$" | head -1 | sed 's|/$||')
               if [ -n "${PREVIOUS_RELEASE:-}" ]; then
                 ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_DIR"
-                # Older releases may predate ops/pm2/ecosystem.config.cjs;
-                # fall back to restarting existing PM2 processes by name.
                 if [ -f "$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs" ]; then
                   pm2 startOrReload "$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs" --env production --update-env || true
                 else
                   pm2 restart blob-lens-web blob-lens-indexer || true
                 fi
                 pm2 save || true
+                echo "Rolled back to $PREVIOUS_RELEASE"
               fi
               exit 1
             fi
 
-            echo "Cleaning old releases (keep last 5)"
-            cd "$RELEASES_DIR"
-            ls -dt */ | tail -n +6 | xargs -r rm -rf
+            # ── Clean up old releases (keep last 5) ───────────────────────────
+            echo "==> Cleaning old releases"
+            ls -dt "$RELEASES_DIR"/*/ | tail -n +6 | sed 's|/$||' | xargs -r rm -rf
 
-            echo "Deployment completed successfully"
+            echo "==> Deployment complete!"
 
       - name: Skip Deploy (No Relevant Changes)
-        if: ${{ steps.changes.outputs.web != 'true' && steps.changes.outputs.api != 'true' && steps.changes.outputs.infra != 'true' }}
+        if: ${{ steps.changes.outputs.web != 'true' && steps.changes.outputs.api != 'true' && steps.changes.outputs.infra != 'true' && inputs.force_web != true && inputs.force_api != true }}
         run: echo "No web/api/infra changes detected. Skipping deployment."
 
       - name: Discord Notification - Success
