@@ -9,11 +9,12 @@ use crate::rollup_registry;
 use eyre::Result;
 use tracing::{info, error, warn};
 
-// EIP-4844 constants
-const BLOB_BASE_FEE_UPDATE_FRACTION: u128 = 3_338_477;
+// EIP-4844 / EIP-7691 (Pectra) constants
+// Pectra (May 2025) raised max blobs 6→9, target 3→6, and updated the fee fraction.
+const BLOB_BASE_FEE_UPDATE_FRACTION: u128 = 5_007_716; // EIP-7691 (was 3_338_477 pre-Pectra)
 const MIN_BLOB_BASE_FEE: u128 = 1;
-const GAS_PER_BLOB: u64 = 131_072;           // each blob costs exactly 131,072 blob gas
-const MAX_BLOB_GAS_PER_BLOCK: f64 = 786_432.0; // 6 blobs × 131,072
+const GAS_PER_BLOB: u64 = 131_072;
+const MAX_BLOB_GAS_PER_BLOCK: f64 = 1_179_648.0; // 9 blobs × 131,072 (post-Pectra)
 
 /// EIP-4844 blob base fee: fake_exponential(1, excess_blob_gas, 3_338_477)
 /// Returns wei per blob-gas unit, capped at 1 ETH (10^18) as a safety bound.
@@ -21,9 +22,9 @@ fn calc_blob_fee(excess_blob_gas: u64) -> i64 {
     fake_exponential(MIN_BLOB_BASE_FEE, excess_blob_gas as u128, BLOB_BASE_FEE_UPDATE_FRACTION) as i64
 }
 
-// Safety cap: 1 ETH per blob-gas unit would be astronomical; this prevents
-// overflow from propagating into the DB as garbage values.
-const MAX_BLOB_FEE_WEI: u128 = 1_000_000_000_000_000_000; // 1 ETH
+// Safety cap: 10,000 gwei per blob-gas unit is already extreme (historical max ~200 gwei).
+// Anything above this is a calculation artefact and should not reach the DB.
+const MAX_BLOB_FEE_WEI: u128 = 10_000_000_000_000; // 10,000 gwei
 
 fn fake_exponential(factor: u128, numerator: u128, denominator: u128) -> u128 {
     let mut i: u128 = 1;
