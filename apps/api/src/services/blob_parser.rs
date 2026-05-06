@@ -101,7 +101,7 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                 }
 
                 info!(
-                    "  📊 Block #{}: base_fee={}wei blobs={}/6 utilization={:.1}%",
+                    "  📊 Block #{}: base_fee={}wei blobs={}/9 utilization={:.1}%",
                     block_number, blob_base_fee, blob_count,
                     utilization * 100.0
                 );
