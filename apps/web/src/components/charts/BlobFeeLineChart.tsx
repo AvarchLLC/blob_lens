@@ -2,6 +2,7 @@
 
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { formatUsd } from "@/lib/ethPrice";
 
 const GAS_PER_BLOB = 131_072;
 
@@ -21,20 +22,29 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
 
   const isUsd = ethUsd != null;
   const labels = data.map((d) => shortHour(d.hour));
-  const values = data.map((d) =>
-    isUsd
-      ? (Number(d.avg_fee) * GAS_PER_BLOB) / 1e18 * ethUsd
-      : parseFloat((Number(d.avg_fee) / 1e9).toFixed(6))
-  );
-  const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  const values = data.map((d) => {
+    const fee = Number(d.avg_fee);
+    if (fee === 0) return null;
+    return isUsd
+      ? (fee * GAS_PER_BLOB) / 1e18 * ethUsd
+      : parseFloat((fee / 1e9).toFixed(6));
+  });
+  const nonNull = values.filter((v): v is number => v !== null);
+  const avg = nonNull.length ? nonNull.reduce((a, b) => a + b, 0) / nonNull.length : 0;
 
-  const yFmt = isUsd
-    ? (v: number) => (v < 0.0001 ? "< $0.0001" : `$${v.toFixed(4)}`)
-    : (v: number) => (v < 0.0001 ? "< 0.0001" : v.toFixed(4));
+  if (nonNull.length === 0)
+    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">Fee data unavailable — indexer restarting with updated constants</p>;
 
+  const fmtGwei = (v: number) => {
+    if (v === 0) return "0 gwei";
+    if (v < 0.0001) return `${v.toPrecision(3)} gwei`;
+    return `${v.toFixed(4)} gwei`;
+  };
+
+  const yFmt = isUsd ? (v: number) => formatUsd(v) : fmtGwei;
   const ttFmt = isUsd
-    ? (v: number) => (v < 0.0001 ? "< $0.0001 / blob" : `$${v.toFixed(4)} / blob`)
-    : (v: number) => (v < 0.0001 ? "< 0.0001 gwei" : `${v.toFixed(4)} gwei`);
+    ? (v: number) => `${formatUsd(v)} / blob`
+    : (v: number) => `${fmtGwei(v)} / blob`;
 
   const option = {
     animation: true,
@@ -52,6 +62,8 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
     },
     yAxis: {
       type: "value" as const,
+      min: 0,
+      max: (extent: { max: number }) => (extent.max > 0 ? extent.max * 1.3 : 1),
       axisLabel: {
         color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
         formatter: yFmt,
@@ -66,13 +78,17 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
       borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
       textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
-      formatter: (params: { axisValue: string; value: number }[]) =>
-        `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${ttFmt(params[0].value)}</b>`,
+      formatter: (params: { axisValue: string; value: number | null }[]) => {
+        const val = params[0].value;
+        const label = val == null ? "no data" : ttFmt(val);
+        return `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${label}</b>`;
+      },
     },
     series: [
       {
         type: "line" as const,
         data: values,
+        connectNulls: false,
         smooth: 0.4,
         lineStyle: { color: "#10B981", width: 2 },
         symbol: "none",

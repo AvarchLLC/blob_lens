@@ -93,9 +93,11 @@ export function BlockFeed() {
                 <UtilizationBar pct={b.utilization} />
               </td>
               <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#6EE7B7]">
-                {ethUsd != null
-                  ? formatUsd(blobCostUsd(b.blob_base_fee, ethUsd))
-                  : `${(Number(b.blob_base_fee) / 1e9).toFixed(4)} gwei`}
+                {Number(b.blob_base_fee) === 0
+                  ? <span className="text-[#4B5563]">—</span>
+                  : ethUsd != null
+                    ? formatUsd(blobCostUsd(b.blob_base_fee, ethUsd))
+                    : `${(Number(b.blob_base_fee) / 1e9).toFixed(4)} gwei`}
               </td>
               <td className="py-2.5">
                 <div className="flex flex-wrap gap-1">
