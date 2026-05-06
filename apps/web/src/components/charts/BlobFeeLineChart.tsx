@@ -21,12 +21,15 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
 
   const isUsd = ethUsd != null;
   const labels = data.map((d) => shortHour(d.hour));
-  const values = data.map((d) =>
-    isUsd
-      ? (Number(d.avg_fee) * GAS_PER_BLOB) / 1e18 * ethUsd
-      : parseFloat((Number(d.avg_fee) / 1e9).toFixed(6))
-  );
-  const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  const values = data.map((d) => {
+    const fee = Number(d.avg_fee);
+    if (fee === 0) return null;
+    return isUsd
+      ? (fee * GAS_PER_BLOB) / 1e18 * ethUsd
+      : parseFloat((fee / 1e9).toFixed(6));
+  });
+  const nonNull = values.filter((v): v is number => v !== null);
+  const avg = nonNull.length ? nonNull.reduce((a, b) => a + b, 0) / nonNull.length : 0;
 
   const yFmt = isUsd
     ? (v: number) => (v < 0.0001 ? "< $0.0001" : `$${v.toFixed(4)}`)
@@ -73,6 +76,7 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
       {
         type: "line" as const,
         data: values,
+        connectNulls: false,
         smooth: 0.4,
         lineStyle: { color: "#10B981", width: 2 },
         symbol: "none",

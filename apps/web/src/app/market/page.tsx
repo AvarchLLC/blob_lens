@@ -41,7 +41,7 @@ export default async function MarketPage() {
           <StatCard
             label="Cost / Blob (last hr)"
             value={
-              latest
+              latest && Number(latest.avg_fee) > 0
                 ? ethUsd != null
                   ? formatUsd(blobCostUsd(latest.avg_fee, ethUsd))
                   : `${(Number(latest.avg_fee) / 1e9).toFixed(4)} gwei`
