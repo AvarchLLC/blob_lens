@@ -30,8 +30,9 @@ export default async function OverviewPage() {
   const latestHour = market.length > 0 ? market[market.length - 1] : null;
   const latestMaxBlobs = market.length > 0 ? Math.max(...market.map((m) => m.max_blobs_in_block)) : 0;
 
-  const currentCostUsd = latestHour && ethUsd ? blobCostUsd(latestHour.avg_fee, ethUsd) : null;
-  const currentFeeGwei = latestHour ? (Number(latestHour.avg_fee) / 1e9).toFixed(4) : null;
+  const latestFeeWei = latestHour ? Number(latestHour.avg_fee) : 0;
+  const currentCostUsd = latestFeeWei > 0 && ethUsd ? blobCostUsd(latestFeeWei, ethUsd) : null;
+  const currentFeeGwei = latestFeeWei > 0 ? (latestFeeWei / 1e9).toFixed(4) : null;
 
   return (
     <div className="flex min-h-screen flex-col">

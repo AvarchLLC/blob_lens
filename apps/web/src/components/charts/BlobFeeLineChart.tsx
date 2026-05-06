@@ -32,6 +32,9 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
   const nonNull = values.filter((v): v is number => v !== null);
   const avg = nonNull.length ? nonNull.reduce((a, b) => a + b, 0) / nonNull.length : 0;
 
+  if (nonNull.length === 0)
+    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">Fee data unavailable — indexer restarting with updated constants</p>;
+
   const fmtGwei = (v: number) => {
     if (v === 0) return "0 gwei";
     if (v < 0.0001) return `${v.toPrecision(3)} gwei`;
