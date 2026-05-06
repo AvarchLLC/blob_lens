@@ -1,5 +1,6 @@
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::client::WsConnect;
+use alloy::rpc::types::BlockNumberOrTag;
 use futures_util::StreamExt;
 use dotenvy::dotenv;
 use std::env;
@@ -43,12 +44,25 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
 
         match provider.get_block_by_hash(block_hash, alloy::rpc::types::BlockTransactionsKind::Full).await {
             Ok(Some(full_block)) => {
-                // Use alloy's built-in blob_fee() — it applies the correct EIP-4844
-                // fake_exponential with the chain's BLOB_GASPRICE_UPDATE_FRACTION.
-                let blob_base_fee = full_block.header
-                    .blob_fee()
-                    .unwrap_or(0)
-                    .min(i64::MAX as u128) as i64;
+                // Fetch blob base fee from the node via eth_feeHistory.
+                // Alloy 0.4 hardcodes the pre-Pectra BLOB_GASPRICE_UPDATE_FRACTION (3_338_477)
+                // in header.blob_fee(), which produces astronomically wrong values post-Pectra.
+                // The node computes the fee using the correct current constants.
+                let blob_base_fee: i64 = match provider
+                    .get_fee_history(1u64, BlockNumberOrTag::Number(block_number as u64), &[])
+                    .await
+                {
+                    Ok(fh) => fh
+                        .base_fee_per_blob_gas
+                        .first()
+                        .copied()
+                        .unwrap_or(0)
+                        .min(i64::MAX as u128) as i64,
+                    Err(e) => {
+                        warn!("get_fee_history failed for block {}: {}", block_number, e);
+                        0
+                    }
+                };
 
                 let blob_gas_used = full_block.header.blob_gas_used.unwrap_or(0) as i32;
                 let blob_count    = blob_gas_used / GAS_PER_BLOB as i32;
@@ -65,10 +79,11 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                     error!("Failed to insert block stats for #{}: {}", block_number, e);
                 }
 
+                let excess_blob_gas = full_block.header.excess_blob_gas.unwrap_or(0);
                 let blob_fee_gwei = blob_base_fee as f64 / 1e9;
                 info!(
-                    "  📊 Block #{}: base_fee={:.6}gwei blobs={}/9 utilization={:.1}%",
-                    block_number, blob_fee_gwei, blob_count, utilization * 100.0
+                    "  📊 Block #{}: excess_blob_gas={} base_fee={:.6}gwei blobs={}/9 utilization={:.1}%",
+                    block_number, excess_blob_gas, blob_fee_gwei, blob_count, utilization * 100.0
                 );
 
                 let mut blob_tx_count = 0;
