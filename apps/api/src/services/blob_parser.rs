@@ -22,9 +22,9 @@ fn calc_blob_fee(excess_blob_gas: u64) -> i64 {
     fake_exponential(MIN_BLOB_BASE_FEE, excess_blob_gas as u128, BLOB_BASE_FEE_UPDATE_FRACTION) as i64
 }
 
-// Safety cap: 10,000 gwei per blob-gas unit is already extreme (historical max ~200 gwei).
-// Anything above this is a calculation artefact and should not reach the DB.
-const MAX_BLOB_FEE_WEI: u128 = 10_000_000_000_000; // 10,000 gwei
+// Safety cap at 1,000,000 gwei — the exponential can legitimately reach tens of thousands
+// of gwei during sustained high-utilization periods (post-Pectra observed: ~10,000 gwei).
+const MAX_BLOB_FEE_WEI: u128 = 1_000_000_000_000_000; // 1,000,000 gwei
 
 fn fake_exponential(factor: u128, numerator: u128, denominator: u128) -> u128 {
     let mut i: u128 = 1;
