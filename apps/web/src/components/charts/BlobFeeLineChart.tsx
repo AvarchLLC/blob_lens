@@ -75,8 +75,11 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
       borderColor: "rgba(16,185,129,0.2)",
       borderWidth: 1,
       textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
-      formatter: (params: { axisValue: string; value: number }[]) =>
-        `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${ttFmt(params[0].value)}</b>`,
+      formatter: (params: { axisValue: string; value: number | null }[]) => {
+        const val = params[0].value;
+        const label = val == null ? "no data" : ttFmt(val);
+        return `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${label}</b>`;
+      },
     },
     series: [
       {
