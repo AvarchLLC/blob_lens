@@ -19,8 +19,10 @@ export function blobCostUsd(feeWeiPerGas: string | number, ethUsd: number): numb
 }
 
 export function formatUsd(usd: number): string {
-  if (usd < 0.0001) return "< $0.0001";
-  if (usd < 0.01)   return `$${usd.toFixed(4)}`;
-  if (usd < 1)      return `$${usd.toFixed(3)}`;
-  return `$${usd.toFixed(2)}`;
+  if (usd === 0) return "$0.00";
+  if (usd >= 1)      return `$${usd.toFixed(2)}`;
+  if (usd >= 0.01)   return `$${usd.toFixed(4)}`;
+  if (usd >= 0.0001) return `$${usd.toFixed(6)}`;
+  const exp = Math.floor(Math.log10(usd));
+  return `$${usd.toFixed(Math.min(-exp + 2, 12))}`;
 }

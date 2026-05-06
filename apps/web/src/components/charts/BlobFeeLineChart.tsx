@@ -2,6 +2,7 @@
 
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { formatUsd } from "@/lib/ethPrice";
 
 const GAS_PER_BLOB = 131_072;
 
@@ -31,13 +32,16 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
   const nonNull = values.filter((v): v is number => v !== null);
   const avg = nonNull.length ? nonNull.reduce((a, b) => a + b, 0) / nonNull.length : 0;
 
-  const yFmt = isUsd
-    ? (v: number) => (v < 0.0001 ? "< $0.0001" : `$${v.toFixed(4)}`)
-    : (v: number) => (v < 0.0001 ? "< 0.0001" : v.toFixed(4));
+  const fmtGwei = (v: number) => {
+    if (v === 0) return "0 gwei";
+    if (v < 0.0001) return `${v.toPrecision(3)} gwei`;
+    return `${v.toFixed(4)} gwei`;
+  };
 
+  const yFmt = isUsd ? (v: number) => formatUsd(v) : fmtGwei;
   const ttFmt = isUsd
-    ? (v: number) => (v < 0.0001 ? "< $0.0001 / blob" : `$${v.toFixed(4)} / blob`)
-    : (v: number) => (v < 0.0001 ? "< 0.0001 gwei" : `${v.toFixed(4)} gwei`);
+    ? (v: number) => `${formatUsd(v)} / blob`
+    : (v: number) => `${fmtGwei(v)} / blob`;
 
   const option = {
     animation: true,
@@ -55,6 +59,8 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
     },
     yAxis: {
       type: "value" as const,
+      min: 0,
+      max: (extent: { max: number }) => (extent.max > 0 ? extent.max * 1.3 : 1),
       axisLabel: {
         color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
         formatter: yFmt,
