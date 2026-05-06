@@ -2,6 +2,7 @@
 name = "blob_lens"
 version = "0.2.0"
 edition = "2021"
+default-run = "blob_lens"
 
 [dependencies]
 # Ethereum & RPC (using stable v0.4 instead of v0.5 which has unstable features)

@@ -9,46 +9,8 @@ use crate::rollup_registry;
 use eyre::Result;
 use tracing::{info, error, warn};
 
-// EIP-4844 / EIP-7691 (Pectra) constants
-// Pectra (May 2025) raised max blobs 6→9, target 3→6, and updated the fee fraction.
-const BLOB_BASE_FEE_UPDATE_FRACTION: u128 = 5_007_716; // EIP-7691 (was 3_338_477 pre-Pectra)
-const MIN_BLOB_BASE_FEE: u128 = 1;
 const GAS_PER_BLOB: u64 = 131_072;
 const MAX_BLOB_GAS_PER_BLOCK: f64 = 1_179_648.0; // 9 blobs × 131,072 (post-Pectra)
-
-/// EIP-4844 blob base fee: fake_exponential(1, excess_blob_gas, 3_338_477)
-/// Returns wei per blob-gas unit, capped at 1 ETH (10^18) as a safety bound.
-fn calc_blob_fee(excess_blob_gas: u64) -> i64 {
-    fake_exponential(MIN_BLOB_BASE_FEE, excess_blob_gas as u128, BLOB_BASE_FEE_UPDATE_FRACTION) as i64
-}
-
-// Safety cap at 1,000,000 gwei — the exponential can legitimately reach tens of thousands
-// of gwei during sustained high-utilization periods (post-Pectra observed: ~10,000 gwei).
-const MAX_BLOB_FEE_WEI: u128 = 1_000_000_000_000_000; // 1,000,000 gwei
-
-fn fake_exponential(factor: u128, numerator: u128, denominator: u128) -> u128 {
-    let mut i: u128 = 1;
-    let mut output: u128 = 0;
-    let mut numerator_accum = factor * denominator; // factor=1, denominator≈3.3M → no overflow
-
-    while numerator_accum > 0 {
-        match output.checked_add(numerator_accum) {
-            Some(v) => output = v,
-            None => return MAX_BLOB_FEE_WEI, // accumulated sum overflows → cap
-        }
-
-        let new_num = match numerator_accum.checked_mul(numerator) {
-            Some(v) => v,
-            None => break, // next term overflows → stop summing (remaining terms negligible given cap)
-        };
-
-        // denominator * i: denominator≈3.3M, i≈≤100 before convergence → no overflow
-        numerator_accum = new_num / (denominator * i);
-        i += 1;
-    }
-
-    (output / denominator).min(MAX_BLOB_FEE_WEI)
-}
 
 pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
     dotenv().ok();
@@ -81,14 +43,17 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
 
         match provider.get_block_by_hash(block_hash, alloy::rpc::types::BlockTransactionsKind::Full).await {
             Ok(Some(full_block)) => {
-                // ── Per-block blob metrics from execution header ──────────────
-                let excess_blob_gas = full_block.header.excess_blob_gas.unwrap_or(0);
-                let blob_gas_used   = full_block.header.blob_gas_used.unwrap_or(0) as i32;
-                let blob_base_fee   = calc_blob_fee(excess_blob_gas);
-                let blob_count      = blob_gas_used / GAS_PER_BLOB as i32;
-                let utilization     = blob_gas_used as f64 / MAX_BLOB_GAS_PER_BLOCK;
+                // Use alloy's built-in blob_fee() — it applies the correct EIP-4844
+                // fake_exponential with the chain's BLOB_GASPRICE_UPDATE_FRACTION.
+                let blob_base_fee = full_block.header
+                    .blob_fee()
+                    .unwrap_or(0)
+                    .min(i64::MAX as u128) as i64;
 
-                // Store block-level stats (once per block, regardless of tx count)
+                let blob_gas_used = full_block.header.blob_gas_used.unwrap_or(0) as i32;
+                let blob_count    = blob_gas_used / GAS_PER_BLOB as i32;
+                let utilization   = blob_gas_used as f64 / MAX_BLOB_GAS_PER_BLOCK;
+
                 if let Err(e) = crate::db::insert_block_stats(
                     pool,
                     block_number,
@@ -100,13 +65,12 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                     error!("Failed to insert block stats for #{}: {}", block_number, e);
                 }
 
+                let blob_fee_gwei = blob_base_fee as f64 / 1e9;
                 info!(
-                    "  📊 Block #{}: base_fee={}wei blobs={}/9 utilization={:.1}%",
-                    block_number, blob_base_fee, blob_count,
-                    utilization * 100.0
+                    "  📊 Block #{}: base_fee={:.6}gwei blobs={}/9 utilization={:.1}%",
+                    block_number, blob_fee_gwei, blob_count, utilization * 100.0
                 );
 
-                // ── Per-transaction blob data ─────────────────────────────────
                 let mut blob_tx_count = 0;
 
                 for tx in full_block.transactions.into_transactions() {
@@ -133,8 +97,8 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                         );
 
                         info!(
-                            "  🔹 Blob Tx: {} | Rollup: {} | Blobs: {} | Base Fee: {}wei | Max Bid: {}",
-                            &tx_hash[..10], rollup, num_blobs, blob_base_fee, max_fee_per_blob_gas
+                            "  🔹 Blob Tx: {} | Rollup: {} | Blobs: {} | Base Fee: {:.6}gwei | Max Bid: {}",
+                            &tx_hash[..10], rollup, num_blobs, blob_fee_gwei, max_fee_per_blob_gas
                         );
 
                         if let Err(e) = crate::db::insert_blob_transaction(
