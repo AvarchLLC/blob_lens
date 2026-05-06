@@ -1,3 +1,4 @@
+import { BlobFeeGauge } from "@/components/charts/BlobFeeGauge";
 import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
 import { CostHeatmap } from "@/components/charts/CostHeatmap";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
@@ -8,7 +9,7 @@ import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { RollupShareCard } from "@/components/shared/RollupShareCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
+import { getEthPrice } from "@/lib/ethPrice";
 import {
   getDailyRollupBreakdown,
   getLeaderboard,
@@ -31,8 +32,6 @@ export default async function OverviewPage() {
   const latestMaxBlobs = market.length > 0 ? Math.max(...market.map((m) => m.max_blobs_in_block)) : 0;
 
   const latestFeeWei = latestHour ? Number(latestHour.avg_fee) : 0;
-  const currentCostUsd = latestFeeWei > 0 && ethUsd ? blobCostUsd(latestFeeWei, ethUsd) : null;
-  const currentFeeGwei = latestFeeWei > 0 ? (latestFeeWei / 1e9).toFixed(4) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -69,25 +68,7 @@ export default async function OverviewPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
-                <p className="font-mono text-5xl font-bold tracking-tight text-foreground">
-                  {currentCostUsd !== null ? formatUsd(currentCostUsd) : "—"}
-                </p>
-                <p className="caption">per blob · last hour average</p>
-                {currentFeeGwei && (
-                  <p className="caption">
-                    blob base fee: <span className="font-mono text-[#9CA3AF]">{currentFeeGwei} gwei</span>
-                  </p>
-                )}
-                {ethUsd && (
-                  <p className="mt-2 caption text-[#4B5563]">
-                    ETH / USD: <span className="font-mono">${ethUsd.toLocaleString()}</span>
-                  </p>
-                )}
-                {!ethUsd && (
-                  <p className="caption text-[#4B5563]">ETH price unavailable — showing gwei only</p>
-                )}
-              </div>
+              <BlobFeeGauge latestFeeWei={latestFeeWei} ethUsd={ethUsd} />
             </CardContent>
           </Card>
         </section>
