@@ -62,6 +62,12 @@ export interface HourlyRollupBlob {
   blobs: number;
 }
 
+export interface HourlyRollupValue {
+  rollup: string;
+  hour: string;
+  value: number;
+}
+
 export interface DailyRollupBlob {
   day: string;
   rollup: string;
