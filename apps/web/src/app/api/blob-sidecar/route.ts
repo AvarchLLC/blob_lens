@@ -46,17 +46,39 @@ function detectEncoding(bytes: Uint8Array): string {
   return "Unknown / raw";
 }
 
-async function fetchBlobSidecars(slot: number): Promise<{ data: BeaconSidecar[] } | null> {
+// Ordered list of Beacon API bases to try. BEACON_RPC_URL overrides all.
+// Alchemy consensus endpoint differs from execution — use the dedicated subdomain.
+function beaconBases(): string[] {
+  const custom = process.env.BEACON_RPC_URL;
+  if (custom) return [custom];
+
   const alchemyKey = process.env.ALCHEMY_KEY;
-  const beaconBase = process.env.BEACON_RPC_URL ??
-    (alchemyKey ? `https://eth-mainnet.g.alchemy.com/eth/v2/${alchemyKey}` : null);
+  const bases: string[] = [];
+  if (alchemyKey) {
+    // Alchemy consensus (Beacon) API — separate subdomain from execution
+    bases.push(`https://eth-mainnet-consensus.g.alchemy.com/v2/${alchemyKey}`);
+  }
+  // Always fall back to free public Beacon nodes
+  bases.push(
+    "https://ethereum-mainnet-beacon.publicnode.com",
+    "https://beaconapi.io",
+  );
+  return bases;
+}
 
-  if (!beaconBase) return null;
-
-  const url = `${beaconBase}/eth/v1/beacon/blob_sidecars/${slot}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  if (!res.ok) return null;
-  return res.json() as Promise<{ data: BeaconSidecar[] }>;
+async function fetchBlobSidecars(slot: number): Promise<{ data: BeaconSidecar[] } | null> {
+  for (const base of beaconBases()) {
+    try {
+      const url = `${base}/eth/v1/beacon/blob_sidecars/${slot}`;
+      const res = await fetch(url, { cache: "force-cache", next: { revalidate: 3600 } });
+      if (!res.ok) continue;
+      const json = await res.json() as { data?: BeaconSidecar[] };
+      if (json?.data?.length) return json as { data: BeaconSidecar[] };
+    } catch {
+      // try next base
+    }
+  }
+  return null;
 }
 
 interface BeaconSidecar {
@@ -100,8 +122,10 @@ export async function GET(req: NextRequest) {
 
   if (!sidecars) {
     return Response.json({
-      error: "Beacon API unavailable or no blobs for this block. Set ALCHEMY_KEY or BEACON_RPC_URL in apps/web/.env.local.",
+      error: "No blob sidecars returned from any Beacon API for this block.",
       slot: baseSlot,
+      tried_slots: [0, 1, -1, 2].map((d) => baseSlot + d),
+      hint: "Set BEACON_RPC_URL in apps/web/.env.local to a reachable Beacon node, e.g. https://ethereum-mainnet-beacon.publicnode.com",
     }, { status: 503 });
   }
 
