@@ -1,7 +1,7 @@
 import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
 import { RollupActivityHeatmap } from "@/components/charts/RollupActivityHeatmap";
-import { AppHeader } from "@/components/shared/AppHeader";
 import { RollupBadge } from "@/components/shared/RollupBadge";
+import { TopBar } from "@/components/shared/TopBar";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -62,15 +62,14 @@ export default async function RollupPage({ params }: Props) {
   const marketHours = toMarketHours(txs);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader active="rollup" />
+    <div className="flex flex-col">
+      <TopBar
+        title={rollupName}
+        subtitle="Per-rollup blob analytics · last 500 transactions"
+        right={<RollupBadge rollup={rollupName} linkable={false} />}
+      />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <RollupBadge rollup={rollupName} />
-          <h1 className="section-title text-3xl">{rollupName}</h1>
-        </div>
-
+      <div className="space-y-6 px-6 py-4">
         <Separator />
 
         <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -174,7 +173,7 @@ export default async function RollupPage({ params }: Props) {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
 }
