@@ -2,6 +2,7 @@ import type {
   BlockRow,
   BlobTransaction,
   DailyRollupBlob,
+  ForecastData,
   LeaderboardRow,
   MarketHour,
   OverviewStats,
@@ -31,19 +32,57 @@ export async function getOverviewStats(): Promise<OverviewStats> {
 
 export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
   return sql<LeaderboardRow[]>`
+    WITH window_total AS (
+      SELECT COALESCE(SUM(num_blobs), 0)::float8 AS total_blobs_all
+      FROM blob_transactions
+      WHERE rollup IS NOT NULL
+        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    )
     SELECT
       rollup,
       COUNT(*)::bigint                                    AS tx_count,
       COALESCE(SUM(num_blobs), 0)::bigint                 AS total_blobs,
       COALESCE(AVG(num_blobs), 0)::float8                 AS avg_blobs_per_tx,
       COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
-      MAX(created_at)                                     AS last_seen
+      MAX(created_at)                                     AS last_seen,
+      COALESCE(
+        SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18,
+        0
+      )::float8                                           AS da_cost_eth,
+      LEAST(100, COALESCE(AVG(num_blobs) / 6.0 * 100, 0))::float8 AS packing_score,
+      COALESCE(
+        SUM(num_blobs)::float8 / NULLIF((SELECT total_blobs_all FROM window_total), 0) * 100,
+        0
+      )::float8                                           AS network_share_pct
     FROM blob_transactions
     WHERE rollup IS NOT NULL
       AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
     GROUP BY rollup
     ORDER BY total_blobs DESC
   `;
+}
+
+export async function getForecastData(): Promise<ForecastData | null> {
+  const rows = await sql<ForecastData[]>`
+    SELECT
+      COALESCE(
+        (SELECT blob_base_fee FROM block_blob_stats ORDER BY block_number DESC LIMIT 1),
+        0
+      )                                          AS current_fee_wei,
+      COALESCE(AVG(blob_gas_used), 0)::float8    AS avg_blob_gas_used,
+      COALESCE(
+        (SELECT excess_blob_gas FROM block_blob_stats ORDER BY block_number DESC LIMIT 1),
+        0
+      )                                          AS latest_excess,
+      COUNT(*)::int                              AS sample_size
+    FROM (
+      SELECT blob_gas_used
+      FROM block_blob_stats
+      ORDER BY block_number DESC
+      LIMIT 20
+    ) recent
+  `;
+  return rows[0] ?? null;
 }
 
 export async function getUnknownSenders(): Promise<UnknownSender[]> {

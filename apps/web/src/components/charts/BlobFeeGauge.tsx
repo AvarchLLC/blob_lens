@@ -1,10 +1,10 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
+import { useTheme } from "next-themes";
 import { formatUsd } from "@/lib/ethPrice";
 
 const GAS_PER_BLOB = 131_072;
-const CARD_BG = "#111827"; // matches --card in globals.css
 
 interface Props {
   latestFeeWei: number;
@@ -39,16 +39,19 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
       ? (latestFeeWei * GAS_PER_BLOB) / 1e18 * ethUsd
       : null;
 
+  const { theme } = useTheme();
   const level = latestFeeWei > 0 ? getLevel(gaugeVal) : null;
 
-  // Build color stops with thin gaps that match the card background
+  // Gap color matches card background per theme
+  const cardBg = theme === "light" ? "#FFFFFF" : "#111827";
+
   const GAP  = 0.012;
   const N    = 6;
   const seg  = (1 - GAP * (N - 1)) / N;
   const stops: [number, string][] = [];
   LEVELS.forEach(({ color }, i) => {
     stops.push([seg * (i + 1) + GAP * i, color]);
-    if (i < N - 1) stops.push([seg * (i + 1) + GAP * (i + 1), CARD_BG]);
+    if (i < N - 1) stops.push([seg * (i + 1) + GAP * (i + 1), cardBg]);
   });
 
   const option = {

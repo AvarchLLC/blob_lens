@@ -1,23 +1,25 @@
 import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
+import { CongestionForecast } from "@/components/charts/CongestionForecast";
 import { FeeBlobScatter } from "@/components/charts/FeeBlobScatter";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
-import { AppHeader } from "@/components/shared/AppHeader";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { StatCard } from "@/components/shared/StatCard";
+import { TopBar } from "@/components/shared/TopBar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
-import { getLeaderboard, getMarketActivity } from "@/lib/queries";
+import { getForecastData, getLeaderboard, getMarketActivity } from "@/lib/queries";
 import { formatNumber } from "@/lib/utils";
 
 export const revalidate = 30;
 
 export default async function MarketPage() {
-  const [market, leaderboard, ethUsd] = await Promise.all([
+  const [market, leaderboard, ethUsd, forecast] = await Promise.all([
     getMarketActivity(24).catch(() => []),
     getLeaderboard(1).catch(() => []),
     getEthPrice(),
+    getForecastData().catch(() => null),
   ]);
 
   const latest = market[market.length - 1];
@@ -28,15 +30,22 @@ export default async function MarketPage() {
     : "—";
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader active="market" regimeBadge={<RegimeBadge maxBlobsInBlock={latest?.max_blobs_in_block ?? 0} size="sm" />} />
+    <div className="flex flex-col">
+      <TopBar
+        title="Market"
+        subtitle="Blob fee market · live · 24h window"
+        right={
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 caption text-[#10B981]">
+              <span className="pulse-dot" />
+              refreshes every 30s
+            </span>
+            <RegimeBadge maxBlobsInBlock={latest?.max_blobs_in_block ?? 0} size="sm" />
+          </div>
+        }
+      />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-        <section className="flex items-center justify-end gap-2 text-xs text-[#9D93B8]">
-          <span className="pulse-dot" />
-          Auto-refreshes every 30s
-        </section>
-
+      <div className="space-y-6 px-6 py-4">
         <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             label="Cost / Blob (last hr)"
@@ -88,6 +97,17 @@ export default async function MarketPage() {
         </section>
 
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {forecast && forecast.current_fee_wei > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="section-title">Fee Congestion Forecast</h2>
+              </CardHeader>
+              <CardContent>
+                <CongestionForecast data={forecast} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <h2 className="section-title">Blobs per Block</h2>
@@ -106,7 +126,7 @@ export default async function MarketPage() {
             </CardContent>
           </Card>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

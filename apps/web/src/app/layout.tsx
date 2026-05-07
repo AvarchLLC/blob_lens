@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk } from "next/font/google";
-import Image from "next/image";
+import { Sidebar } from "@/components/shared/Sidebar";
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -40,43 +41,32 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${geistMono.variable} ${averiaSerif.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full bg-background text-foreground flex flex-col">
-        {children}
-        <footer className="mt-auto border-t border-[#1E2D45] py-8">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/brand/bloblogo.png"
-                  alt="BlobLens"
-                  width={38}
-                  height={38}
-                  className="shrink-0 opacity-80"
-                />
-                <div>
-                  <p className="text-[0.8125rem] font-medium text-[#9CA3AF]">
-                    BlobLens · An EIPsInsight extension · Ethereum blob economics analytics
-                  </p>
-                  <p className="mt-1 caption">Built in public · MIT Licensed · No paywalls</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 caption">
-                <a href="https://eipsinsight.com" target="_blank" rel="noreferrer" className="hover:text-[#10B981] transition-colors">
-                  eipsinsight.com
-                </a>
-                <span className="text-[#1E2D45]">·</span>
-                <a href="https://github.com/AvarchLLC/EIPsInsight" target="_blank" rel="noreferrer" className="hover:text-[#10B981] transition-colors">
-                  GitHub
-                </a>
-                <span className="text-[#1E2D45]">·</span>
-                <a href="https://giveth.io" target="_blank" rel="noreferrer" className="hover:text-[#10B981] transition-colors">
-                  Giveth
-                </a>
-              </div>
-            </div>
+      <body className="h-full bg-background text-foreground flex overflow-hidden">
+      <ThemeProvider>
+        {/* Sidebar — desktop only; hidden below lg */}
+        <div className="hidden lg:flex">
+          <Sidebar />
+        </div>
+
+        {/* Main scroll area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden">
+          {/* Mobile top bar (shows logo + nav when sidebar is hidden) */}
+          <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-[#090D17]/95 backdrop-blur-md border-b border-[#1A2840]">
+            <span className="wordmark text-base">BlobLens</span>
+            <nav className="flex items-center gap-4 text-sm font-medium text-[#6B7280]">
+              <a href="/"            className="hover:text-white transition-colors">Overview</a>
+              <a href="/leaderboard" className="hover:text-white transition-colors">Leaderboard</a>
+              <a href="/market"      className="hover:text-white transition-colors">Market</a>
+            </nav>
           </div>
-        </footer>
+
+          <main className="flex-1 pb-12">
+            {children}
+          </main>
+        </div>
+      </ThemeProvider>
       </body>
     </html>
   );

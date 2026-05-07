@@ -32,19 +32,28 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .await?;
 
     // block_blob_stats: one row per block — real per-block blob usage metrics
-    // blob_count     = blob_gas_used / 131_072   (0–6)
-    // utilization    = blob_gas_used / 786_432.0  (0.0–1.0, target 0.5)
+    // blob_count        = blob_gas_used / 131_072   (0–9 post-Pectra)
+    // utilization       = blob_gas_used / 1_179_648.0  (0.0–1.0, target 0.5)
+    // excess_blob_gas   = from block header, used for fee forecasting
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS block_blob_stats (
-            block_number  BIGINT PRIMARY KEY,
-            blob_base_fee BIGINT NOT NULL DEFAULT 0,
-            blob_gas_used INT    NOT NULL DEFAULT 0,
-            blob_count    INT    NOT NULL DEFAULT 0,
-            utilization   FLOAT  NOT NULL DEFAULT 0,
-            created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            block_number    BIGINT PRIMARY KEY,
+            blob_base_fee   BIGINT NOT NULL DEFAULT 0,
+            blob_gas_used   INT    NOT NULL DEFAULT 0,
+            blob_count      INT    NOT NULL DEFAULT 0,
+            utilization     FLOAT  NOT NULL DEFAULT 0,
+            excess_blob_gas BIGINT NOT NULL DEFAULT 0,
+            created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
         "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // Migration: add excess_blob_gas if missing (idempotent)
+    sqlx::query(
+        r#"ALTER TABLE block_blob_stats ADD COLUMN IF NOT EXISTS excess_blob_gas BIGINT NOT NULL DEFAULT 0"#,
     )
     .execute(&pool)
     .await?;
@@ -105,11 +114,13 @@ pub async fn insert_block_stats(
     blob_gas_used: i32,
     blob_count: i32,
     utilization: f64,
+    excess_blob_gas: i64,
 ) -> Result<()> {
     sqlx::query(
         r#"
-        INSERT INTO block_blob_stats (block_number, blob_base_fee, blob_gas_used, blob_count, utilization)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO block_blob_stats
+            (block_number, blob_base_fee, blob_gas_used, blob_count, utilization, excess_blob_gas)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (block_number) DO NOTHING
         "#,
     )
@@ -118,6 +129,7 @@ pub async fn insert_block_stats(
     .bind(blob_gas_used)
     .bind(blob_count)
     .bind(utilization)
+    .bind(excess_blob_gas)
     .execute(pool)
     .await?;
 
