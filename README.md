@@ -43,17 +43,35 @@ bash check-blobs.sh       # Shell version
 
 ```
 blob_lens/
-├── src/
-│   ├── main.rs
-│   ├── services/blob_parser.rs     # WebSocket listener
-│   ├── db/
-│   │   ├── mod.rs                  # Pool & schema
-│   │   └── models.rs               # Types
-│   └── rollup_registry.rs          # Rollup mapping
-├── Dockerfile
+├── apps/
+│   ├── api/                        # Rust indexer + REST API
+│   │   ├── src/
+│   │   │   ├── main.rs
+│   │   │   ├── services/
+│   │   │   │   └── blob_parser.rs  # WebSocket listener
+│   │   │   ├── db/
+│   │   │   │   ├── mod.rs          # Pool & schema
+│   │   │   │   └── models.rs       # Types
+│   │   │   ├── rollup_registry.rs  # Rollup mapping
+│   │   │   └── api.rs              # REST API endpoints
+│   │   ├── Dockerfile
+│   │   ├── Cargo.toml
+│   │   └── check_blobs.py          # Data inspector
+│   └── web/                        # Next.js dashboard
+│       ├── src/
+│       ├── public/
+│       ├── package.json
+│       ├── next.config.ts
+│       └── Dockerfile
 ├── docker-compose.yml
-├── .env.example
-└── check_blobs.py                  # Data inspector
+├── vercel.json
+├── docs/
+│   └── PRODUCTION_DEPLOYMENT.md
+└── ops/
+    ├── nginx/
+    │   └── blob-lens.conf
+    └── pm2/
+        └── ecosystem.config.cjs
 ```
 
 ## Database
