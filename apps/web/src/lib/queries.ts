@@ -4,6 +4,7 @@ import type {
   DailyRollupBlob,
   ForecastData,
   HourlyRollupBlob,
+  HourlyRollupValue,
   LeaderboardRow,
   MarketHour,
   OverviewStats,
@@ -222,6 +223,63 @@ export async function getDailyRollupBreakdown(
     FROM daily d
     JOIN top t ON t.rollup = d.rollup
     ORDER BY d.day ASC, d.rollup ASC
+  `;
+}
+
+export async function getHourlyRollupFee(
+  hours = 24,
+  topN = 10
+): Promise<HourlyRollupValue[]> {
+  return sql<HourlyRollupValue[]>`
+    WITH top_rollups AS (
+      SELECT rollup
+      FROM blob_transactions
+      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
+        AND rollup IS NOT NULL AND rollup != 'UNKNOWN'
+      GROUP BY rollup
+      ORDER BY SUM(num_blobs) DESC
+      LIMIT ${topN}
+    )
+    SELECT
+      bt.rollup,
+      DATE_TRUNC('hour', bt.created_at)::text AS hour,
+      COALESCE(AVG(
+        CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000
+             THEN bbs.blob_base_fee ELSE NULL END
+      ), 0)::float8 AS value
+    FROM blob_transactions bt
+    JOIN top_rollups tr ON tr.rollup = bt.rollup
+    LEFT JOIN block_blob_stats bbs ON bbs.block_number = bt.block_number
+    WHERE bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    GROUP BY bt.rollup, DATE_TRUNC('hour', bt.created_at)
+    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC, bt.rollup ASC
+  `;
+}
+
+export async function getHourlyRollupUtilization(
+  hours = 24,
+  topN = 10
+): Promise<HourlyRollupValue[]> {
+  return sql<HourlyRollupValue[]>`
+    WITH top_rollups AS (
+      SELECT rollup
+      FROM blob_transactions
+      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
+        AND rollup IS NOT NULL AND rollup != 'UNKNOWN'
+      GROUP BY rollup
+      ORDER BY SUM(num_blobs) DESC
+      LIMIT ${topN}
+    )
+    SELECT
+      bt.rollup,
+      DATE_TRUNC('hour', bt.created_at)::text AS hour,
+      (SUM(bt.num_blobs)::float8
+        / (COUNT(DISTINCT bt.block_number) * 9.0) * 100) AS value
+    FROM blob_transactions bt
+    JOIN top_rollups tr ON tr.rollup = bt.rollup
+    WHERE bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    GROUP BY bt.rollup, DATE_TRUNC('hour', bt.created_at)
+    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC, bt.rollup ASC
   `;
 }
 
