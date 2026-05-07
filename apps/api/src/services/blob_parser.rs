@@ -68,6 +68,8 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                 let blob_count    = blob_gas_used / GAS_PER_BLOB as i32;
                 let utilization   = blob_gas_used as f64 / MAX_BLOB_GAS_PER_BLOCK;
 
+                let excess_blob_gas = full_block.header.excess_blob_gas.unwrap_or(0) as i64;
+
                 if let Err(e) = crate::db::insert_block_stats(
                     pool,
                     block_number,
@@ -75,16 +77,17 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                     blob_gas_used,
                     blob_count,
                     utilization,
+                    excess_blob_gas,
                 ).await {
                     error!("Failed to insert block stats for #{}: {}", block_number, e);
                 }
 
-                let excess_blob_gas = full_block.header.excess_blob_gas.unwrap_or(0);
                 let blob_fee_gwei = blob_base_fee as f64 / 1e9;
                 info!(
                     "  📊 Block #{}: excess_blob_gas={} base_fee={:.6}gwei blobs={}/9 utilization={:.1}%",
                     block_number, excess_blob_gas, blob_fee_gwei, blob_count, utilization * 100.0
                 );
+                let _ = excess_blob_gas; // suppress unused warning (used in insert_block_stats)
 
                 let mut blob_tx_count = 0;
 

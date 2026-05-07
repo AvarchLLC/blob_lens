@@ -17,6 +17,16 @@ export interface LeaderboardRow {
   avg_blobs_per_tx: number;
   avg_fee: string;
   last_seen: string;
+  da_cost_eth: number;
+  packing_score: number;
+  network_share_pct: number;
+}
+
+export interface ForecastData {
+  current_fee_wei: number;
+  avg_blob_gas_used: number;
+  latest_excess: number;
+  sample_size: number;
 }
 
 export interface MarketHour {

@@ -1,14 +1,15 @@
 import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
 import { RollupActivityHeatmap } from "@/components/charts/RollupActivityHeatmap";
-import { AppHeader } from "@/components/shared/AppHeader";
 import { RollupBadge } from "@/components/shared/RollupBadge";
+import { RollupTxTable } from "@/components/shared/RollupTxTable";
 import { StatCard } from "@/components/shared/StatCard";
+import { TopBar } from "@/components/shared/TopBar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
+import { getEthPrice } from "@/lib/ethPrice";
 import { getRollupTransactions } from "@/lib/queries";
-import { formatNumber, shortHash, timeAgo } from "@/lib/utils";
+import { formatNumber, timeAgo } from "@/lib/utils";
 import type { BlobTransaction, MarketHour } from "@/types";
 import { notFound } from "next/navigation";
 
@@ -62,15 +63,14 @@ export default async function RollupPage({ params }: Props) {
   const marketHours = toMarketHours(txs);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader active="rollup" />
+    <div className="flex flex-col">
+      <TopBar
+        title={rollupName}
+        subtitle="Per-rollup blob analytics · last 500 transactions"
+        right={<RollupBadge rollup={rollupName} linkable={false} />}
+      />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <RollupBadge rollup={rollupName} />
-          <h1 className="section-title text-3xl">{rollupName}</h1>
-        </div>
-
+      <div className="space-y-6 px-6 py-4">
         <Separator />
 
         <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -113,49 +113,7 @@ export default async function RollupPage({ params }: Props) {
                 <h2 className="section-title">Recent Transactions (last 500)</h2>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-[0.08em] text-[#9D93B8]">
-                        <th className="pb-3 pr-4">Tx Hash</th>
-                        <th className="pb-3 pr-4">Block</th>
-                        <th className="pb-3 pr-4 text-right">Blobs</th>
-                        <th className="pb-3 pr-4 text-right">{ethUsd != null ? "Cost / Blob" : "Base Fee"}</th>
-                        <th className="pb-3 pr-4 text-right">{ethUsd != null ? "Max Bid (USD)" : "Max Bid"}</th>
-                        <th className="pb-3 text-right">Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {txs.map((tx) => (
-                        <tr key={tx.tx_hash} className="border-b border-border last:border-0 transition-colors hover:bg-accent/30">
-                          <td className="py-2.5 pr-4 font-mono text-xs text-[#9D93B8]">
-                            <a
-                              href={`https://etherscan.io/tx/${tx.tx_hash}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="transition-colors hover:text-primary"
-                            >
-                              {shortHash(tx.tx_hash)}
-                            </a>
-                          </td>
-                          <td className="py-2.5 pr-4 text-xs text-[#9D93B8]">#{tx.block_number.toLocaleString()}</td>
-                          <td className="py-2.5 pr-4 text-right text-foreground">{tx.num_blobs}</td>
-                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#9D93B8]">
-                            {ethUsd != null
-                              ? formatUsd(blobCostUsd(tx.blob_base_fee, ethUsd))
-                              : `${(Number(tx.blob_base_fee) / 1e9).toFixed(4)} gwei`}
-                          </td>
-                          <td className="py-2.5 pr-4 text-right font-mono text-xs text-[#5C5575]">
-                            {ethUsd != null
-                              ? formatUsd(blobCostUsd(tx.max_fee_per_blob_gas, ethUsd))
-                              : `${(Number(tx.max_fee_per_blob_gas) / 1e9).toFixed(4)} gwei`}
-                          </td>
-                          <td className="py-2.5 text-right text-xs text-[#5C5575]">{timeAgo(tx.created_at)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <RollupTxTable txs={txs} ethUsd={ethUsd} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -174,7 +132,7 @@ export default async function RollupPage({ params }: Props) {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
 }
