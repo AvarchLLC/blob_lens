@@ -56,6 +56,12 @@ export interface SparklinePoint {
   blobs: number;
 }
 
+export interface HourlyRollupBlob {
+  rollup: string;
+  hour: string;
+  blobs: number;
+}
+
 export interface DailyRollupBlob {
   day: string;
   rollup: string;

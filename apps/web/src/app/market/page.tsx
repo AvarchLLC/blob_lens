@@ -4,22 +4,24 @@ import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
 import { CongestionForecast } from "@/components/charts/CongestionForecast";
 import { FeeBlobScatter } from "@/components/charts/FeeBlobScatter";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
+import { RollupActivityLineChart } from "@/components/charts/RollupActivityLineChart";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { StatCard } from "@/components/shared/StatCard";
 import { TopBar } from "@/components/shared/TopBar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
-import { getForecastData, getLeaderboard, getMarketActivity } from "@/lib/queries";
+import { getForecastData, getHourlyRollupActivity, getLeaderboard, getMarketActivity } from "@/lib/queries";
 import { formatNumber } from "@/lib/utils";
 
 export const revalidate = 30;
 
 export default async function MarketPage() {
-  const [market, leaderboard, ethUsd, forecast] = await Promise.all([
+  const [market, leaderboard, ethUsd, forecast, rollupActivity] = await Promise.all([
     getMarketActivity(24).catch(() => []),
     getLeaderboard(1).catch(() => []),
     getEthPrice(),
     getForecastData().catch(() => null),
+    getHourlyRollupActivity(24, 10).catch(() => []),
   ]);
 
   const latest = market[market.length - 1];
@@ -95,6 +97,17 @@ export default async function MarketPage() {
             </CardContent>
           </Card>
         </section>
+
+        {rollupActivity.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h2 className="section-title">Blob Activity by Rollup (24h)</h2>
+            </CardHeader>
+            <CardContent>
+              <RollupActivityLineChart data={rollupActivity} />
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {forecast && forecast.current_fee_wei > 0 && (
