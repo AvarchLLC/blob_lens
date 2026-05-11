@@ -1,5 +1,5 @@
 import { BlobFeeGauge } from "@/components/charts/BlobFeeGauge";
-import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
+import { BlobFeeLineChartSelector } from "@/components/charts/BlobFeeLineChartSelector";
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { CostHeatmap } from "@/components/charts/CostHeatmap";
 import { MarketRegimeTimeline } from "@/components/charts/MarketRegimeTimeline";
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getEthPrice } from "@/lib/ethPrice";
 import {
   getDailyRollupBreakdown,
+  getHourlyRollupFee,
   getLeaderboard,
   getMarketActivity,
 } from "@/lib/queries";
@@ -28,11 +29,12 @@ const REGIME_DOT: Record<string, string> = {
 };
 
 export default async function OverviewPage() {
-  const [leaderboard, market, dailyRollups, ethUsd] = await Promise.all([
+  const [leaderboard, market, dailyRollups, ethUsd, rollupFeeData] = await Promise.all([
     getLeaderboard(24).catch(() => []),
     getMarketActivity(168).catch(() => []),
     getDailyRollupBreakdown(30, 16).catch(() => []),
     getEthPrice().catch(() => null),
+    getHourlyRollupFee(24, 20).catch(() => []),
   ]);
 
   const market24h = market.slice(-24);
@@ -99,14 +101,19 @@ export default async function OverviewPage() {
               <TrendingDown className="h-4 w-4" />
               <h2 className="section-title">Historical Blob Cost</h2>
               <InfoTooltip
-                content="24-hour rolling average of the blob base fee. The fee rises when demand exceeds 4.5 blobs/block and falls when below. Hover for exact values."
+                content="24-hour rolling average of the blob base fee. Switch between network average and individual rollups to see how costs differ. The fee rises when demand exceeds 4.5 blobs/block and falls when below."
                 side="bottom"
               />
               {ethUsd && <span className="ml-auto caption">24h · USD / blob</span>}
             </div>
           </CardHeader>
           <CardContent>
-            <BlobFeeLineChart data={market24h} ethUsd={ethUsd ?? undefined} />
+            <BlobFeeLineChartSelector
+              networkData={market24h}
+              rollups={leaderboard.filter(r => r.rollup !== "UNKNOWN").map(r => r.rollup)}
+              rollupFeeData={rollupFeeData}
+              ethUsd={ethUsd ?? undefined}
+            />
           </CardContent>
         </Card>
       </div>

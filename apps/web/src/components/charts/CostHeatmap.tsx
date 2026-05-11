@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
 import type { MarketHour } from "@/types";
 
@@ -8,6 +9,14 @@ const GAS_PER_BLOB = 131_072;
 interface Props {
   data: MarketHour[];
   ethUsd: number;
+}
+
+interface GridCell {
+  hour: number;
+  dayOffset: number;
+  usd: number | null;
+  avgFeeGwei: string;
+  ts: string;
 }
 
 function costColor(usd: number): string {
@@ -22,13 +31,6 @@ function dayLabel(now: Date, dayOffset: number): string {
   const d = new Date(now);
   d.setDate(now.getDate() - dayOffset);
   return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
-}
-
-interface GridCell {
-  hour: number;
-  dayOffset: number;
-  usd: number | null;
-  ts: string;
 }
 
 export function CostHeatmap({ data, ethUsd }: Props) {
@@ -54,6 +56,9 @@ export function CostHeatmap({ data, ethUsd }: Props) {
         dayOffset,
         hour,
         usd: match ? blobCostUsd(match.avg_fee, ethUsd) : null,
+        avgFeeGwei: match && Number(match.avg_fee) > 0
+          ? (Number(match.avg_fee) / 1e9).toFixed(5)
+          : "—",
         ts: d.toISOString(),
       });
     }
@@ -71,30 +76,54 @@ export function CostHeatmap({ data, ethUsd }: Props) {
         </div>
 
         <div className="flex-1">
-          <div
-            className="grid gap-[3px]"
-            style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: "repeat(7, 14px)" }}
-          >
-            {grid.map((cell, i) => (
-              <button
-                key={i}
-                className="w-full rounded-sm"
-                style={{
-                  height: "14px",
-                  backgroundColor: cell.usd !== null ? costColor(cell.usd) : "#111827",
-                  opacity: cell.usd !== null ? 0.88 : 1,
-                  border: "none",
-                  outline: "none",
-                  cursor: "default",
-                }}
-                title={
-                  cell.usd !== null
-                    ? `${new Date(cell.ts).toLocaleString()} · ${formatUsd(cell.usd)} / blob`
-                    : `${new Date(cell.ts).toLocaleString()} · no data`
-                }
-              />
-            ))}
-          </div>
+          <TooltipProvider delayDuration={80}>
+            <div
+              className="grid gap-[3px]"
+              style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: "repeat(7, 14px)" }}
+            >
+              {grid.map((cell, i) => {
+                const color = cell.usd !== null ? costColor(cell.usd) : "#111827";
+                const dateStr = new Date(cell.ts).toLocaleString("en-US", {
+                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                });
+
+                return (
+                  <Tooltip key={i}>
+                    <TooltipTrigger asChild>
+                      <button
+                        className="w-full rounded-sm focus:outline-none"
+                        style={{
+                          height: "14px",
+                          backgroundColor: color,
+                          opacity: cell.usd !== null ? 0.88 : 1,
+                          border: "none",
+                          cursor: "default",
+                        }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="px-3 py-2 space-y-1 max-w-[200px]">
+                      <p className="font-mono text-[11px] text-muted-foreground">{dateStr}</p>
+                      {cell.usd !== null ? (
+                        <>
+                          <p className="text-xs font-semibold text-foreground">
+                            {formatUsd(cell.usd)} / blob
+                          </p>
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            {cell.avgFeeGwei} gwei avg fee
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/60">
+                            1 blob = {GAS_PER_BLOB.toLocaleString()} gas
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground/50">No data</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </TooltipProvider>
 
           <div className="relative mt-1" style={{ height: "14px" }}>
             {[0, 6, 12, 18, 23].map((h) => (
@@ -110,9 +139,9 @@ export function CostHeatmap({ data, ethUsd }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <p className="caption">Cost per blob (USD) · 7d × 24h</p>
-        <div className="flex items-center gap-3 ml-auto">
+        <div className="flex items-center gap-3 ml-auto flex-wrap">
           {[
             { color: "#1E2D45", label: "< $0.0001" },
             { color: "#3D4F6B", label: "< $0.001" },

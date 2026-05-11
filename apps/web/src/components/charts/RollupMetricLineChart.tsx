@@ -1,32 +1,38 @@
 "use client";
 
 import { rollupColor } from "@/lib/utils";
+import { formatUsd } from "@/lib/ethPrice";
 import type { HourlyRollupValue } from "@/types";
 import ReactECharts from "echarts-for-react";
 import { useTheme } from "next-themes";
+
+const GAS_PER_BLOB = 131_072;
 
 type Mode = "fee-wei" | "utilization-pct";
 
 interface Props {
   data: HourlyRollupValue[];
   mode: Mode;
+  ethUsd?: number;
 }
 
-const MODES: Record<Mode, { yName: string; yFmt: (v: number) => string; tipFmt: (v: number) => string }> = {
-  "fee-wei": {
-    yName: "gwei",
-    yFmt:  (v) => v > 0 ? `${(v / 1e9).toPrecision(3)}` : "0",
-    tipFmt: (v) => `${(v / 1e9).toFixed(4)} gwei`,
-  },
-  "utilization-pct": {
-    yName: "%",
-    yFmt:  (v) => `${v.toFixed(0)}%`,
-    tipFmt: (v) => `${v.toFixed(1)}%`,
-  },
-};
+export function RollupMetricLineChart({ data, mode, ethUsd }: Props) {
+  const useUsd = mode === "fee-wei" && ethUsd != null;
 
-export function RollupMetricLineChart({ data, mode }: Props) {
-  const { yName, yFmt, tipFmt } = MODES[mode];
+  const yName  = mode === "utilization-pct" ? "%" : useUsd ? "USD" : "gwei";
+  const yFmt   = mode === "utilization-pct"
+    ? (v: number) => `${v.toFixed(0)}%`
+    : useUsd
+      ? (v: number) => formatUsd(v)
+      : (v: number) => v > 0 ? `${(v / 1e9).toPrecision(3)}` : "0";
+  const tipFmt = mode === "utilization-pct"
+    ? (v: number) => `${v.toFixed(1)}%`
+    : useUsd
+      ? (v: number) => `${formatUsd(v)} / blob`
+      : (v: number) => `${(v / 1e9).toFixed(4)} gwei`;
+
+  const transform = (v: number) =>
+    useUsd ? (v * GAS_PER_BLOB) / 1e18 * ethUsd! : v;
   const { theme } = useTheme();
   const isDark = theme !== "light";
 
@@ -51,7 +57,7 @@ export function RollupMetricLineChart({ data, mode }: Props) {
     itemStyle: { color: rollupColor(rollup) },
     data: hours.map((h) => {
       const v = index.get(rollup)?.get(h);
-      return v != null ? v : null;
+      return v != null ? transform(v) : null;
     }),
     connectNulls: false,
   }));

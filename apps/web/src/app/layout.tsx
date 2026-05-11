@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { AppSidebar } from "@/components/shared/AppSidebar";
+import { Footer } from "@/components/shared/Footer";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { Banner } from "@/components/ui/banner";
@@ -100,6 +101,7 @@ export default function RootLayout({
               <AppSidebar />
               <main className="flex-1 overflow-y-auto min-w-0">
                 {children}
+                <Footer />
               </main>
             </div>
           </div>
