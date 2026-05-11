@@ -3,6 +3,9 @@
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
 import { formatUsd } from "@/lib/ethPrice";
+import { getChartTheme, animationConfig } from "@/lib/chartTheme";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 const GAS_PER_BLOB = 131_072;
 
@@ -17,8 +20,15 @@ interface Props {
 }
 
 export function BlobFeeLineChart({ data, ethUsd }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = theme !== 'light';
+  const chartTheme = getChartTheme(isDark);
+
+  if (!mounted) return <div className="h-[300px]" />;
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-muted-foreground">No data</p>;
 
   const isUsd = ethUsd != null;
   const labels = data.map((d) => shortHour(d.hour));
@@ -33,7 +43,7 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
   const avg = nonNull.length ? nonNull.reduce((a, b) => a + b, 0) / nonNull.length : 0;
 
   if (nonNull.length === 0)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">Fee data unavailable — indexer restarting with updated constants</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-muted-foreground">Fee data unavailable — indexer restarting with updated constants</p>;
 
   const fmtGwei = (v: number) => {
     if (v === 0) return "0 gwei";
@@ -47,41 +57,35 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
     : (v: number) => `${fmtGwei(v)} / blob`;
 
   const option = {
-    animation: true,
-    animationEasing: "cubicOut" as const,
-    animationDuration: 600,
-    grid: { top: 8, right: 8, bottom: 24, left: 0, containLabel: true },
+    ...animationConfig,
+    ...chartTheme,
+    grid: chartTheme.gridDefaults,
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { show: false },
+      ...chartTheme.axis,
       boundaryGap: false,
     },
     yAxis: {
       type: "value" as const,
       min: 0,
       max: (extent: { max: number }) => (extent.max > 0 ? extent.max * 1.3 : 1),
+      ...chartTheme.axis,
       axisLabel: {
-        color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
+        ...chartTheme.axis.axisLabel,
         formatter: yFmt,
       },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#1A2235",
-      borderColor: "rgba(16,185,129,0.2)",
-      borderWidth: 1,
-      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
+      ...chartTheme.tooltip,
       formatter: (params: { axisValue: string; value: number | null }[]) => {
         const val = params[0].value;
         const label = val == null ? "no data" : ttFmt(val);
-        return `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b style="font-family:monospace;color:#6EE7B7">${label}</b>`;
+        return `<div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="color:${isDark ? '#71717a' : '#94A3B8'};font-size:11px">${params[0].axisValue}</span>
+          <span style="font-family:monospace;color:${isDark ? '#00df81' : '#059669'};font-weight:600">${label}</span>
+        </div>`;
       },
     },
     series: [
@@ -90,23 +94,25 @@ export function BlobFeeLineChart({ data, ethUsd }: Props) {
         data: values,
         connectNulls: false,
         smooth: 0.4,
-        lineStyle: { color: "#10B981", width: 2 },
+        lineStyle: chartTheme.lineStyle,
         symbol: "none",
         areaStyle: {
-          color: {
-            type: "linear" as const,
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(16,185,129,0.15)" },
-              { offset: 1, color: "rgba(16,185,129,0)" },
-            ],
-          },
+          color: chartTheme.areaGradient,
         },
         markLine: {
           silent: true,
           symbol: "none",
-          lineStyle: { color: "rgba(16,185,129,0.3)", type: "dashed" as const, width: 1 },
-          label: { formatter: "avg", color: "#4B5563", fontSize: 10, position: "end" as const },
+          lineStyle: { 
+            color: isDark ? "rgba(0,223,129,0.3)" : "rgba(5,150,105,0.3)", 
+            type: "dashed" as const, 
+            width: 1 
+          },
+          label: { 
+            formatter: "avg", 
+            color: isDark ? "#71717a" : "#94A3B8", 
+            fontSize: 10, 
+            position: "end" as const 
+          },
           data: [{ yAxis: avg }],
         },
       },

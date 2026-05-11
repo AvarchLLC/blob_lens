@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+        "aceternityui": {
+      "command": "npx",
+      "args": ["aceternityui-mcp"]
+    }
+  }
+}
+

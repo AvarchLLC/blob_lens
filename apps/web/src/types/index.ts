@@ -20,6 +20,12 @@ export interface LeaderboardRow {
   da_cost_eth: number;
   packing_score: number;
   network_share_pct: number;
+  /** Avg blob base fee in gwei — reflects block timing choice */
+  cost_per_blob_gwei: number;
+  /** 0–100: how cost-efficiently they choose submission windows vs network avg */
+  timing_score: number;
+  /** 0–100 composite: 70% packing + 30% timing */
+  efficiency_score: number;
 }
 
 export interface ForecastData {
@@ -27,6 +33,8 @@ export interface ForecastData {
   avg_blob_gas_used: number;
   latest_excess: number;
   sample_size: number;
+  /** Positive = excess rising (fee pressure building); negative = falling */
+  excess_trend: number;
 }
 
 export interface MarketHour {
@@ -88,5 +96,18 @@ export interface BlockRow {
   utilization: number;
   tx_count: number;
   rollups: string[];
+  created_at: string;
+}
+
+export type AlertRegimeThreshold = "healthy" | "congested" | "spike";
+
+export interface RegimeAlert {
+  id: number;
+  webhook_url: string;
+  label: string;
+  min_regime: AlertRegimeThreshold;
+  last_fired_regime: MarketRegime | null;
+  last_fired_at: string | null;
+  enabled: boolean;
   created_at: string;
 }

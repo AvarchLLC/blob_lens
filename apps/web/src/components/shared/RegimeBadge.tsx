@@ -13,10 +13,10 @@ const labels: Record<string, string> = {
 };
 
 const dotColors: Record<string, string> = {
-  undersaturated: "#3D4F6B",
-  healthy: "#10B981",
-  congested: "#F59E0B",
-  spike: "#EF4444",
+  undersaturated: "#3f3f46",
+  healthy:        "#00df81",
+  congested:      "#fcbb00",
+  spike:          "#fb2c36",
 };
 
 export function RegimeBadge({ maxBlobsInBlock, size = "sm" }: Props) {

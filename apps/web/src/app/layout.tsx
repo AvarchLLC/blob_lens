@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk } from "next/font/google";
-import { Sidebar } from "@/components/shared/Sidebar";
+import { AppSidebar } from "@/components/shared/AppSidebar";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { Spotlight } from "@/components/ui/spotlight-new";
+import { Banner } from "@/components/ui/banner";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -44,32 +45,65 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${geistMono.variable} ${averiaSerif.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full bg-background text-foreground flex overflow-hidden">
-      <ThemeProvider>
-        {/* Sidebar — desktop only; hidden below lg */}
-        <div className="hidden lg:flex">
-          <Sidebar />
-        </div>
-
-        {/* Main scroll area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden">
-          {/* Mobile top bar (shows logo + nav when sidebar is hidden) */}
-          <div className="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-[#090D17]/95 backdrop-blur-md border-b border-[#1A2840]">
-            <span className="wordmark text-sm shrink-0">BlobLens</span>
-            <nav className="flex flex-1 items-center justify-center gap-3 text-xs font-medium text-[#6B7280]">
-              <a href="/"            className="hover:text-white transition-colors">Overview</a>
-              <a href="/leaderboard" className="hover:text-white transition-colors">Leaderboard</a>
-              <a href="/market"      className="hover:text-white transition-colors">Market</a>
-              <a href="/research"    className="hover:text-white transition-colors">Research</a>
-            </nav>
-            <ThemeToggle />
+      <body className="h-full bg-background text-foreground overflow-hidden">
+        <ThemeProvider>
+          {/* Aceternity Spotlight — Bayland emerald beams, site-wide */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            <Spotlight
+              gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(153, 100%, 44%, 0.10) 0, hsla(153, 100%, 44%, 0.03) 50%, transparent 80%)"
+              gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(153, 100%, 44%, 0.07) 0, hsla(153, 100%, 44%, 0.02) 80%, transparent 100%)"
+              gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(153, 100%, 44%, 0.04) 0, transparent 80%)"
+              translateY={-280}
+              width={520}
+              height={1200}
+              smallWidth={200}
+              duration={9}
+              xOffset={80}
+            />
           </div>
 
-          <main className="flex-1 pb-12">
-            {children}
-          </main>
-        </div>
-      </ThemeProvider>
+          {/* App shell: banner on top, sidebar + content below */}
+          <div className="relative z-10 flex flex-col h-full">
+            {/* Banner */}
+            <Banner
+              id="giveth-qf-2026"
+              variant="rainbow"
+              height="2.5rem"
+              rainbowColors={[
+                "rgba(0,223,129,0.18)",
+                "rgba(0,223,129,0.06)",
+                "transparent",
+                "rgba(0,223,129,0.10)",
+                "transparent",
+                "rgba(0,223,129,0.15)",
+                "transparent",
+              ]}
+              className="shrink-0 border-b border-[#00df81]/15 bg-[#09090b]"
+              xColor="#71717a"
+            >
+              <span className="text-[0.8rem] text-[#a1a1aa] tracking-wide">
+                Public goods infrastructure for Ethereum governance.&nbsp;
+                <a
+                  href="https://giveth.io/project/eipsinsight"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#00df81] hover:text-[#00df81]/80 underline underline-offset-2 transition-colors duration-150"
+                >
+                  Support us on Giveth QF
+                </a>
+                &nbsp;💜
+              </span>
+            </Banner>
+
+            {/* Sidebar + scrollable content */}
+            <div className="flex flex-1 overflow-hidden">
+              <AppSidebar />
+              <main className="flex-1 overflow-y-auto min-w-0">
+                {children}
+              </main>
+            </div>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

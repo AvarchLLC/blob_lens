@@ -39,50 +39,97 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
       FROM blob_transactions
       WHERE rollup IS NOT NULL
         AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    ),
+    -- Network-wide avg blob base fee for timing comparison
+    period_stats AS (
+      SELECT COALESCE(AVG(
+        CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
+             THEN blob_base_fee ELSE NULL END
+      ), 1)::float8 AS network_avg_fee
+      FROM blob_transactions
+      WHERE rollup IS NOT NULL
+        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    ),
+    base AS (
+      SELECT
+        rollup,
+        COUNT(*)::bigint                                    AS tx_count,
+        COALESCE(SUM(num_blobs), 0)::bigint                 AS total_blobs,
+        COALESCE(AVG(num_blobs), 0)::float8                 AS avg_blobs_per_tx,
+        COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
+        MAX(created_at)                                     AS last_seen,
+        COALESCE(
+          SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18,
+          0
+        )::float8                                           AS da_cost_eth,
+        LEAST(100, COALESCE(AVG(num_blobs) / 6.0 * 100, 0))::float8 AS packing_score,
+        COALESCE(
+          SUM(num_blobs)::float8 / NULLIF((SELECT total_blobs_all FROM window_total), 0) * 100,
+          0
+        )::float8                                           AS network_share_pct,
+        -- Avg blob base fee in gwei — reflects which blocks they chose to submit in
+        COALESCE(
+          AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
+                   THEN blob_base_fee ELSE NULL END) / 1e9,
+          0
+        )::float8                                           AS cost_per_blob_gwei
+      FROM blob_transactions
+      WHERE rollup IS NOT NULL
+        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+      GROUP BY rollup
     )
     SELECT
-      rollup,
-      COUNT(*)::bigint                                    AS tx_count,
-      COALESCE(SUM(num_blobs), 0)::bigint                 AS total_blobs,
-      COALESCE(AVG(num_blobs), 0)::float8                 AS avg_blobs_per_tx,
-      COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
-      MAX(created_at)                                     AS last_seen,
-      COALESCE(
-        SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18,
-        0
-      )::float8                                           AS da_cost_eth,
-      LEAST(100, COALESCE(AVG(num_blobs) / 6.0 * 100, 0))::float8 AS packing_score,
-      COALESCE(
-        SUM(num_blobs)::float8 / NULLIF((SELECT total_blobs_all FROM window_total), 0) * 100,
-        0
-      )::float8                                           AS network_share_pct
-    FROM blob_transactions
-    WHERE rollup IS NOT NULL
-      AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY rollup
+      b.*,
+      -- Timing score: 50 = network avg, 100 = cheapest, 0 = 2× avg cost
+      LEAST(100, GREATEST(0,
+        (1.0 - (b.cost_per_blob_gwei * 1e9)
+              / NULLIF((SELECT network_avg_fee FROM period_stats), 1)
+        ) * 50.0 + 50.0
+      ))::float8                                            AS timing_score,
+      -- Composite efficiency: 70% packing + 30% timing
+      LEAST(100, GREATEST(0,
+        0.70 * b.packing_score +
+        0.30 * LEAST(100, GREATEST(0,
+          (1.0 - (b.cost_per_blob_gwei * 1e9)
+                / NULLIF((SELECT network_avg_fee FROM period_stats), 1)
+          ) * 50.0 + 50.0
+        ))
+      ))::float8                                            AS efficiency_score
+    FROM base b
     ORDER BY total_blobs DESC
   `;
 }
 
 export async function getForecastData(): Promise<ForecastData | null> {
   const rows = await sql<ForecastData[]>`
+    WITH recent AS (
+      SELECT
+        block_number,
+        excess_blob_gas,
+        blob_gas_used,
+        ROW_NUMBER() OVER (ORDER BY block_number DESC) AS rn
+      FROM block_blob_stats
+      ORDER BY block_number DESC
+      LIMIT 50
+    )
     SELECT
       COALESCE(
         (SELECT blob_base_fee FROM block_blob_stats ORDER BY block_number DESC LIMIT 1),
         0
-      )                                          AS current_fee_wei,
-      COALESCE(AVG(blob_gas_used), 0)::float8    AS avg_blob_gas_used,
+      )                                              AS current_fee_wei,
+      COALESCE(AVG(blob_gas_used), 0)::float8        AS avg_blob_gas_used,
       COALESCE(
         (SELECT excess_blob_gas FROM block_blob_stats ORDER BY block_number DESC LIMIT 1),
         0
-      )                                          AS latest_excess,
-      COUNT(*)::int                              AS sample_size
-    FROM (
-      SELECT blob_gas_used
-      FROM block_blob_stats
-      ORDER BY block_number DESC
-      LIMIT 20
-    ) recent
+      )                                              AS latest_excess,
+      COUNT(*)::int                                  AS sample_size,
+      -- Trend: latest-10 avg vs prior-10 avg excess (positive = fee pressure building)
+      COALESCE(
+        AVG(CASE WHEN rn <= 10 THEN excess_blob_gas::float8 END) -
+        AVG(CASE WHEN rn > 10 AND rn <= 20 THEN excess_blob_gas::float8 END),
+        0
+      )::float8                                      AS excess_trend
+    FROM recent
   `;
   return rows[0] ?? null;
 }
