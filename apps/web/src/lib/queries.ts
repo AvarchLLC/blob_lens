@@ -169,6 +169,28 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
   `;
 }
 
+export async function getPerRollupFeeActivity(
+  rollup: string,
+  hours = 24
+): Promise<MarketHour[]> {
+  // Get hourly average fee for a specific rollup
+  return sql<MarketHour[]>`
+    SELECT
+      DATE_TRUNC('hour', bt.created_at)::text                             AS hour,
+      COUNT(*)::bigint                                                     AS tx_count,
+      COALESCE(SUM(bt.num_blobs), 0)::bigint                              AS blob_count,
+      COALESCE(AVG(CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee <= 1000000000000000000 THEN bbs.blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
+      COALESCE(MAX(bbs.blob_count), 0)::int                              AS max_blobs_in_block,
+      COALESCE(AVG(bbs.utilization) * 100, 0)::float8                    AS avg_utilization
+    FROM blob_transactions bt
+    LEFT JOIN block_blob_stats bbs ON bt.block_number = bbs.block_number
+    WHERE bt.rollup = ${rollup}
+      AND bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    GROUP BY DATE_TRUNC('hour', bt.created_at)
+    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC
+  `;
+}
+
 export async function getRollupTransactions(
   rollupId: string
 ): Promise<BlobTransaction[]> {
@@ -355,4 +377,100 @@ export async function getHourlyRollupActivity(
     GROUP BY bt.rollup, DATE_TRUNC('hour', bt.created_at)
     ORDER BY DATE_TRUNC('hour', bt.created_at) ASC, bt.rollup ASC
   `;
+}
+
+export interface RollupNetworkNode {
+  name: string;
+  value: number; // blob count
+  efficiency: number; // 0-100
+  avgFeeGwei: number;
+  txCount: number;
+  costEth: number;
+}
+
+export interface RollupNetworkEdge {
+  source: string;
+  target: string;
+  weight: number; // co-occurrence strength 0-100
+}
+
+export interface RollupNetworkGraph {
+  nodes: RollupNetworkNode[];
+  edges: RollupNetworkEdge[];
+}
+
+export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGraph> {
+  // Get rollup metrics for nodes
+  const nodesData = await sql<RollupNetworkNode[]>`
+    SELECT
+      rollup::text                                        AS name,
+      COALESCE(SUM(num_blobs), 0)::bigint                AS value,
+      COALESCE(
+        LEAST(100, GREATEST(0,
+          0.70 * LEAST(100, COALESCE(AVG(num_blobs) / 6.0 * 100, 0)) +
+          0.30 * LEAST(100, GREATEST(0,
+            (1.0 - (COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0) * 1e9)
+                  / NULLIF((SELECT COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 1) FROM blob_transactions WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}), 1)
+            ) * 50.0 + 50.0
+          ))
+        ))
+      )::float8                                           AS efficiency,
+      COALESCE(
+        AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END) / 1e9,
+        0
+      )::float8                                           AS avgFeeGwei,
+      COUNT(*)::int                                       AS txCount,
+      COALESCE(
+        SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18,
+        0
+      )::float8                                           AS costEth
+    FROM blob_transactions
+    WHERE rollup IS NOT NULL
+      AND rollup != 'UNKNOWN'
+      AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+    GROUP BY rollup
+    HAVING SUM(num_blobs) > 0
+    ORDER BY SUM(num_blobs) DESC
+  `;
+
+  // Get edges: co-occurrence in same blocks (transaction flow)
+  const edgesData = await sql<Array<{ source: string; target: string; weight: number }>>`
+    WITH block_rollups AS (
+      SELECT
+        block_number,
+        ARRAY_AGG(DISTINCT rollup) AS rollups
+      FROM blob_transactions
+      WHERE rollup IS NOT NULL
+        AND rollup != 'UNKNOWN'
+        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+      GROUP BY block_number
+    ),
+    -- Unnest to get all rollup pairs in same block
+    rollup_pairs AS (
+      SELECT
+        br1.rollup AS source,
+        br2.rollup AS target,
+        COUNT(*) AS co_occurrence
+      FROM (
+        SELECT block_number, unnest(rollups) AS rollup FROM block_rollups
+      ) br1
+      JOIN (
+        SELECT block_number, unnest(rollups) AS rollup FROM block_rollups
+      ) br2
+        ON br1.block_number = br2.block_number
+        AND br1.rollup < br2.rollup
+      GROUP BY br1.rollup, br2.rollup
+    )
+    SELECT
+      source,
+      target,
+      LEAST(100, (co_occurrence::float8 / (SELECT COUNT(DISTINCT block_number) FROM blob_transactions WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}) * 100))::float8 AS weight
+    FROM rollup_pairs
+    ORDER BY weight DESC
+  `;
+
+  return {
+    nodes: nodesData,
+    edges: edgesData,
+  };
 }

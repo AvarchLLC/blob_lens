@@ -7,6 +7,7 @@ import { MarketRegimeTimeline } from "@/components/charts/MarketRegimeTimeline";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
 import { RollupActivityLineChart } from "@/components/charts/RollupActivityLineChart";
 import { RollupMetricLineChart } from "@/components/charts/RollupMetricLineChart";
+import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { RegimeAlertPanel } from "@/components/shared/RegimeAlertPanel";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
@@ -20,13 +21,14 @@ import {
   getHourlyRollupUtilization,
   getLeaderboard,
   getMarketActivity,
+  getRollupNetworkGraph,
 } from "@/lib/queries";
 import { classifyRegime, formatNumber } from "@/lib/utils";
 
 export const revalidate = 30;
 
 export default async function MarketPage() {
-  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil] =
+  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil, networkGraph] =
     await Promise.all([
       getMarketActivity(24).catch(() => []),
       getMarketActivity(168).catch(() => []),
@@ -36,6 +38,7 @@ export default async function MarketPage() {
       getHourlyRollupActivity(24, 10).catch(() => []),
       getHourlyRollupFee(24, 10).catch(() => []),
       getHourlyRollupUtilization(24, 10).catch(() => []),
+      getRollupNetworkGraph(24).catch(() => ({ nodes: [], edges: [] })),
     ]);
 
   // Use market as alias for market24h where needed
@@ -185,6 +188,25 @@ export default async function MarketPage() {
         <h2 className="text-xs uppercase tracking-[0.10em] text-muted-foreground font-semibold px-0.5">
           Market Structure · Per-rollup
         </h2>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <h2 className="section-title">Rollup Ecosystem Map</h2>
+              <InfoTooltip
+                content="Network graph showing how rollups interact and their position in the DA market. Node size = blob volume, color = efficiency, connections = co-occurrence in blocks."
+                side="bottom"
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {networkGraph.nodes.length > 0 ? (
+              <RollupNetworkGraphD3 data={networkGraph} />
+            ) : (
+              <div className="h-[500px] flex items-center justify-center text-muted-foreground">No network data available</div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>

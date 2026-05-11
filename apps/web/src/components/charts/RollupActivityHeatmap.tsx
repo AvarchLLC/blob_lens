@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { BlobTransaction } from "@/types";
 
 interface Props {
@@ -22,26 +23,65 @@ export function RollupActivityHeatmap({ txs }: Props) {
   const days = [...new Set(txs.map((t) => t.created_at.slice(0, 10)))].sort().slice(-7);
 
   return (
-    <div className="space-y-2">
-      {days.map((day) => (
-        <div key={day} className="grid grid-cols-[72px_1fr] items-center gap-2">
-          <span className="text-xs text-[#9D93B8]">{day.slice(5)}</span>
-          <div className="grid grid-cols-[repeat(24,minmax(0,1fr))] gap-1">
-            {Array.from({ length: 24 }).map((_, h) => {
-              const value = buckets.get(`${day}-${h}`) ?? 0;
-              const alpha = value === 0 ? 0.08 : Math.max(0.18, value / max);
-              return (
-                <div
-                  key={`${day}-${h}`}
-                  className="h-3.5 rounded-sm"
-                  style={{ backgroundColor: `rgba(138,79,216,${alpha})` }}
-                  title={`${day} ${h}:00 UTC · ${value} blobs`}
-                />
-              );
-            })}
+    <TooltipProvider delayDuration={80}>
+      <div className="space-y-2">
+        {days.map((day) => (
+          <div key={day} className="grid grid-cols-[72px_1fr] items-center gap-2">
+            <span className="text-xs text-[#9D93B8]">{day.slice(5)}</span>
+            <div className="grid grid-cols-[repeat(24,minmax(0,1fr))] gap-1">
+              {Array.from({ length: 24 }).map((_, h) => {
+                const value = buckets.get(`${day}-${h}`) ?? 0;
+                const alpha = value === 0 ? 0.08 : Math.max(0.18, value / max);
+                const pctOfPeak = max > 0 ? Math.round((value / max) * 100) : 0;
+
+                return (
+                  <Tooltip key={`${day}-${h}`}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="h-3.5 rounded-sm cursor-default"
+                        style={{ backgroundColor: `rgba(138,79,216,${alpha})` }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="px-3 py-2 space-y-1 max-w-[180px]">
+                      <p className="font-mono text-[11px] text-muted-foreground">
+                        {day} · {String(h).padStart(2, "0")}:00 UTC
+                      </p>
+                      {value > 0 ? (
+                        <>
+                          <p className="text-xs font-semibold text-foreground">
+                            {value} blob{value !== 1 ? "s" : ""}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {pctOfPeak}% of peak activity this week
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground/50">No blobs this hour</p>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Hour axis */}
+        <div className="grid grid-cols-[72px_1fr] gap-2">
+          <div />
+          <div className="relative" style={{ height: "14px" }}>
+            {[0, 6, 12, 18, 23].map((h) => (
+              <span
+                key={h}
+                className="absolute text-[0.575rem] text-muted-foreground/50"
+                style={{ left: `${(h / 23) * 100}%`, transform: "translateX(-50%)" }}
+              >
+                {h}h
+              </span>
+            ))}
           </div>
         </div>
-      ))}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
