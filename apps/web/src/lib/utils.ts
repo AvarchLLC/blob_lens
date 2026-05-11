@@ -15,10 +15,10 @@ export function classifyRegime(maxBlobsInBlock: number): MarketRegime {
 
 export function regimeColor(regime: MarketRegime): string {
   const map: Record<MarketRegime, string> = {
-    undersaturated: "border-[#3D4F6B]/50 bg-[#3D4F6B]/15 text-[#4B5563]",
-    healthy:        "border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]",
-    congested:      "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]",
-    spike:          "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]",
+    undersaturated: "border-[#3f3f46]/60 bg-[#3f3f46]/20 text-[#71717a]",
+    healthy:        "border-[#00df81]/35 bg-[#00df81]/08 text-[#00df81]",
+    congested:      "border-[#fcbb00]/35 bg-[#fcbb00]/08 text-[#fcbb00]",
+    spike:          "border-[#fb2c36]/35 bg-[#fb2c36]/08 text-[#fb2c36]",
   };
   return map[regime];
 }

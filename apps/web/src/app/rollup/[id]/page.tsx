@@ -3,7 +3,6 @@ import { RollupActivityHeatmap } from "@/components/charts/RollupActivityHeatmap
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { RollupTxTable } from "@/components/shared/RollupTxTable";
 import { StatCard } from "@/components/shared/StatCard";
-import { TopBar } from "@/components/shared/TopBar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,76 +62,76 @@ export default async function RollupPage({ params }: Props) {
   const marketHours = toMarketHours(txs);
 
   return (
-    <div className="flex flex-col">
-      <TopBar
-        title={rollupName}
-        subtitle="Per-rollup blob analytics · last 500 transactions"
-        right={<RollupBadge rollup={rollupName} linkable={false} />}
-      />
-
-      <div className="space-y-6 px-6 py-4">
-        <Separator />
-
-        <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Total Blobs" value={formatNumber(totalBlobs)} />
-          <StatCard label="Transactions" value={formatNumber(txs.length)} />
-          <StatCard label="Avg Blobs / TX" value={avgBlobsPerTx.toFixed(2)} />
-          <StatCard label="Last Active" value={timeAgo(lastSeen)} sub={new Date(lastSeen).toLocaleString()} />
-        </section>
-
-        <Tabs defaultValue="activity">
-          <TabsList>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="fees">Fees</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="activity" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <h2 className="section-title">Hourly Blob Activity</h2>
-              </CardHeader>
-              <CardContent>
-                <BlobFeeLineChart data={marketHours} ethUsd={ethUsd ?? undefined} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <h2 className="section-title">Rollup Activity Heatmap</h2>
-              </CardHeader>
-              <CardContent>
-                <RollupActivityHeatmap txs={txs} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <h2 className="section-title">Recent Transactions (last 500)</h2>
-              </CardHeader>
-              <CardContent>
-                <RollupTxTable txs={txs} ethUsd={ethUsd} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="fees">
-            <Card>
-              <CardHeader>
-                <h2 className="section-title">Fee History</h2>
-              </CardHeader>
-              <CardContent>
-                <BlobFeeLineChart data={marketHours} ethUsd={ethUsd ?? undefined} />
-                <p className="mt-3 text-xs text-[#9D93B8]">
-                  First seen: {new Date(firstSeen).toLocaleString()} - Last seen: {new Date(lastSeen).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+    <div className="page-root py-8 space-y-6">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="topbar-title">{rollupName}</h1>
+          <p className="topbar-sub">Per-rollup blob analytics · last 500 transactions</p>
+        </div>
+        <RollupBadge rollup={rollupName} linkable={false} />
       </div>
+
+      <Separator />
+
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="Total Blobs" value={formatNumber(totalBlobs)} />
+        <StatCard label="Transactions" value={formatNumber(txs.length)} />
+        <StatCard label="Avg Blobs / TX" value={avgBlobsPerTx.toFixed(2)} />
+        <StatCard label="Last Active" value={timeAgo(lastSeen)} sub={new Date(lastSeen).toLocaleString()} />
+      </section>
+
+      <Tabs defaultValue="activity">
+        <TabsList>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="fees">Fees</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="activity" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <h2 className="section-title">Hourly Blob Activity</h2>
+            </CardHeader>
+            <CardContent>
+              <BlobFeeLineChart data={marketHours} ethUsd={ethUsd ?? undefined} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <h2 className="section-title">Rollup Activity Heatmap</h2>
+            </CardHeader>
+            <CardContent>
+              <RollupActivityHeatmap txs={txs} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader>
+              <h2 className="section-title">Recent Transactions (last 500)</h2>
+            </CardHeader>
+            <CardContent>
+              <RollupTxTable txs={txs} ethUsd={ethUsd} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="fees">
+          <Card>
+            <CardHeader>
+              <h2 className="section-title">Fee History</h2>
+            </CardHeader>
+            <CardContent>
+              <BlobFeeLineChart data={marketHours} ethUsd={ethUsd ?? undefined} />
+              <p className="mt-3 text-xs text-muted-foreground">
+                First seen: {new Date(firstSeen).toLocaleString()} - Last seen: {new Date(lastSeen).toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

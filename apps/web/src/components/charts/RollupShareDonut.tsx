@@ -1,5 +1,6 @@
 "use client";
 
+import { blobLensTheme } from "@/lib/echarts-theme";
 import { rollupColor } from "@/lib/utils";
 import type { LeaderboardRow } from "@/types";
 import ReactECharts from "echarts-for-react";
@@ -37,10 +38,7 @@ export function RollupShareDonut({ data }: Props) {
     animationDuration: 700,
     tooltip: {
       trigger: "item" as const,
-      backgroundColor: "#1A2235",
-      borderColor: "rgba(16,185,129,0.2)",
-      borderWidth: 1,
-      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
+      ...blobLensTheme.tooltip,
       formatter: (params: { name: string; value: number; percent: number }) =>
         `<b>${params.name}</b><br/>${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)`,
     },

@@ -3,6 +3,7 @@
 import ReactECharts from "echarts-for-react";
 import { useTheme } from "next-themes";
 import { formatUsd } from "@/lib/ethPrice";
+import { useEffect, useState } from "react";
 
 const GAS_PER_BLOB = 131_072;
 
@@ -32,6 +33,12 @@ function getLevel(v: number) {
 }
 
 export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="min-h-[280px]" />;
+
   const gaugeVal = toGaugeValue(latestFeeWei);
   const feeGwei  = latestFeeWei > 0 ? latestFeeWei / 1e9 : null;
   const costUsd  =
@@ -39,11 +46,10 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
       ? (latestFeeWei * GAS_PER_BLOB) / 1e18 * ethUsd
       : null;
 
-  const { theme } = useTheme();
   const level = latestFeeWei > 0 ? getLevel(gaugeVal) : null;
 
   // Gap color matches card background per theme
-  const cardBg = theme === "light" ? "#FFFFFF" : "#111827";
+  const cardBg = theme === "light" ? "#FFFFFF" : "#050810";
 
   const GAP  = 0.012;
   const N    = 6;

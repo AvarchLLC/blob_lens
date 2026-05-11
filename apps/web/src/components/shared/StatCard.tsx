@@ -12,16 +12,26 @@ interface Props {
 export function StatCard({ label, value, sub, className, valueColor }: Props) {
   return (
     <Card
-      className={cn("group", className)}
-      style={{ borderTop: "2px solid #10B981" }}
+      className={cn("border-glow group relative overflow-hidden", className)}
+      style={{ borderTop: "1px solid rgba(0, 223, 129, 0.35)" }}
     >
+      {/* Hover radial spotlight */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse at top, rgba(0,223,129,0.07) 0%, transparent 70%)",
+        }}
+      />
       <CardHeader className="pb-1 min-h-0">
         <p className="stat-label">{label}</p>
       </CardHeader>
       <CardContent>
         <p
-          className="font-display text-[1.95rem] font-bold leading-none sm:text-[2.15rem]"
-          style={{ color: valueColor ?? "var(--foreground)" }}
+          className={cn(
+            "font-display text-[1.95rem] font-bold leading-none sm:text-[2.15rem]",
+            !valueColor && "stat-value-accent"
+          )}
+          style={valueColor ? { color: valueColor } : undefined}
         >
           {value}
         </p>
