@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -7,9 +8,10 @@ interface Props {
   sub?: string;
   className?: string;
   valueColor?: string;
+  tooltip?: string;
 }
 
-export function StatCard({ label, value, sub, className, valueColor }: Props) {
+export function StatCard({ label, value, sub, className, valueColor, tooltip }: Props) {
   return (
     <Card
       className={cn("border-glow group relative overflow-hidden", className)}
@@ -23,7 +25,10 @@ export function StatCard({ label, value, sub, className, valueColor }: Props) {
         }}
       />
       <CardHeader className="pb-1 min-h-0">
-        <p className="stat-label">{label}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="stat-label">{label}</p>
+          {tooltip && <InfoTooltip content={tooltip} side="bottom" />}
+        </div>
       </CardHeader>
       <CardContent>
         <p

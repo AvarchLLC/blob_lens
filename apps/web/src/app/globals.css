@@ -395,86 +395,102 @@
   }
 
 
-  /* ── Glass card — Bayland zinc style ── */
+  /* ── Glass card — semi-transparent with real glass effect ── */
   .glass-card {
-    background: linear-gradient(145deg, #1c1c1f 0%, #18181b 100%);
-    -webkit-backdrop-filter: blur(12px) saturate(140%);
-            backdrop-filter: blur(12px) saturate(140%);
-    border: 1px solid #2e2e33;
+    /* Semi-transparent so backdrop-filter + background gradients show through */
+    background: rgba(20, 20, 25, 0.78);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+            backdrop-filter: blur(20px) saturate(160%);
+    /* White-tinted border — key to the glass look */
+    border: 1px solid rgba(255, 255, 255, 0.09);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.04) inset,
-      0 4px 24px rgba(0, 0, 0, 0.6),
-      0 1px 2px rgba(0, 0, 0, 0.4);
+      /* Top glass-reflection highlight */
+      inset 0 1px 0 rgba(255, 255, 255, 0.11),
+      /* Bottom inner shadow for depth */
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+      /* Outer depth */
+      0 4px 24px rgba(0, 0, 0, 0.65),
+      0 1px 3px rgba(0, 0, 0, 0.50),
+      /* Ambient green glow */
+      0 0 60px rgba(0, 223, 129, 0.025);
     transition: border-color 280ms ease, box-shadow 280ms ease, transform 200ms ease-out;
   }
 
   .glass-card:hover {
-    border-color: #3d3d42;
+    border-color: rgba(255, 255, 255, 0.14);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.06) inset,
-      0 0 0 1px rgba(0, 223, 129, 0.12),
-      0 8px 32px rgba(0, 0, 0, 0.7),
-      0 0 24px rgba(0, 223, 129, 0.06);
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+      0 0 0 1px rgba(0, 223, 129, 0.15),
+      0 8px 40px rgba(0, 0, 0, 0.75),
+      0 2px 5px rgba(0, 0, 0, 0.50),
+      0 0 36px rgba(0, 223, 129, 0.08);
     transform: translateY(-1px);
   }
 
-  /* ── Glass card bordered — green-tinted border variant ── */
+  /* ── Glass card bordered — green-accent border variant ── */
   .glass-card-bordered {
-    background: linear-gradient(145deg, #1c1c1f 0%, #18181b 100%);
-    -webkit-backdrop-filter: blur(12px) saturate(140%);
-            backdrop-filter: blur(12px) saturate(140%);
-    border: 1px solid rgba(0, 223, 129, 0.16);
+    background: rgba(20, 20, 25, 0.78);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+            backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(0, 223, 129, 0.22);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.04) inset,
-      0 4px 20px rgba(0, 0, 0, 0.55),
-      0 0 0 1px rgba(0, 223, 129, 0.04);
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+      0 4px 20px rgba(0, 0, 0, 0.60),
+      0 0 0 1px rgba(0, 223, 129, 0.06);
     transition: border-color 280ms ease, box-shadow 280ms ease, transform 200ms ease-out;
   }
 
   .glass-card-bordered:hover {
-    border-color: rgba(0, 223, 129, 0.30);
+    border-color: rgba(0, 223, 129, 0.38);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.06) inset,
-      0 8px 32px rgba(0, 0, 0, 0.65),
-      0 0 0 1px rgba(0, 223, 129, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.11),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+      0 8px 36px rgba(0, 0, 0, 0.70),
+      0 0 0 1px rgba(0, 223, 129, 0.18),
       var(--shadow-glow-sm);
     transform: translateY(-1px);
   }
 
   /* ── Light theme card overrides ── */
   html.light .glass-card {
-    background: linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.92) 100%);
-    border-color: rgba(5, 150, 105, 0.12);
+    background: rgba(255, 255, 255, 0.80);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+            backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(15, 23, 42, 0.09);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.85) inset,
-      0 4px 16px rgba(15, 23, 42, 0.08),
-      0 1px 2px rgba(15, 23, 42, 0.05);
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 4px 16px rgba(15, 23, 42, 0.09),
+      0 1px 3px rgba(15, 23, 42, 0.06);
   }
 
   html.light .glass-card:hover {
     border-color: rgba(5, 150, 105, 0.22);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.9) inset,
+      inset 0 1px 0 rgba(255, 255, 255, 0.96),
       0 0 0 1px rgba(5, 150, 105, 0.10),
       0 8px 24px rgba(15, 23, 42, 0.12),
-      0 0 20px rgba(5, 150, 105, 0.04);
+      0 0 24px rgba(5, 150, 105, 0.05);
     transform: translateY(-1px);
   }
 
   html.light .glass-card-bordered {
-    background: linear-gradient(145deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.92) 100%);
-    border-color: rgba(5, 150, 105, 0.20);
+    background: rgba(255, 255, 255, 0.80);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+            backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(5, 150, 105, 0.22);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.85) inset,
-      0 4px 16px rgba(15, 23, 42, 0.08);
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 4px 16px rgba(15, 23, 42, 0.09);
   }
 
   html.light .glass-card-bordered:hover {
-    border-color: rgba(5, 150, 105, 0.32);
+    border-color: rgba(5, 150, 105, 0.35);
     box-shadow:
-      0 1px 0 0 rgba(255,255,255,0.9) inset,
+      inset 0 1px 0 rgba(255, 255, 255, 0.96),
       0 8px 24px rgba(15, 23, 42, 0.12),
-      0 0 0 1px rgba(5, 150, 105, 0.12),
+      0 0 0 1px rgba(5, 150, 105, 0.14),
       var(--shadow-glow-sm);
     transform: translateY(-1px);
   }
@@ -724,17 +740,16 @@
   .glow-card::before {
     content: '';
     position: absolute;
-    inset: -1px;
+    inset: -12px;
     border-radius: inherit;
     background: transparent;
-    transition: background 400ms ease;
+    transition: background 450ms ease;
     pointer-events: none;
-    /* z-index: -1 keeps it behind all card content */
     z-index: -1;
   }
 
   .glow-card:hover::before {
-    background: radial-gradient(ellipse at top left, rgba(0, 223, 129, 0.15) 0%, transparent 65%);
+    background: radial-gradient(ellipse 80% 60% at 20% 0%, rgba(0, 223, 129, 0.16) 0%, transparent 60%);
   }
 
   /* ── Bayland: animated border-glow card ── */
@@ -761,8 +776,8 @@
     mask-composite: exclude;
     animation: border-spin 4s linear infinite;
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 300ms ease;
+    opacity: 0.18;
+    transition: opacity 350ms ease;
   }
 
   .border-glow:hover::after {
@@ -1106,16 +1121,37 @@
     margin-top: 0.125rem;
   }
 
-  /* ── Sidebar glassmorphism ── */
+  /* ── Sidebar — depth gradient panel ── */
   .sidebar-glass {
-    background: rgba(9, 9, 11, 0.88);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
-            backdrop-filter: blur(24px) saturate(1.2);
-    border-right: 1px solid var(--sidebar-border);
+    background:
+      /* Green ambient from top */
+      radial-gradient(ellipse 140% 35% at 50% -8%, rgba(0, 223, 129, 0.10) 0%, transparent 55%),
+      /* Soft top highlight for depth */
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.04) 0%,
+        rgba(255, 255, 255, 0.01) 12%,
+        transparent 35%
+      ),
+      /* Near-black panel base */
+      #0a0a0e;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow:
+      /* Top inner edge highlight */
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      /* Right inner edge — faint green */
+      inset -1px 0 0 rgba(0, 223, 129, 0.05);
   }
 
   html.light .sidebar-glass {
-    background: rgba(255, 255, 255, 0.88);
+    background:
+      radial-gradient(ellipse 140% 35% at 50% -8%, rgba(5, 150, 105, 0.07) 0%, transparent 55%),
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(248, 250, 252, 0.98) 100%
+      );
+    border-right: 1px solid rgba(5, 150, 105, 0.12);
+    box-shadow:
+      inset -1px 0 0 rgba(5, 150, 105, 0.04);
   }
 
 }
