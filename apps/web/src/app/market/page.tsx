@@ -2,8 +2,7 @@ import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
 import { CongestionForecast } from "@/components/charts/CongestionForecast";
-import { FeeBlobScatter } from "@/components/charts/FeeBlobScatter";
-import { MarketRegimeTimeline } from "@/components/charts/MarketRegimeTimeline";
+import { L1vsBlobFeeChart } from "@/components/charts/L1vsBlobFeeChart";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
 import { RollupActivityLineChart } from "@/components/charts/RollupActivityLineChart";
 import { RollupMetricLineChart } from "@/components/charts/RollupMetricLineChart";
@@ -14,6 +13,7 @@ import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
+import { getHourlyL1Fee } from "@/lib/l1Fee";
 import {
   getForecastData,
   getHourlyRollupActivity,
@@ -28,7 +28,7 @@ import { classifyRegime, formatNumber } from "@/lib/utils";
 export const revalidate = 30;
 
 export default async function MarketPage() {
-  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil, networkGraph] =
+  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil, networkGraph, l1FeeData] =
     await Promise.all([
       getMarketActivity(24).catch(() => []),
       getMarketActivity(168).catch(() => []),
@@ -39,6 +39,7 @@ export default async function MarketPage() {
       getHourlyRollupFee(24, 10).catch(() => []),
       getHourlyRollupUtilization(24, 10).catch(() => []),
       getRollupNetworkGraph(24).catch(() => ({ nodes: [], edges: [] })),
+      getHourlyL1Fee(24).catch(() => []),
     ]);
 
   // Use market as alias for market24h where needed
@@ -152,61 +153,105 @@ export default async function MarketPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <h2 className="section-title">Regime Timeline · 7d</h2>
-              <InfoTooltip
-                content="7-day continuous regime history. Each segment = 1 hour. Shows how often the market has been in each state and whether congestion is becoming more frequent over time."
-                side="bottom"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <MarketRegimeTimeline data={market7d} />
-            <div className="flex items-center gap-4 pt-1">
-              {(["healthy", "congested", "spike", "undersaturated"] as const).map((r) => {
-                const color = { healthy: "#00df81", congested: "#fcbb00", spike: "#fb2c36", undersaturated: "#3f3f46" }[r];
-                const count = market7d.filter((m) => classifyRegime(m.max_blobs_in_block) === r).length;
-                return (
-                  <span key={r} className="flex items-center gap-1.5 text-[10px] text-muted-foreground capitalize">
-                    <span className="h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: color }} />
-                    {r}
-                    <span className="font-mono text-foreground">{count}h</span>
-                  </span>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* ═══════════════════════════════════════════
-          SECTION 2: Market Structure (per-rollup)
+          SECTION 2: Fee & Block Data
       ═══════════════════════════════════════════ */}
       <div className="space-y-4">
         <h2 className="text-xs uppercase tracking-[0.10em] text-muted-foreground font-semibold px-0.5">
-          Market Structure · Per-rollup
+          Fee &amp; Block Data
         </h2>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <h2 className="section-title">Rollup Ecosystem Map</h2>
-              <InfoTooltip
-                content="Network graph showing how rollups interact and their position in the DA market. Node size = blob volume, color = efficiency, connections = co-occurrence in blocks."
-                side="bottom"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {networkGraph.nodes.length > 0 ? (
-              <RollupNetworkGraphD3 data={networkGraph} />
-            ) : (
-              <div className="h-[500px] flex items-center justify-center text-muted-foreground">No network data available</div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <h2 className="section-title">Blob Base Fee Trend</h2>
+                <InfoTooltip
+                  content="Hourly average blob base fee over 24 hours. The fee rises exponentially when blocks fill above 4.5 blobs and falls when below. Shows cost trends for rollup operators planning submissions."
+                  side="bottom"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} />
+            </CardContent>
+          </Card>
+
+          {ethUsd != null && l1FeeData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <h2 className="section-title">Blob DA vs L1 Calldata Cost</h2>
+                  <InfoTooltip
+                    content="Cost comparison for posting 128 KB of data: blob DA (EIP-4844) vs equivalent L1 calldata (16 gas/byte). Both normalized to USD. The gap shows how much cheaper blobs are than pre-4844 rollup costs."
+                    side="bottom"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <L1vsBlobFeeChart blobData={market} l1Data={l1FeeData} ethUsd={ethUsd} />
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <h2 className="section-title">Blobs per Block</h2>
+                <InfoTooltip
+                  content="Blob count per hourly bucket. Max is 9 (post-Pectra). Color shows market regime: green = healthy, yellow = congested, red = spike."
+                  side="bottom"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <BlobsPerBlockChart data={market} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <h2 className="section-title">Slot Utilization</h2>
+                <InfoTooltip
+                  content="Average blob slot utilization per hour. Dashed line = 50% EIP-4844 target. Above 80% = fee pressure building."
+                  side="bottom"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <BlobUtilizationChart data={market} />
+            </CardContent>
+          </Card>
+
+          {forecast && forecast.current_fee_wei > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <h2 className="section-title">Fee Congestion Forecast</h2>
+                  <InfoTooltip
+                    content="Short-term fee projection using the EIP-4844 exponential formula applied to the last 50 blocks. Use this to decide whether to submit blobs now or wait."
+                    side="bottom"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CongestionForecast data={forecast} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════
+          SECTION 3: Rollup Activity
+      ═══════════════════════════════════════════ */}
+      <div className="space-y-4">
+        <h2 className="text-xs uppercase tracking-[0.10em] text-muted-foreground font-semibold px-0.5">
+          Rollup Activity
+        </h2>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
@@ -229,9 +274,9 @@ export default async function MarketPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Blob Base Fee by Rollup</h2>
+                <h2 className="section-title">Fee by Rollup</h2>
                 <InfoTooltip
-                  content="Per-rollup blob base fee over 24 hours. Diverging lines indicate rollups timing the market differently — rollups that consistently pay less are choosing cheaper submission windows."
+                  content="Per-rollup blob base fee over 24 hours. Diverging lines indicate rollups timing the market differently."
                   side="bottom"
                 />
               </div>
@@ -239,85 +284,38 @@ export default async function MarketPage() {
             <CardContent>
               {rollupFee.length > 0
                 ? <RollupMetricLineChart data={rollupFee} mode="fee-wei" />
-                : <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} />}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Slot Utilization by Rollup</h2>
-                <InfoTooltip
-                  content="Percentage of available blob slots each rollup filled per hour. Post-Pectra max is 9 blobs/block. Rollups above 80% are consuming a large share and may be driving fees higher."
-                  side="bottom"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {rollupUtil.length > 0
-                ? <RollupMetricLineChart data={rollupUtil} mode="utilization-pct" />
-                : <BlobUtilizationChart data={market} />}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Blobs per Block</h2>
-                <InfoTooltip
-                  content="Blob count distribution across Ethereum blocks over 24 hours. Max is 9 (post-Pectra). Clusters near 9 = competitive market; near 0 = quiet periods. Color = regime."
-                  side="bottom"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <BlobsPerBlockChart data={market} />
+                : <p className="py-8 text-center text-sm text-muted-foreground">No rollup fee data</p>}
             </CardContent>
           </Card>
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════
-          SECTION 3: Relationships & Forecast
+          SECTION 4: Ecosystem Map
       ═══════════════════════════════════════════ */}
       <div className="space-y-4">
         <h2 className="text-xs uppercase tracking-[0.10em] text-muted-foreground font-semibold px-0.5">
-          Relationships &amp; Forecast
+          Ecosystem Map
         </h2>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {forecast && forecast.current_fee_wei > 0 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <h2 className="section-title">Fee Congestion Forecast</h2>
-                  <InfoTooltip
-                    content="Short-term fee projection using the EIP-4844 exponential formula applied to the last 50 blocks. Excess trend detects if fee pressure is building or easing. Use this to decide whether to submit blobs now or wait."
-                    side="bottom"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CongestionForecast data={forecast} />
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Fee vs Blob Count</h2>
-                <InfoTooltip
-                  content="Scatter plot of hourly blob count vs average fee. A positive correlation confirms the EIP-4844 mechanism. Outliers with high fees but low counts indicate sudden spikes followed by a quick cooldown."
-                  side="bottom"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <FeeBlobScatter data={market} ethUsd={ethUsd} />
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <h2 className="section-title">Rollup Ecosystem Map</h2>
+              <InfoTooltip
+                content="Force-directed graph showing rollups and their DA market relationships. Node size = blob volume. Glow color = efficiency (green = excellent). Connections = co-occurrence in the same block."
+                side="bottom"
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {networkGraph.nodes.length > 0 ? (
+              <RollupNetworkGraphD3 data={networkGraph} />
+            ) : (
+              <div className="h-[500px] flex items-center justify-center text-muted-foreground">No network data available</div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* ═══════════════════════════════════════════

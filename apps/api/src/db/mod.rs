@@ -58,6 +58,23 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .execute(&pool)
     .await?;
 
+    // Migration: blob content metrics populated from Beacon API at index time
+    sqlx::query(
+        r#"ALTER TABLE blob_transactions ADD COLUMN IF NOT EXISTS bytes_used INTEGER"#,
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query(
+        r#"ALTER TABLE blob_transactions ADD COLUMN IF NOT EXISTS fullness_ratio FLOAT"#,
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query(
+        r#"ALTER TABLE blob_transactions ADD COLUMN IF NOT EXISTS is_ghost_blob BOOLEAN"#,
+    )
+    .execute(&pool)
+    .await?;
+
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS blob_hashes (
@@ -148,13 +165,17 @@ pub async fn insert_blob_transaction(
     blob_base_fee: i64,
     blob_hashes: Vec<String>,
     rollup: &str,
+    bytes_used: Option<i32>,
+    fullness_ratio: Option<f64>,
+    is_ghost_blob: Option<bool>,
 ) -> Result<()> {
     sqlx::query(
         r#"
         INSERT INTO blob_transactions
         (tx_hash, block_number, block_hash, from_address, to_address, num_blobs,
-         max_fee_per_blob_gas, blob_base_fee, blob_hashes, rollup)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         max_fee_per_blob_gas, blob_base_fee, blob_hashes, rollup,
+         bytes_used, fullness_ratio, is_ghost_blob)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ON CONFLICT (tx_hash) DO NOTHING
         "#,
     )
@@ -168,6 +189,9 @@ pub async fn insert_blob_transaction(
     .bind(blob_base_fee)
     .bind(blob_hashes.clone())
     .bind(rollup)
+    .bind(bytes_used)
+    .bind(fullness_ratio)
+    .bind(is_ghost_blob)
     .execute(pool)
     .await?;
 

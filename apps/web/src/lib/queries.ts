@@ -3,6 +3,7 @@ import type {
   BlobTransaction,
   DailyRollupBlob,
   ForecastData,
+  FullnessHistogramBucket,
   HourlyRollupBlob,
   HourlyRollupValue,
   LeaderboardRow,
@@ -72,7 +73,10 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
                    THEN blob_base_fee ELSE NULL END) / 1e9,
           0
-        )::float8                                           AS cost_per_blob_gwei
+        )::float8                                           AS cost_per_blob_gwei,
+        -- Beacon sidecar metrics (NULL until indexer collects them)
+        (AVG(fullness_ratio) * 100)::float8                 AS avg_fullness_pct,
+        COALESCE(SUM(CASE WHEN is_ghost_blob THEN 1 ELSE 0 END), 0)::bigint AS ghost_blob_count
       FROM blob_transactions
       WHERE rollup IS NOT NULL
         AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
@@ -138,13 +142,29 @@ export async function getUnknownSenders(): Promise<UnknownSender[]> {
   return sql<UnknownSender[]>`
     SELECT
       from_address,
-      COUNT(*)::bigint                    AS tx_count,
-      COALESCE(SUM(num_blobs), 0)::bigint AS total_blobs
+      COUNT(*)::bigint                              AS tx_count,
+      COALESCE(SUM(num_blobs), 0)::bigint           AS total_blobs,
+      ROUND(AVG(num_blobs)::numeric, 2)::float      AS avg_blobs_per_tx
     FROM blob_transactions
     WHERE rollup = 'UNKNOWN'
     GROUP BY from_address
     ORDER BY total_blobs DESC
     LIMIT 10
+  `;
+}
+
+export async function getAllUnknownSenders(limit = 100): Promise<UnknownSender[]> {
+  return sql<UnknownSender[]>`
+    SELECT
+      from_address,
+      COUNT(*)::bigint                              AS tx_count,
+      COALESCE(SUM(num_blobs), 0)::bigint           AS total_blobs,
+      ROUND(AVG(num_blobs)::numeric, 2)::float      AS avg_blobs_per_tx
+    FROM blob_transactions
+    WHERE rollup = 'UNKNOWN'
+    GROUP BY from_address
+    ORDER BY total_blobs DESC
+    LIMIT ${limit}
   `;
 }
 
@@ -473,4 +493,17 @@ export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGr
     nodes: nodesData,
     edges: edgesData,
   };
+}
+
+export async function getFullnessHistogram(days = 7): Promise<FullnessHistogramBucket[]> {
+  return sql<FullnessHistogramBucket[]>`
+    SELECT
+      (FLOOR(fullness_ratio * 10) * 10)::int AS bucket_start,
+      COUNT(*)::bigint                        AS blob_count
+    FROM blob_transactions
+    WHERE fullness_ratio IS NOT NULL
+      AND created_at > NOW() - INTERVAL '1 day' * ${days}
+    GROUP BY bucket_start
+    ORDER BY bucket_start ASC
+  `;
 }
