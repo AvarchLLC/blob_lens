@@ -26,6 +26,10 @@ export interface LeaderboardRow {
   timing_score: number;
   /** 0–100 composite: 70% packing + 30% timing */
   efficiency_score: number;
+  /** Average blob content fullness 0–100; null until beacon sidecar data is available */
+  avg_fullness_pct: number | null;
+  /** Number of transactions containing at least one ghost blob (<5% content) */
+  ghost_blob_count: number;
 }
 
 export interface ForecastData {
@@ -86,6 +90,7 @@ export interface UnknownSender {
   from_address: string;
   tx_count: number;
   total_blobs: number;
+  avg_blobs_per_tx: number;
 }
 
 export interface BlockRow {
@@ -97,6 +102,11 @@ export interface BlockRow {
   tx_count: number;
   rollups: string[];
   created_at: string;
+}
+
+export interface FullnessHistogramBucket {
+  bucket_start: number; // 0, 10, 20, … 90
+  blob_count: number;
 }
 
 export type AlertRegimeThreshold = "healthy" | "congested" | "spike";

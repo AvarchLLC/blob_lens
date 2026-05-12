@@ -2,12 +2,14 @@ import { BlobFeeGauge } from "@/components/charts/BlobFeeGauge";
 import { BlobFeeLineChartSelector } from "@/components/charts/BlobFeeLineChartSelector";
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { CostHeatmap } from "@/components/charts/CostHeatmap";
-import { MarketRegimeTimeline } from "@/components/charts/MarketRegimeTimeline";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
+import { BlockFeed } from "@/components/shared/BlockFeed";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
+import { LiveBlobFeed } from "@/components/shared/LiveBlobFeed";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { RollupShareCard } from "@/components/shared/RollupShareCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEthPrice } from "@/lib/ethPrice";
 import {
   getDailyRollupBreakdown,
@@ -151,7 +153,6 @@ export default async function OverviewPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <RegimeBadge maxBlobsInBlock={latestMaxBlobs} size="lg" />
-            <MarketRegimeTimeline data={market24h} />
             <p className="text-[10px] text-muted-foreground">
               Last {market24h.length} hours
             </p>
@@ -233,20 +234,43 @@ export default async function OverviewPage() {
         </Card>
       )}
 
-      {/* Row 6: Live Feed CTA */}
-      <Link href="/live" className="group block">
-        <Card className="border-glow h-full flex flex-col items-center justify-center gap-4 py-12 cursor-pointer">
-          <div className="green-badge">
+      {/* Row 6: Live Feed Preview */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="pulse-dot" />
-            Live Feed
+            <h2 className="section-title text-[#10B981]">Live Feed</h2>
+            <InfoTooltip
+              content="Real-time stream of Ethereum blocks and EIP-4844 blob transactions. Refreshes every 12 seconds."
+              side="bottom"
+            />
+            <Link
+              href="/live"
+              className="ml-auto text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors"
+            >
+              View full feed →
+            </Link>
           </div>
-          <p className="section-title text-center shimmer-text">Real-time Blob &amp; Block Feed</p>
-          <p className="caption text-center max-w-xs text-[#71717a]">
-            Blocks, transactions, rollup tags and cost — refreshes every 12s
-          </p>
-          <span className="gradient-button mt-2">Open feed →</span>
-        </Card>
-      </Link>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="blocks">
+            <TabsList className="mb-3">
+              <TabsTrigger value="blocks">Blocks</TabsTrigger>
+              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            </TabsList>
+            <TabsContent value="blocks">
+              <div className="max-h-72 overflow-y-auto">
+                <BlockFeed />
+              </div>
+            </TabsContent>
+            <TabsContent value="transactions">
+              <div className="max-h-72 overflow-y-auto">
+                <LiveBlobFeed />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }

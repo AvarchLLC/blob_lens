@@ -7,7 +7,9 @@ use std::env;
 use sqlx::Pool;
 use sqlx::postgres::Postgres;
 use crate::rollup_registry;
+use crate::services::beacon;
 use eyre::Result;
+use reqwest::Client;
 use tracing::{info, error, warn};
 
 const GAS_PER_BLOB: u64 = 131_072;
@@ -18,6 +20,14 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
     let alchemy_key = env::var("ALCHEMY_KEY")
         .map_err(|_| eyre::eyre!("ALCHEMY_KEY not set in .env"))?;
     let ws_url = format!("wss://eth-mainnet.g.alchemy.com/v2/{}", alchemy_key);
+
+    // Optional BEACON_RPC_URL override; falls back to Alchemy consensus + publicnode
+    let beacon_rpc_override = env::var("BEACON_RPC_URL").ok();
+    let alchemy_key_opt = Some(alchemy_key.clone());
+    let http_client = Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .unwrap_or_default();
 
     info!("Connecting to Alchemy WebSocket: {}", ws_url);
 
@@ -89,6 +99,19 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                 );
                 let _ = excess_blob_gas; // suppress unused warning (used in insert_block_stats)
 
+                // Fetch all blob sidecars for this block once — map versioned_hash → stats
+                let sidecar_map = beacon::fetch_slot_sidecars(
+                    &http_client,
+                    &alchemy_key_opt,
+                    &beacon_rpc_override,
+                    block_number as u64,
+                ).await;
+                if sidecar_map.is_empty() {
+                    warn!("No beacon sidecars for block {} — fullness metrics will be NULL", block_number);
+                } else {
+                    info!("  🔍 Fetched {} blob sidecars for block #{}", sidecar_map.len(), block_number);
+                }
+
                 let mut blob_tx_count = 0;
 
                 for tx in full_block.transactions.into_transactions() {
@@ -114,9 +137,17 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                             &from_address, to_address.as_deref(), &rollup_registry
                         );
 
+                        // Derive fullness metrics from sidecar map (None if beacon fetch failed)
+                        let tx_stats = beacon::aggregate_tx_stats(&blob_hashes, &sidecar_map);
+                        let (bytes_used, fullness_ratio, is_ghost_blob) = match tx_stats {
+                            Some(s) => (Some(s.bytes_used), Some(s.fullness_ratio), Some(s.is_ghost_blob)),
+                            None    => (None, None, None),
+                        };
+
                         info!(
-                            "  🔹 Blob Tx: {} | Rollup: {} | Blobs: {} | Base Fee: {:.6}gwei | Max Bid: {}",
-                            &tx_hash[..10], rollup, num_blobs, blob_fee_gwei, max_fee_per_blob_gas
+                            "  🔹 Blob Tx: {} | Rollup: {} | Blobs: {} | Base Fee: {:.6}gwei | Fullness: {}",
+                            &tx_hash[..10], rollup, num_blobs, blob_fee_gwei,
+                            fullness_ratio.map(|f| format!("{:.1}%", f * 100.0)).unwrap_or_else(|| "n/a".to_string()),
                         );
 
                         if let Err(e) = crate::db::insert_blob_transaction(
@@ -131,6 +162,9 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                             blob_base_fee,
                             blob_hashes.clone(),
                             &rollup,
+                            bytes_used,
+                            fullness_ratio,
+                            is_ghost_blob,
                         ).await {
                             error!("Failed to insert blob transaction: {}", e);
                         }

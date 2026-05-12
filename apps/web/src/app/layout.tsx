@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk } from "next/font/google";
-import { AppSidebar } from "@/components/shared/AppSidebar";
+import { FloatingNav } from "@/components/shared/FloatingNav";
 import { Footer } from "@/components/shared/Footer";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import { Spotlight } from "@/components/ui/spotlight-new";
@@ -43,10 +43,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${geistMono.variable} ${averiaSerif.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${geistMono.variable} ${averiaSerif.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full bg-background text-foreground overflow-hidden">
+      <body className="min-h-screen bg-background text-foreground">
         <ThemeProvider>
           {/* Aceternity Spotlight — Bayland emerald beams, site-wide */}
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -63,8 +63,8 @@ export default function RootLayout({
             />
           </div>
 
-          {/* App shell: banner on top, sidebar + content below */}
-          <div className="relative z-10 flex flex-col h-full">
+          {/* App shell: banner → sticky nav → scrollable content */}
+          <div className="relative z-10 flex flex-col min-h-screen">
             {/* Banner */}
             <Banner
               id="giveth-qf-2026"
@@ -96,14 +96,16 @@ export default function RootLayout({
               </span>
             </Banner>
 
-            {/* Sidebar + scrollable content */}
-            <div className="flex flex-1 overflow-hidden">
-              <AppSidebar />
-              <main className="flex-1 overflow-y-auto min-w-0">
-                {children}
-                <Footer />
-              </main>
+            {/* Sticky floating nav */}
+            <div className="sticky top-0 z-50">
+              <FloatingNav />
             </div>
+
+            {/* Page content */}
+            <main className="flex-1 min-w-0">
+              {children}
+              <Footer />
+            </main>
           </div>
         </ThemeProvider>
       </body>

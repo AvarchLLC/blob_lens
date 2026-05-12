@@ -1,17 +1,11 @@
-mod services;
-mod db;
-mod rollup_registry;
 mod api;
 
-use services::blob_parser;
+use blob_lens::{db, services::blob_parser};
 use dotenvy::dotenv;
 use std::env;
-use tracing_subscriber;
 use axum::Router;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
-use tower_http::services::ServeDir;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -16,6 +16,33 @@ type SortKey = keyof Pick<
   "total_blobs" | "tx_count" | "avg_blobs_per_tx" | "avg_fee" | "da_cost_eth" | "packing_score" | "network_share_pct" | "efficiency_score"
 >;
 
+function FullnessBar({ pct }: { pct: number | null }) {
+  if (pct == null) return <span className="font-mono text-xs text-muted-foreground/40">—</span>;
+  const clamped = Math.min(100, Math.max(0, pct));
+  const color = clamped >= 70 ? "#00df81" : clamped >= 40 ? "#fcbb00" : "#fb2c36";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[#1E2D45]">
+        <div className="h-full rounded-full transition-all" style={{ width: `${clamped}%`, backgroundColor: color }} />
+      </div>
+      <span className="font-mono text-xs" style={{ color }}>{clamped.toFixed(0)}%</span>
+    </div>
+  );
+}
+
+function GhostBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span
+      title={`${count} transaction${count > 1 ? "s" : ""} contained ghost blobs (<5% content)`}
+      className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+      style={{ background: "rgba(251,44,54,0.12)", color: "#fb2c36", border: "1px solid rgba(251,44,54,0.25)" }}
+    >
+      ghost
+    </span>
+  );
+}
+
 interface Props {
   rows: LeaderboardRow[];
   sparklines: SparklinePoint[];
@@ -141,6 +168,7 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
               <th className={th} onClick={() => toggleSort("packing_score")}>Packing <SortIcon k="packing_score" /></th>
               <th className={th} onClick={() => toggleSort("efficiency_score")}>Efficiency <SortIcon k="efficiency_score" /></th>
               <th className={th} onClick={() => toggleSort("network_share_pct")}>Net Share <SortIcon k="network_share_pct" /></th>
+              <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Fullness</th>
               <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">24H Trend</th>
               <th className="pb-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Last Active</th>
               <th className="pb-3 w-4" />
@@ -182,6 +210,12 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
                     {Number(row.network_share_pct) > 0
                       ? `${Number(row.network_share_pct).toFixed(1)}%`
                       : "—"}
+                  </td>
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-1.5">
+                      <FullnessBar pct={row.avg_fullness_pct} />
+                      <GhostBadge count={Number(row.ghost_blob_count ?? 0)} />
+                    </div>
                   </td>
                   <td className="py-3 pr-4"><BlobSparkline points={sparklinesMap[row.rollup] ?? []} /></td>
                   <td className="py-3 text-xs text-muted-foreground">{new Date(row.last_seen).toLocaleString()}</td>

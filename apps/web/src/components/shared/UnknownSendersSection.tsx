@@ -3,6 +3,7 @@
 import { formatNumber } from "@/lib/utils";
 import type { UnknownSender } from "@/types";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 
 interface Props {
@@ -36,9 +37,18 @@ export function UnknownSendersSection({ senders }: Props) {
 
       {open && (
         <div className="border-t border-[#1E2D45] px-5 pb-5 pt-4">
-          <p className="mb-4 text-xs text-[#4B5563]">
-            Top senders with rollup = UNKNOWN — these addresses have not been matched to any known sequencer.
-          </p>
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-xs text-[#4B5563]">
+              Top senders with rollup = UNKNOWN — not matched to any known sequencer.
+            </p>
+            <Link
+              href="/unknown"
+              className="text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors shrink-0 ml-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View all →
+            </Link>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -46,6 +56,7 @@ export function UnknownSendersSection({ senders }: Props) {
                   <th className="pb-2 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">#</th>
                   <th className="pb-2 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">From Address</th>
                   <th className="pb-2 pr-4 text-right text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">TXs</th>
+                  <th className="pb-2 pr-4 text-right text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">Blobs/TX</th>
                   <th className="pb-2 text-right text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">Blobs</th>
                 </tr>
               </thead>
@@ -65,6 +76,7 @@ export function UnknownSendersSection({ senders }: Props) {
                       </a>
                     </td>
                     <td className="py-2 pr-4 text-right font-mono text-xs text-[#9CA3AF]">{formatNumber(Number(s.tx_count))}</td>
+                    <td className="py-2 pr-4 text-right font-mono text-xs text-[#9CA3AF]">{Number(s.avg_blobs_per_tx).toFixed(1)}</td>
                     <td className="py-2 text-right font-mono text-xs text-foreground">{formatNumber(Number(s.total_blobs))}</td>
                   </tr>
                 ))}

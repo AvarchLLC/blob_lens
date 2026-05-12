@@ -1,18 +1,17 @@
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
+import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
 import { CongestionForecast } from "@/components/charts/CongestionForecast";
 import { CumulativeBlobGrowth } from "@/components/charts/CumulativeBlobGrowth";
-import { MarketRegimeTimeline } from "@/components/charts/MarketRegimeTimeline";
+import { PackingHistogram } from "@/components/charts/PackingHistogram";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
-import { RollupMetricLineChart } from "@/components/charts/RollupMetricLineChart";
 import { RollupShareDonut } from "@/components/charts/RollupShareDonut";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
-import { SlotUtilizationChart } from "@/components/charts/SlotUtilizationChart";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   getDailyRollupBreakdown,
   getForecastData,
-  getHourlyRollupFee,
+  getFullnessHistogram,
   getLeaderboard,
   getMarketActivity,
 } from "@/lib/queries";
@@ -21,14 +20,14 @@ import { Activity, BarChart3, FlaskConical, PieChart, TrendingUp, Zap } from "lu
 export const revalidate = 60;
 
 export default async function ResearchPage() {
-  const [market7d, market30d, leaderboard30d, dailyBreakdown, forecast, rollupFee7d] =
+  const [market7d, market30d, leaderboard30d, dailyBreakdown, forecast, fullnessHistogram] =
     await Promise.all([
       getMarketActivity(168).catch(() => []),
       getMarketActivity(720).catch(() => []),
       getLeaderboard(720).catch(() => []),
       getDailyRollupBreakdown(30).catch(() => []),
       getForecastData().catch(() => null),
-      getHourlyRollupFee(168, 10).catch(() => []),
+      getFullnessHistogram(7).catch(() => []),
     ]);
 
   const totalBlobs30d = leaderboard30d.reduce((s, r) => s + Number(r.total_blobs), 0);
@@ -147,13 +146,13 @@ export default async function ResearchPage() {
                 <BarChart3 className="h-4 w-4" />
                 <h2 className="section-title">Slot Utilization (30d)</h2>
                 <InfoTooltip
-                  content="Average percentage of the 9-blob block capacity used per hour over 30 days. Sustained above 80% = persistent fee pressure. Macro trends reveal whether demand is growing into or away from saturation."
+                  content="Average percentage of the 9-blob block capacity used per hour over 30 days. Dashed line = EIP-4844 target (50%). Sustained above 80% = persistent fee pressure."
                   side="bottom"
                 />
               </div>
             </CardHeader>
             <CardContent>
-              <SlotUtilizationChart data={market30d} />
+              <BlobUtilizationChart data={market30d} />
             </CardContent>
           </Card>
         </section>
@@ -174,50 +173,41 @@ export default async function ResearchPage() {
           </CardContent>
         </Card>
 
+      </div>
+
+      {/* ═══════════════════════════════════════
+          SECTION 3: Blob Content Efficiency
+      ═══════════════════════════════════════ */}
+      <div className="space-y-4">
+        <h2 className="text-xs uppercase tracking-[0.10em] text-muted-foreground font-semibold px-0.5">
+          Blob Content Efficiency · 7d
+        </h2>
+
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingUp className="h-4 w-4" />
-              <h2 className="section-title">Blob Base Fee by Rollup (7d)</h2>
+              <BarChart3 className="h-4 w-4" />
+              <h2 className="section-title">Blob Fullness Distribution (7d)</h2>
               <InfoTooltip
-                content="Per-rollup blob base fee over 7 days. Shows whether rollup fees are converging (efficient market) or diverging (timing differences). Rollups consistently below average are timing submissions well."
+                content="Distribution of blob content fullness across all indexed transactions in the past 7 days. Each bucket shows how many blob submissions fell in that fullness range. A left-heavy histogram (lots of 0–30% bars) indicates rollups paying for space they are not using. Data requires beacon sidecar indexing — bars appear as the indexer collects content metrics."
                 side="bottom"
               />
             </div>
           </CardHeader>
           <CardContent>
-            {rollupFee7d.length > 0
-              ? <RollupMetricLineChart data={rollupFee7d} mode="fee-wei" />
-              : <p className="py-8 text-center text-sm text-muted-foreground">No rollup fee data</p>}
+            <PackingHistogram data={fullnessHistogram} />
           </CardContent>
         </Card>
       </div>
 
       {/* ═══════════════════════════════════════
-          SECTION 3: Regime Patterns & Forecast
+          SECTION 4: Regime Patterns & Forecast
       ═══════════════════════════════════════ */}
       <div className="space-y-4">
         <h2 className="text-xs uppercase tracking-[0.10em] text-muted-foreground font-semibold px-0.5">
           Regime Patterns &amp; Forecast
         </h2>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <h2 className="section-title">Market Regime Timeline (30d)</h2>
-              <InfoTooltip
-                content="Historical record of the blob fee market's state over 30 days. Each segment = 1 hour, classified into: Quiet (<20%), Healthy (20–80%), Congested (80–95%), Spike (>95%). Identifies macro congestion patterns and protocol changes."
-                side="bottom"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <MarketRegimeTimeline data={market30d} />
-            <p className="text-[10px] text-muted-foreground">
-              {market30d.length} hourly buckets · left = oldest
-            </p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
