@@ -85,7 +85,7 @@ export default function RootLayout({
               <span className="text-[0.8rem] text-[#a1a1aa] tracking-wide">
                 Public goods infrastructure for Ethereum governance.&nbsp;
                 <a
-                  href="https://giveth.io/project/eipsinsight"
+                  href="https://qf.giveth.io/project/eipsinsight"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#00df81] hover:text-[#00df81]/80 underline underline-offset-2 transition-colors duration-150"
