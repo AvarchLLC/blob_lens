@@ -21,9 +21,8 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
         .map_err(|_| eyre::eyre!("ALCHEMY_KEY not set in .env"))?;
     let ws_url = format!("wss://eth-mainnet.g.alchemy.com/v2/{}", alchemy_key);
 
-    // Optional BEACON_RPC_URL override; falls back to Alchemy consensus + publicnode
+    // Optional BEACON_RPC_URL override; falls back to lodestar + public endpoints
     let beacon_rpc_override = env::var("BEACON_RPC_URL").ok();
-    let alchemy_key_opt = Some(alchemy_key.clone());
     let http_client = Client::builder()
         .timeout(std::time::Duration::from_secs(20))
         .build()
@@ -102,7 +101,6 @@ pub async fn fetch_blob(pool: &Pool<Postgres>) -> Result<()> {
                 // Fetch all blob sidecars for this block once — map versioned_hash → stats
                 let sidecar_map = beacon::fetch_slot_sidecars(
                     &http_client,
-                    &alchemy_key_opt,
                     &beacon_rpc_override,
                     block_number as u64,
                 ).await;

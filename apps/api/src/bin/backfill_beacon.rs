@@ -35,7 +35,6 @@ async fn main() -> eyre::Result<()> {
 
     let database_url = env::var("DATABASE_URL")
         .map_err(|_| eyre::eyre!("DATABASE_URL not set"))?;
-    let alchemy_key = env::var("ALCHEMY_KEY").ok();
     let beacon_rpc_override = env::var("BEACON_RPC_URL").ok();
 
     let batch_size: i64 = env::var("BATCH_SIZE")
@@ -111,10 +110,9 @@ async fn main() -> eyre::Result<()> {
             let sidecar_results = futures_util::future::join_all(
                 chunk.iter().map(|&block_number| {
                     let http_ref = &http;
-                    let alk = &alchemy_key;
                     let brpc = &beacon_rpc_override;
                     async move {
-                        let map = beacon::fetch_slot_sidecars(http_ref, alk, brpc, block_number as u64).await;
+                        let map = beacon::fetch_slot_sidecars(http_ref, brpc, block_number as u64).await;
                         (block_number, map)
                     }
                 })

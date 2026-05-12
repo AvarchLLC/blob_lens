@@ -43,16 +43,16 @@ fn count_non_zero_bytes(blob_hex: &str) -> usize {
         .count()
 }
 
-fn beacon_bases(alchemy_key: &Option<String>, beacon_rpc_override: &Option<String>) -> Vec<String> {
+fn beacon_bases(beacon_rpc_override: &Option<String>) -> Vec<String> {
     if let Some(url) = beacon_rpc_override {
         return vec![url.clone()];
     }
-    let mut bases = Vec::new();
-    if let Some(key) = alchemy_key {
-        bases.push(format!("https://eth-mainnet-consensus.g.alchemy.com/v2/{}", key));
-    }
-    bases.push("https://ethereum-mainnet-beacon.publicnode.com".to_string());
-    bases
+    // Verified working as of 2026-05. Alchemy does not support blob_sidecars.
+    vec![
+        "https://lodestar-mainnet.chainsafe.io".to_string(),
+        "https://www.lightclientdata.org".to_string(),
+        "https://beaconstate.ethstaker.cc".to_string(),
+    ]
 }
 
 #[derive(Debug, Clone)]
@@ -72,17 +72,15 @@ pub struct TxBlobStats {
 }
 
 /// Fetch all blob sidecars for a given block and return a map from versioned_hash → SidecarStats.
-/// Tries the Alchemy consensus endpoint first, then falls back to publicnode.
-/// Returns an empty map if no beacon endpoint is reachable or the slot has no blobs.
+/// Tries beacon endpoints in order; returns an empty map if all fail or the slot has no blobs.
 pub async fn fetch_slot_sidecars(
     client: &Client,
-    alchemy_key: &Option<String>,
     beacon_rpc_override: &Option<String>,
     block_number: u64,
 ) -> HashMap<String, SidecarStats> {
     let slot = block_to_slot(block_number);
 
-    for base in beacon_bases(alchemy_key, beacon_rpc_override) {
+    for base in beacon_bases(beacon_rpc_override) {
         let url = format!("{}/eth/v1/beacon/blob_sidecars/{}", base, slot);
         let resp = match client
             .get(&url)
