@@ -18,7 +18,7 @@ No public system classifies the current market regime, forecasts congestion from
 
 ## Gap 1: Per-rollup DA Cost-Efficiency Scoring
 
-### Status: ~65% complete
+### Status: ~75% complete
 
 | Feature | Status | Where |
 |---|---|---|
@@ -30,19 +30,18 @@ No public system classifies the current market regime, forecasts congestion from
 | DA cost in ETH per rollup | **Done** | `da_cost_eth = SUM(blobs × base_fee × 131072) / 1e18`, in leaderboard |
 | Sortable leaderboard + CSV export | **Done** | `/leaderboard` page with all efficiency columns, CSV download |
 | Efficiency glow in network graph | **Done** | `RollupNetworkGraphD3` node border color = efficiency tier |
-| **Cost per byte actually used** | **Missing** | `bytes_used` is in DB but `da_cost_eth / bytes_used` ratio is not surfaced in any query or UI column |
-| **Public REST API for leaderboard** | **Missing** | Scoring is embedded in the dashboard UI. The Rust API at `:8080` is not documented as the public consumer endpoint; no versioned JSON endpoint for external queries |
+| **Cost per byte actually used** | **Missing** | `bytes_used` is stored in DB per-tx but no query computes `da_cost_eth / bytes_used`; ratio not surfaced in any UI column |
+| Public REST API for leaderboard | **Done** | `GET /api/leaderboard?hours=N` returns full JSON (`{ data, updatedAt }`) with all efficiency columns — packing, timing, efficiency_score, da_cost_eth, avg_fullness_pct, network_share_pct (`apps/web/src/app/api/leaderboard/route.ts`) |
 | **Amortized DA cost per L2 transaction** | **Blocked** | Requires L2 transaction count per rollup — not in current schema, no external data source wired in |
-| **Blob coordination opportunity scores** | **Not built** | Network graph shows co-occurrence but produces no scored metric; needs metric definition |
-| **Self-hostable scoring engine** | **Not built** | Scoring logic is embedded in Next.js SQL queries, not a standalone queryable service or epoch-updated feed |
+| **Blob coordination opportunity score (per-rollup)** | **Partial** | Co-occurrence between rollup pairs is computed in SQL as a `weight` (0–100) and drives edge thickness + opacity in `RollupNetworkGraphD3`. Not yet a per-rollup named metric or leaderboard column. |
+| **Self-hostable scoring engine** | **Not built** | Scoring logic is embedded in Next.js SQL queries, not a standalone Docker-composable service or epoch-updated feed |
 
 ### Remaining work
 
 | Task | Effort |
 |---|---|
 | Add `cost_per_byte` column to leaderboard query + UI | ~2h |
-| Expose `/api/leaderboard` as documented public JSON endpoint | ~4h |
-| Define and implement blob coordination opportunity score | ~8h |
+| Promote co-occurrence `weight` into a per-rollup coordination score column | ~4h |
 | L2 tx amortized cost (needs external data source decision first) | TBD |
 | Self-hostable scoring engine / Docker-composable export | ~1d |
 
@@ -99,9 +98,9 @@ Phase 3 — Efficiency Scoring (Gap 1)                        ~65% DONE
 ✅ DA cost in ETH per rollup
 ✅ Fullness ratio per blob
 ✅ Ghost blob flag
+✅ Public REST API for leaderboard (/api/leaderboard?hours=N → JSON)
+⚠️  Blob coordination score (co-occurrence computed, not per-rollup metric yet)  ~4h remaining
 ❌ Cost-per-byte metric                               ~2h remaining
-❌ Public REST API for leaderboard                    ~4h remaining
-❌ Blob coordination opportunity score                ~8h remaining
 ❌ Amortized DA cost per L2 tx                        BLOCKED
 ❌ Self-hostable scoring engine                       ~1d remaining
 
@@ -122,14 +121,13 @@ Phase 4 — Market Health Layer (Gap 2)                       ~90% DONE
 |---|---|---|
 | Cost-per-byte metric in leaderboard | ~2h | High — closes the most cited gap claim |
 | Persistent alert background worker | ~4h | High — makes alerts work without a browser open |
-| Public documented REST API endpoint | ~4h | Medium — needed for "self-hostable / queryable by researchers" claim |
-| Blob coordination opportunity score | ~8h | Medium — needs metric definition first |
+| Per-rollup coordination opportunity score (from existing co-occurrence data) | ~4h | Medium — data already exists, needs promotion to leaderboard column |
 | Self-hostable scoring engine (Docker) | ~1d | Low — nice-to-have for operator adoption |
 | Amortized DA cost per L2 tx | TBD | Blocked on external L2 tx count data source |
 
 **To fully close Gap 2:** ~4h (one persistent worker task).
 
-**To fully close Gap 1 (excluding blocked item):** ~3–4 days of implementation.
+**To fully close Gap 1 (excluding blocked item):** ~1–2 days of implementation.
 
 ---
 
