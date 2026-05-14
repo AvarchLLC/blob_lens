@@ -13,7 +13,7 @@ import * as React from "react";
 
 type SortKey = keyof Pick<
   LeaderboardRow,
-  "total_blobs" | "tx_count" | "avg_blobs_per_tx" | "avg_fee" | "da_cost_eth" | "packing_score" | "network_share_pct" | "efficiency_score"
+  "total_blobs" | "tx_count" | "avg_blobs_per_tx" | "avg_fee" | "da_cost_eth" | "packing_score" | "network_share_pct" | "efficiency_score" | "cost_per_byte_eth" | "coordination_score"
 >;
 
 function FullnessBar({ pct }: { pct: number | null }) {
@@ -123,10 +123,10 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
   }
 
   function exportCsv() {
-    const header = "Rollup,Total Blobs,TX Count,Avg Blobs/TX,Avg Fee,DA Cost (ETH),Packing Score,Network Share %,Efficiency Score,Timing Score,Cost/Blob (gwei),Last Active";
+    const header = "Rollup,Total Blobs,TX Count,Avg Blobs/TX,Avg Fee,DA Cost (ETH),Cost/KB (ETH),Packing Score,Network Share %,Efficiency Score,Timing Score,Coordination Score,Cost/Blob (gwei),Last Active";
     const lines = sorted.map(
       (r) =>
-        `${r.rollup},${r.total_blobs},${r.tx_count},${Number(r.avg_blobs_per_tx).toFixed(2)},${r.avg_fee},${Number(r.da_cost_eth).toFixed(6)},${Number(r.packing_score).toFixed(1)},${Number(r.network_share_pct).toFixed(2)},${Number(r.efficiency_score).toFixed(1)},${Number(r.timing_score).toFixed(1)},${Number(r.cost_per_blob_gwei).toFixed(4)},${r.last_seen}`
+        `${r.rollup},${r.total_blobs},${r.tx_count},${Number(r.avg_blobs_per_tx).toFixed(2)},${r.avg_fee},${Number(r.da_cost_eth).toFixed(6)},${r.cost_per_byte_eth != null ? Number(r.cost_per_byte_eth).toFixed(8) : ""},${Number(r.packing_score).toFixed(1)},${Number(r.network_share_pct).toFixed(2)},${Number(r.efficiency_score).toFixed(1)},${Number(r.timing_score).toFixed(1)},${r.coordination_score != null ? Number(r.coordination_score).toFixed(1) : ""},${Number(r.cost_per_blob_gwei).toFixed(4)},${r.last_seen}`
     );
     const csv = [header, ...lines].join("\n");
     const a = document.createElement("a");
@@ -165,8 +165,10 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
               <th className={th} onClick={() => toggleSort("avg_blobs_per_tx")}>Avg / TX <SortIcon k="avg_blobs_per_tx" /></th>
               <th className={th} onClick={() => toggleSort("avg_fee")}>Avg Cost/Blob <SortIcon k="avg_fee" /></th>
               <th className={th} onClick={() => toggleSort("da_cost_eth")}>DA Cost (ETH) <SortIcon k="da_cost_eth" /></th>
+              <th className={th} onClick={() => toggleSort("cost_per_byte_eth")} title="ETH cost per KB of blob space actually used (requires beacon data)">Cost/KB <SortIcon k="cost_per_byte_eth" /></th>
               <th className={th} onClick={() => toggleSort("packing_score")}>Packing <SortIcon k="packing_score" /></th>
               <th className={th} onClick={() => toggleSort("efficiency_score")}>Efficiency <SortIcon k="efficiency_score" /></th>
+              <th className={th} onClick={() => toggleSort("coordination_score")} title="How often this rollup submits blobs in the same block as peers (0–100)">Coord. <SortIcon k="coordination_score" /></th>
               <th className={th} onClick={() => toggleSort("network_share_pct")}>Net Share <SortIcon k="network_share_pct" /></th>
               <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Fullness</th>
               <th className="pb-3 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">24H Trend</th>
@@ -200,11 +202,23 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
                         : Number(row.da_cost_eth).toFixed(4)
                       : "—"}
                   </td>
+                  <td className="py-3 pr-4 font-mono text-muted-foreground">
+                    {row.cost_per_byte_eth != null
+                      ? Number(row.cost_per_byte_eth) < 0.000001
+                        ? Number(row.cost_per_byte_eth).toPrecision(3)
+                        : Number(row.cost_per_byte_eth).toFixed(6)
+                      : <span className="text-muted-foreground/30">—</span>}
+                  </td>
                   <td className="py-3 pr-4">
                     <PackingBar score={Number(row.packing_score)} />
                   </td>
                   <td className="py-3 pr-4">
                     <EfficiencyScore score={Number(row.efficiency_score)} />
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-muted-foreground">
+                    {row.coordination_score != null
+                      ? <span title="Co-submission frequency with peer rollups">{Number(row.coordination_score).toFixed(0)}</span>
+                      : <span className="text-muted-foreground/30">—</span>}
                   </td>
                   <td className="py-3 pr-4 font-mono text-muted-foreground">
                     {Number(row.network_share_pct) > 0

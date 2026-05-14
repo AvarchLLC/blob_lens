@@ -11,5 +11,11 @@
         { "key": "Cache-Control", "value": "no-store" }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/alerts/worker",
+      "schedule": "* * * * *"
+    }
   ]
 }

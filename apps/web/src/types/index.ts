@@ -30,6 +30,12 @@ export interface LeaderboardRow {
   avg_fullness_pct: number | null;
   /** Number of transactions containing at least one ghost blob (<5% content) */
   ghost_blob_count: number;
+  /** Total bytes actually used across all blobs (from beacon sidecar) */
+  total_bytes_used: number | null;
+  /** DA cost in ETH per KB of blob space actually used; null until beacon data available */
+  cost_per_byte_eth: number | null;
+  /** Avg co-occurrence weight with peer rollups (0–100); higher = more coordination */
+  coordination_score: number | null;
 }
 
 export interface ForecastData {
