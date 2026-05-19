@@ -1,14 +1,15 @@
 import { BlobFeeGauge } from "@/components/charts/BlobFeeGauge";
 import { BlobFeeLineChartSelector } from "@/components/charts/BlobFeeLineChartSelector";
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
+import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
 import { CostHeatmap } from "@/components/charts/CostHeatmap";
+import { EfficiencyScatterplot } from "@/components/charts/EfficiencyScatterplot";
+import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
 import { BlockFeed } from "@/components/shared/BlockFeed";
-import { InfoTooltip } from "@/components/shared/InfoTooltip";
+import { EfficiencyLeaderboardMini } from "@/components/shared/EfficiencyLeaderboardMini";
 import { LiveBlobFeed } from "@/components/shared/LiveBlobFeed";
-import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { RollupShareCard } from "@/components/shared/RollupShareCard";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEthPrice } from "@/lib/ethPrice";
 import {
@@ -16,261 +17,380 @@ import {
   getHourlyRollupFee,
   getLeaderboard,
   getMarketActivity,
+  getRollupNetworkGraph,
+  getRollupSparklines,
 } from "@/lib/queries";
-import { classifyRegime, formatNumber } from "@/lib/utils";
-import { Activity, Clock, TrendingDown, Zap } from "lucide-react";
-import Link from "next/link";
+import { formatNumber } from "@/lib/utils";
+import { LayoutGrid } from "lucide-react";
 
 export const revalidate = 60;
 
-const REGIME_DOT: Record<string, string> = {
-  undersaturated: "#3f3f46",
-  healthy:        "#00df81",
-  congested:      "#fcbb00",
-  spike:          "#fb2c36",
-};
-
 export default async function OverviewPage() {
-  const [leaderboard, market, dailyRollups, ethUsd, rollupFeeData] = await Promise.all([
+  const [leaderboard, market, dailyRollups, ethUsd, rollupFeeData, networkGraph, sparklines] = await Promise.all([
     getLeaderboard(24).catch(() => []),
-    getMarketActivity(168).catch(() => []),
+    getMarketActivity(720).catch(() => []), 
     getDailyRollupBreakdown(30, 16).catch(() => []),
     getEthPrice().catch(() => null),
     getHourlyRollupFee(24, 20).catch(() => []),
+    getRollupNetworkGraph(24).catch(() => ({ nodes: [], edges: [] })),
+    getRollupSparklines().catch(() => []),
   ]);
 
   const market24h = market.slice(-24);
   const latestHour = market24h.length > 0 ? market24h[market24h.length - 1] : null;
   const latestMaxBlobs = market24h.length > 0 ? Math.max(...market24h.map((m) => m.max_blobs_in_block)) : 0;
   const latestFeeWei = latestHour ? Number(latestHour.avg_fee) : 0;
+  const avgFeeWei24h = market24h.length
+    ? market24h.reduce((s, m) => s + Number(m.avg_fee), 0) / market24h.length
+    : 0;
 
   // 24h snapshot stats
   const totalBlobs24h = leaderboard.reduce((s, r) => s + Number(r.total_blobs), 0);
   const avgUtil24h = market24h.length
     ? (market24h.reduce((s, m) => s + Number(m.avg_utilization), 0) / market24h.length).toFixed(1)
     : "—";
-  const topRollup = leaderboard.find((r) => r.rollup !== "UNKNOWN")?.rollup ?? "—";
   const activeRollups = leaderboard.filter((r) => r.rollup !== "UNKNOWN").length;
 
-  // Regime breakdown for the last 24h
-  const regimeCounts = market24h.reduce((acc, m) => {
-    const r = classifyRegime(m.max_blobs_in_block);
-    acc[r] = (acc[r] ?? 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Average cost per blob in USD
+  const avgCostPerBlobUsd = market24h.length > 0 && avgFeeWei24h > 0 && ethUsd
+    ? (avgFeeWei24h * 131_072) / 1e18 * ethUsd
+    : null;
 
-  const REGIME_ORDER = ["spike", "congested", "healthy", "undersaturated"] as const;
+  // Ecosystem map context metrics
+  const topByVolume = leaderboard.filter(r => r.rollup !== "UNKNOWN")[0];
+  const topByEfficiency = [...leaderboard]
+    .filter(r => r.rollup !== "UNKNOWN" && Number(r.total_blobs) > 10)
+    .sort((a, b) => Number(b.efficiency_score) - Number(a.efficiency_score))[0];
 
   return (
-    <div className="page-root py-8 space-y-4">
-      {/* Page title */}
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="topbar-title">Overview</h1>
-          <p className="topbar-sub">EIP-4844 blob economics · Ethereum mainnet</p>
+    <div className="animate-page-in space-y-0">
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §01 — MARKET PULSE
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="market-pulse" className="scroll-mt-24 mb-10">
+        <div className="mb-6 animate-fade-up">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-1.5 block">
+            Protocol Analytics
+          </span>
+          <h1 className="text-2xl font-bold text-text-primary tracking-tight mb-1">
+            Network Overview
+          </h1>
+          <p className="text-sm text-text-secondary opacity-70 max-w-2xl">
+            Real-time monitoring of Ethereum&apos;s EIP-4844 blob market.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          {ethUsd && (
-            <span className="caption">
-              1 ETH = <span className="font-mono text-muted-foreground">${ethUsd.toLocaleString()}</span>
-            </span>
-          )}
-          <RegimeBadge maxBlobsInBlock={latestMaxBlobs} size="sm" />
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+          {/* Left: Current Fee Gauge */}
+          <div className="xl:col-span-4">
+            <div className="bg-surface border border-border rounded-xl p-6 h-full flex flex-col justify-center items-center">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-2 self-start">Current Fee</span>
+              <BlobFeeGauge latestFeeWei={latestFeeWei} ethUsd={ethUsd} />
+            </div>
+          </div>
+
+          {/* Right: Historical Blob Cost Hero Chart */}
+          <div className="xl:col-span-8">
+            <div className="bg-surface border border-border rounded-xl p-6 h-full flex flex-col">
+              <div className="mb-3">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Economics</span>
+                <h2 className="text-lg font-bold text-text-primary tracking-tight">Historical Blob Cost</h2>
+              </div>
+              <div className="flex-1">
+                <BlobFeeLineChartSelector
+                  networkData={market}
+                  rollups={leaderboard.filter(r => r.rollup !== "UNKNOWN").map(r => r.rollup)}
+                  rollupFeeData={rollupFeeData}
+                  ethUsd={ethUsd ?? undefined}
+                />
+              </div>
+              {/* Chart Footer — only on hero charts */}
+              <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/30">
+                <span className="text-[10px] font-bold text-text-secondary/40 tracking-wider uppercase">bloblens.com</span>
+                <span className="text-[10px] font-mono text-text-secondary/40">
+                  Updated {new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Row 1: Gauge (1/3) + Fee Chart (2/3) */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Zap className="h-4 w-4" />
-              <h2 className="section-title">Current Fee</h2>
-              <InfoTooltip
-                content="Real-time blob base fee derived from the latest block's excess_blob_gas. Green = cheap, yellow = moderate, red = expensive."
-                side="bottom"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <BlobFeeGauge latestFeeWei={latestFeeWei} ethUsd={ethUsd} />
-          </CardContent>
-        </Card>
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingDown className="h-4 w-4" />
-              <h2 className="section-title">Historical Blob Cost</h2>
-              <InfoTooltip
-                content="24-hour rolling average of the blob base fee. Switch between network average and individual rollups to see how costs differ. The fee rises when demand exceeds 4.5 blobs/block and falls when below."
-                side="bottom"
-              />
-              {ethUsd && <span className="ml-auto caption">24h · USD / blob</span>}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <BlobFeeLineChartSelector
-              networkData={market24h}
-              rollups={leaderboard.filter(r => r.rollup !== "UNKNOWN").map(r => r.rollup)}
-              rollupFeeData={rollupFeeData}
-              ethUsd={ethUsd ?? undefined}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 2: Secondary 3-col — Blobs/Block + Rollup Share + Regime History */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <h2 className="section-title">Blobs per Block</h2>
-              <InfoTooltip
-                content="Blob count per hourly bucket over the last 24 hours. Post-Pectra max is 9 blobs/block. Color shows market regime: green = healthy, yellow = congested, red = spike."
-                side="bottom"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <BlobsPerBlockChart data={market24h} />
-          </CardContent>
-        </Card>
-
-        <RollupShareCard initialData={leaderboard} />
-
-        {/* Regime History mini-card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <h2 className="section-title">Regime History</h2>
-              <InfoTooltip
-                content="Each colored segment = 1 hour. Shows how the blob fee market regime has shifted over the last 24 hours. Green = healthy, yellow = congested, red = spike, dark = quiet."
-                side="bottom"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <RegimeBadge maxBlobsInBlock={latestMaxBlobs} size="lg" />
-            <p className="text-[10px] text-muted-foreground">
-              Last {market24h.length} hours
+      {/* ═══════════════════════════════════════════════════════════════
+          §02 — 24H SNAPSHOT
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="24h-snapshot" className="scroll-mt-24 mb-10">
+        <div className="mb-5">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Executive Summary</span>
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">24h Snapshot</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Total Blobs */}
+          <div className="relative overflow-hidden bg-surface-elevated border border-border rounded-xl p-6 group hover:border-primary/25 transition-all duration-200">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-primary/[0.06] dark:bg-primary/[0.04] rounded-bl-[80px]" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-60 mb-3">Total Blobs</p>
+            <p className="font-mono text-3xl font-bold text-text-primary tracking-tight mb-1">
+              {formatNumber(totalBlobs24h)}
             </p>
-            <div className="space-y-1.5">
-              {REGIME_ORDER.filter((r) => regimeCounts[r]).map((regime) => (
-                <div key={regime} className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-muted-foreground capitalize">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: REGIME_DOT[regime] }} />
-                    {regime}
-                  </span>
-                  <span className="font-mono text-foreground">{regimeCounts[regime]}h</span>
+            <p className="text-[11px] text-text-secondary opacity-50">Combined throughput across all rollups in the last 24 hours.</p>
+          </div>
+
+          {/* Avg Utilization */}
+          <div className="relative overflow-hidden bg-surface-elevated border border-border rounded-xl p-6 group hover:border-primary/25 transition-all duration-200">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-primary/[0.06] dark:bg-primary/[0.04] rounded-bl-[80px]" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-60 mb-3">Avg Utilization</p>
+            <p className="font-mono text-3xl font-bold text-text-primary tracking-tight mb-1">
+              {avgUtil24h}<span className="text-lg text-text-secondary ml-0.5">%</span>
+            </p>
+            <p className="text-[11px] text-text-secondary opacity-50">Average blob slot fullness relative to the per-block maximum.</p>
+          </div>
+
+          {/* Avg Cost/Blob */}
+          <div className="relative overflow-hidden bg-surface-elevated border border-border rounded-xl p-6 group hover:border-primary/25 transition-all duration-200">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-primary/[0.06] dark:bg-primary/[0.04] rounded-bl-[80px]" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-60 mb-3">Avg Cost / Blob</p>
+            <p className="font-mono text-3xl font-bold text-text-primary tracking-tight mb-1">
+              {avgCostPerBlobUsd != null ? `$${avgCostPerBlobUsd < 0.01 ? avgCostPerBlobUsd.toFixed(6) : avgCostPerBlobUsd.toFixed(4)}` : "—"}
+            </p>
+            <p className="text-[11px] text-text-secondary opacity-50">Average USD cost to post one blob over the last 24 hours.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §03 — ROLLUP ECOSYSTEM MAP
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="ecosystem-map" className="scroll-mt-24 mb-10">
+        <div className="mb-6">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Structural Intelligence</span>
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">Rollup Ecosystem Map</h2>
+          <p className="text-xs text-text-secondary opacity-70">Force-directed visualization of blobspace demand relationships across Ethereum rollups.</p>
+        </div>
+        <div className="bg-surface border border-border rounded-xl p-6">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            {/* Left Context Panel */}
+            <div className="xl:col-span-3 space-y-4">
+              {topByVolume && (
+                <div className="p-4 rounded-lg bg-surface-elevated/50 border border-border/50 space-y-1">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-50">Largest DA Consumer</p>
+                  <p className="text-sm font-bold text-text-primary">{topByVolume.rollup}</p>
+                  <p className="font-mono text-xs text-primary">{formatNumber(Number(topByVolume.total_blobs))} blobs</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 3: 24h Snapshot stats strip */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Activity className="h-4 w-4" />
-            <h2 className="section-title">24h Snapshot</h2>
-            <InfoTooltip
-              content="Key aggregate metrics for the last 24 hours across all rollups tracked by BlobLens."
-              side="bottom"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-            {[
-              { label: "Total blobs",      value: formatNumber(totalBlobs24h) },
-              { label: "Avg utilization",  value: `${avgUtil24h}%` },
-              { label: "Top rollup",        value: topRollup },
-              { label: "Active rollups",   value: String(activeRollups) },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium">{label}</p>
-                <p className="mt-0.5 font-mono text-base font-semibold text-foreground truncate">{value}</p>
+              )}
+              {topByEfficiency && (
+                <div className="p-4 rounded-lg bg-surface-elevated/50 border border-border/50 space-y-1">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-50">Highest Efficiency</p>
+                  <p className="text-sm font-bold text-text-primary">{topByEfficiency.rollup}</p>
+                  <p className="font-mono text-xs text-status-healthy">{Number(topByEfficiency.efficiency_score).toFixed(0)} / 100</p>
+                </div>
+              )}
+              <div className="p-4 rounded-lg bg-surface-elevated/50 border border-border/50 space-y-1">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-50">Active Nodes</p>
+                <p className="text-sm font-bold text-text-primary">{networkGraph.nodes.length} rollups</p>
+                <p className="font-mono text-xs text-text-secondary">{networkGraph.edges.length} relationships</p>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Row 4: 30d Volume */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <h2 className="section-title">Total Blobs — 30d</h2>
-            <InfoTooltip
-              content="Stacked area chart of daily blob submissions by rollup over 30 days. Watch for step-changes indicating protocol upgrades or rollup launches."
-              side="bottom"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <RollupVolumeAreaChart data={dailyRollups} />
-        </CardContent>
-      </Card>
-
-      {/* Row 5: Cost Heatmap (conditional) */}
-      {ethUsd && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <h2 className="section-title">Cost Heatmap · 7d × 24h</h2>
-              <InfoTooltip
-                content="Each cell = 1 hour across 7 days. Darker = more expensive. Use this to find recurring cheap submission windows — typically early morning UTC."
-                side="bottom"
-              />
             </div>
-          </CardHeader>
-          <CardContent>
-            <CostHeatmap data={market} ethUsd={ethUsd} />
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Row 6: Live Feed Preview */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="pulse-dot" />
-            <h2 className="section-title text-[#10B981]">Live Feed</h2>
-            <InfoTooltip
-              content="Real-time stream of Ethereum blocks and EIP-4844 blob transactions. Refreshes every 12 seconds."
-              side="bottom"
-            />
-            <Link
-              href="/live"
-              className="ml-auto text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors"
-            >
-              View full feed →
-            </Link>
+            {/* Right: Force-Directed Graph */}
+            <div className="xl:col-span-9">
+              <div className="h-[560px]">
+                {networkGraph.nodes.length > 0 ? (
+                  <RollupNetworkGraphD3 data={networkGraph} />
+                ) : (
+                  <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs">
+                    No relationship data available.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="blocks">
-            <TabsList className="mb-3">
-              <TabsTrigger value="blocks">Blocks</TabsTrigger>
-              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <div className="mt-4 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+            <p className="text-xs text-text-secondary leading-relaxed">
+              <span className="font-bold text-text-primary mr-1">Interpretation:</span>
+              Node size represents blob volume. Edge thickness shows co-occurrence frequency. Glow color indicates efficiency tier. Drag nodes and scroll to zoom.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §04 — MARKET STRUCTURE
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="market-structure" className="scroll-mt-24 mb-10">
+        <div className="mb-6">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Analysis</span>
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">Market Structure</h2>
+          <p className="text-xs text-text-secondary opacity-70">Demand density and ecosystem distribution.</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Blobs per Block */}
+          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+              Demand Density
+            </h3>
+            <div className="h-[280px] flex-1">
+              <BlobsPerBlockChart data={market24h} />
+            </div>
+          </div>
+
+          {/* Rollup Share */}
+          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+              Who Contributes
+            </h3>
+            <div className="flex-1">
+              <RollupShareCard initialData={leaderboard} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §05 — 30D TRENDS
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="30d-trends" className="scroll-mt-24 mb-10 space-y-6">
+        {/* Main: Full-width stacked area */}
+        <div>
+          <div className="mb-6">
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Growth</span>
+            <h2 className="text-lg font-bold text-text-primary tracking-tight">Ecosystem Volume (30d)</h2>
+            <p className="text-xs text-text-secondary opacity-70">Daily blob volume by rollup — the strongest historical market narrative.</p>
+          </div>
+          <div className="bg-surface border border-border rounded-xl p-6">
+            <RollupVolumeAreaChart data={dailyRollups} />
+            <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/30">
+              <span className="text-[10px] font-bold text-text-secondary/40 tracking-wider uppercase">bloblens.com</span>
+              <span className="text-[10px] font-mono text-text-secondary/40">
+                Updated {new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Below: 2-col */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {ethUsd != null && (
+            <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                Cost Heatmap (7d × 24h)
+              </h3>
+              <div className="flex-1"><CostHeatmap data={market} ethUsd={ethUsd} /></div>
+            </div>
+          )}
+          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+              Utilization Trend
+            </h3>
+            <div className="flex-1"><BlobUtilizationChart data={market} /></div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §06 — EFFICIENCY INTELLIGENCE
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="efficiency-intelligence" className="scroll-mt-24 mb-10">
+        <div className="mb-6">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Comparative Diagnostics</span>
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">Efficiency Intelligence</h2>
+          <p className="text-xs text-text-secondary opacity-70">Cross-rollup cost vs. utilization analysis. Bubble size indicates volume.</p>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Left: Scatter */}
+          <div className="xl:col-span-7">
+            <div className="bg-surface border border-border rounded-xl p-6">
+              <EfficiencyScatterplot data={leaderboard} />
+            </div>
+          </div>
+
+          {/* Right: Mini Leaderboard */}
+          <div className="xl:col-span-5">
+            <div className="bg-surface border border-border rounded-xl p-6 h-full">
+              <EfficiencyLeaderboardMini leaderboard={leaderboard} sparklines={sparklines} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §08 — LIVE FEED
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="live-feed" className="scroll-mt-24 mb-10">
+        <div className="mb-6">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Monitoring</span>
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">Live Feed</h2>
+          <p className="text-xs text-text-secondary opacity-70">Real-time block and transaction data polled directly from the indexer.</p>
+        </div>
+        <div className="bg-surface border border-border rounded-xl overflow-hidden">
+          <Tabs defaultValue="blocks" className="w-full">
+            <TabsList className="flex gap-1 p-2 bg-surface-elevated/50 border-b border-border rounded-none h-12">
+              <TabsTrigger value="blocks" className="flex-1 rounded-md text-xs font-bold uppercase tracking-widest data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+                Recent Blocks
+              </TabsTrigger>
+              <TabsTrigger value="transactions" className="flex-1 rounded-md text-xs font-bold uppercase tracking-widest data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+                Live Transactions
+              </TabsTrigger>
             </TabsList>
-            <TabsContent value="blocks">
-              <div className="max-h-72 overflow-y-auto">
-                <BlockFeed />
-              </div>
-            </TabsContent>
-            <TabsContent value="transactions">
-              <div className="max-h-72 overflow-y-auto">
-                <LiveBlobFeed />
-              </div>
-            </TabsContent>
+            <div className="p-0">
+              <TabsContent value="blocks" className="m-0">
+                <div className="h-[400px] overflow-y-auto custom-scrollbar">
+                  <BlockFeed />
+                </div>
+              </TabsContent>
+              <TabsContent value="transactions" className="m-0">
+                <div className="h-[400px] overflow-y-auto custom-scrollbar">
+                  <LiveBlobFeed />
+                </div>
+              </TabsContent>
+            </div>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      {/* Strategic Context Footer */}
+      <div className="p-10 border border-primary/20 bg-primary/5 rounded-2xl flex flex-col md:flex-row gap-10 items-center mt-4">
+        <div className="flex-1 space-y-4">
+          <div className="flex items-center gap-3 text-primary">
+            <LayoutGrid className="h-6 w-6" />
+            <h3 className="text-lg font-bold uppercase tracking-widest">Ecosystem Context</h3>
+          </div>
+          <p className="text-sm text-text-secondary leading-relaxed max-w-2xl">
+            BlobLens provides a unified observability layer for EIP-4844. By monitoring these metrics, rollup teams can optimize gas strategies, while Ethereum governance can track the health and scaling progress of the Data Availability layer.
+          </p>
+        </div>
+        <div className="shrink-0 flex gap-4">
+           <div className="px-6 py-4 bg-surface border border-border rounded-xl text-center">
+              <p className="text-[10px] font-bold text-text-secondary uppercase mb-1">Status</p>
+              <div className="flex items-center gap-2">
+                 <span className="h-2 w-2 rounded-full bg-status-healthy animate-pulse" />
+                 <span className="text-xs font-bold text-text-primary uppercase tracking-tighter">Indexer Syncing</span>
+              </div>
+           </div>
+           <div className="px-6 py-4 bg-surface border border-border rounded-xl text-center">
+              <p className="text-[10px] font-bold text-text-secondary uppercase mb-1">Network</p>
+              <span className="text-xs font-bold text-text-primary uppercase tracking-tighter">Ethereum Mainnet</span>
+           </div>
+        </div>
+      </div>
     </div>
   );
 }

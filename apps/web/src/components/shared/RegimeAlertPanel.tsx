@@ -2,23 +2,23 @@
 
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import type { AlertRegimeThreshold, RegimeAlert } from "@/types";
-import { Bell, BellOff, ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
+import { Bell, BellOff, ChevronDown, ChevronRight, Loader2, Plus, Trash2, Webhook } from "lucide-react";
 import * as React from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const REGIME_OPTIONS: { value: AlertRegimeThreshold; label: string; color: string }[] = [
-  { value: "healthy",   label: "Healthy+",   color: "#00df81" },
-  { value: "congested", label: "Congested+", color: "#fcbb00" },
-  { value: "spike",     label: "Spike only", color: "#fb2c36" },
+  { value: "healthy",   label: "Healthy+",   color: "var(--status-healthy)" },
+  { value: "congested", label: "Congested+", color: "var(--status-warning)" },
+  { value: "spike",     label: "Spike only", color: "var(--status-critical)" },
 ];
 
 const REGIME_COLOR: Record<string, string> = {
-  undersaturated: "#71717a",
-  healthy:        "#00df81",
-  congested:      "#fcbb00",
-  spike:          "#fb2c36",
+  undersaturated: "var(--status-neutral)",
+  healthy:        "var(--status-healthy)",
+  congested:      "var(--status-warning)",
+  spike:          "var(--status-critical)",
 };
 
 function timeAgo(iso: string | null): string {
@@ -93,83 +93,81 @@ export function RegimeAlertPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-[#27272a] bg-[#111117]">
+    <div className="surface border border-border overflow-hidden">
       {/* Header row — always visible */}
       <button
         type="button"
-        className="flex w-full items-center justify-between px-5 py-4"
+        className="flex w-full items-center justify-between px-6 py-5 text-left hover:bg-surface-elevated transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
-        <div className="flex items-center gap-2.5">
-          <Bell className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Regime Alerts</span>
+        <div className="flex items-center gap-3">
+          <Bell className="h-4 w-4 text-primary" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary opacity-60">
+            Regime Notifications
+          </span>
           {alerts.length > 0 && (
-            <span className="rounded-full bg-[#1E2D45] px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-              {alerts.filter((a) => a.enabled).length} active
+            <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary">
+              {alerts.filter((a) => a.enabled).length} Active
             </span>
           )}
-          <InfoTooltip
-            content="Register webhook URLs that will receive a POST request whenever the blob fee market regime crosses your chosen threshold. Useful for rollup operators who want to automate batching decisions based on market conditions."
-            side="right"
-          />
         </div>
         {open
-          ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          ? <ChevronDown className="h-4 w-4 text-text-secondary opacity-40" />
+          : <ChevronRight className="h-4 w-4 text-text-secondary opacity-40" />}
       </button>
 
       {open && (
-        <div className="border-t border-[#27272a] px-5 pb-5 pt-4 space-y-5">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Each registered webhook receives a <code className="font-mono bg-[#1E2D45] px-1 rounded">POST</code> with a JSON payload when the market enters your threshold regime and the regime has changed since the last fire. Requests timeout after 5 seconds. Min 1-minute cooldown between fires.
-          </p>
+        <div className="border-t border-border px-6 pb-8 pt-6 space-y-8 animate-fade-down">
+          <div className="flex gap-4 p-4 bg-primary/5 border border-primary/10 rounded-md">
+             <Webhook className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+             <p className="text-xs text-text-secondary leading-relaxed">
+               Register webhook URLs to receive a <code className="font-mono bg-surface-elevated px-1 rounded border border-border">POST</code> JSON payload when the market crosses a regime threshold. Ideal for automated rollup batching strategies.
+             </p>
+          </div>
 
           {/* Existing alerts */}
           {alerts.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Managed Webhooks</h4>
               {alerts.map((alert) => {
-                const regimeColor = REGIME_OPTIONS.find((o) => o.value === alert.min_regime)?.color ?? "#71717a";
+                const regimeColor = REGIME_OPTIONS.find((o) => o.value === alert.min_regime)?.color ?? "var(--status-neutral)";
                 return (
                   <div
                     key={alert.id}
-                    className="flex items-center gap-3 rounded-lg border border-[#27272a] px-3 py-2.5"
+                    className="flex items-center gap-4 p-4 surface-elevated border border-border rounded-md group"
                   >
                     {/* Toggle */}
                     <button
                       type="button"
                       onClick={() => handleToggle(alert)}
-                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                      title={alert.enabled ? "Disable" : "Enable"}
+                      className="shrink-0 transition-all hover:scale-110"
                     >
                       {alert.enabled
-                        ? <Bell className="h-3.5 w-3.5 text-[#00df81]" />
-                        : <BellOff className="h-3.5 w-3.5" />}
+                        ? <Bell className="h-4 w-4 text-status-healthy" />
+                        : <BellOff className="h-4 w-4 text-text-secondary opacity-30" />}
                     </button>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <p className="text-xs font-mono text-foreground truncate">{alert.webhook_url}</p>
-                      <div className="flex items-center gap-2">
-                        {alert.label && (
-                          <span className="text-[10px] text-muted-foreground">{alert.label}</span>
-                        )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                         <p className="text-xs font-mono font-bold text-text-primary truncate">{alert.webhook_url}</p>
+                         {alert.label && (
+                           <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-background border border-border rounded text-text-secondary">{alert.label}</span>
+                         )}
+                      </div>
+                      <div className="flex items-center gap-3">
                         <span
-                          className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
-                          style={{ color: regimeColor, background: `${regimeColor}18`, border: `1px solid ${regimeColor}30` }}
+                          className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
+                          style={{ color: regimeColor, backgroundColor: `color-mix(in srgb, ${regimeColor} 10%, transparent)`, border: `1px solid color-mix(in srgb, ${regimeColor} 20%, transparent)` }}
                         >
                           {REGIME_OPTIONS.find((o) => o.value === alert.min_regime)?.label ?? alert.min_regime}
                         </span>
-                        {alert.last_fired_regime && (
-                          <span className="text-[10px] text-muted-foreground">
-                            last fired:{" "}
-                            <span style={{ color: REGIME_COLOR[alert.last_fired_regime] ?? "#71717a" }}>
-                              {alert.last_fired_regime}
-                            </span>
-                            {" "}· {timeAgo(alert.last_fired_at)}
+                        {alert.last_fired_regime ? (
+                          <span className="text-[10px] text-text-secondary opacity-60">
+                            Last fired: <span className="font-bold uppercase tracking-tighter" style={{ color: REGIME_COLOR[alert.last_fired_regime] }}>{alert.last_fired_regime}</span> · {timeAgo(alert.last_fired_at)}
                           </span>
-                        )}
-                        {!alert.last_fired_regime && (
-                          <span className="text-[10px] text-muted-foreground">never fired</span>
+                        ) : (
+                          <span className="text-[10px] text-text-secondary opacity-40 italic">Never triggered</span>
                         )}
                       </div>
                     </div>
@@ -178,10 +176,9 @@ export function RegimeAlertPanel() {
                     <button
                       type="button"
                       onClick={() => handleDelete(alert.id)}
-                      className="shrink-0 text-muted-foreground/40 hover:text-red-400 transition-colors"
-                      title="Remove"
+                      className="shrink-0 text-text-secondary opacity-20 hover:text-status-critical hover:opacity-100 transition-all"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 );
@@ -190,68 +187,86 @@ export function RegimeAlertPanel() {
           )}
 
           {/* Add form */}
-          <form onSubmit={handleAdd} className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground font-medium">
-              Add webhook
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                placeholder="https://hooks.example.com/blob-alerts"
-                className="flex-1 min-w-0 rounded-lg border border-[#27272a] bg-[#0a0a0e] px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/40 focus:border-[#3f3f46] focus:outline-none"
-                required
-              />
+          <form onSubmit={handleAdd} className="space-y-4 pt-4 border-t border-border">
+            <h4 className="text-[9px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Register New Webhook</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                 <span className="text-[9px] font-bold uppercase text-text-secondary opacity-60">Endpoint URL</span>
+                 <input
+                    type="url"
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                    placeholder="https://api.rollups.io/webhooks/blobs"
+                    className="w-full rounded border border-border bg-background px-3 py-2.5 text-xs text-text-primary placeholder:text-text-secondary placeholder:opacity-30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+                    required
+                 />
+              </div>
+              <div className="space-y-1.5">
+                 <span className="text-[9px] font-bold uppercase text-text-secondary opacity-60">Metadata Label</span>
+                 <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    placeholder="e.g. Production Monitor"
+                    maxLength={80}
+                    className="w-full rounded border border-border bg-background px-3 py-2.5 text-xs text-text-primary placeholder:text-text-secondary placeholder:opacity-30 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+                 />
+              </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Label (optional)"
-                maxLength={80}
-                className="flex-1 min-w-0 rounded-lg border border-[#27272a] bg-[#0a0a0e] px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/40 focus:border-[#3f3f46] focus:outline-none"
-              />
-              <select
-                value={minRegime}
-                onChange={(e) => setMinRegime(e.target.value as AlertRegimeThreshold)}
-                className="rounded-lg border border-[#27272a] bg-[#0a0a0e] px-3 py-2 text-xs text-foreground focus:border-[#3f3f46] focus:outline-none"
-              >
-                {REGIME_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex items-center gap-1.5 rounded-lg border border-[#00df81]/30 bg-[#00df81]/10 px-3 py-2 text-xs font-medium text-[#00df81] hover:bg-[#00df81]/20 transition-colors disabled:opacity-50"
-              >
-                {submitting
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Plus className="h-3.5 w-3.5" />}
-                Add
-              </button>
+            
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+               <div className="flex-1 w-full space-y-1.5">
+                  <span className="text-[9px] font-bold uppercase text-text-secondary opacity-60">Trigger Threshold</span>
+                  <div className="flex gap-2 p-1 bg-surface-elevated rounded border border-border">
+                     {REGIME_OPTIONS.map((o) => (
+                       <button
+                         key={o.value}
+                         type="button"
+                         onClick={() => setMinRegime(o.value)}
+                         className={`flex-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-all ${
+                            minRegime === o.value 
+                              ? 'bg-surface border border-border text-text-primary shadow-sm' 
+                              : 'text-text-secondary opacity-40 hover:opacity-70'
+                         }`}
+                       >
+                         {o.label}
+                       </button>
+                     ))}
+                  </div>
+               </div>
+               
+               <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full sm:w-32 py-2.5 bg-primary text-background font-bold text-[10px] uppercase tracking-widest rounded hover:bg-primary-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+               >
+                  {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  Register
+               </button>
             </div>
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && <p className="text-[10px] font-bold text-status-critical uppercase tracking-widest">{error}</p>}
           </form>
 
           {/* Payload preview */}
-          <details className="group">
-            <summary className="cursor-pointer text-[10px] uppercase tracking-[0.08em] text-muted-foreground/60 hover:text-muted-foreground list-none flex items-center gap-1.5">
-              <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
-              Example webhook payload
-            </summary>
-            <pre className="mt-2 rounded-lg bg-[#0a0a0e] border border-[#1E2D45] p-3 text-[10px] text-muted-foreground leading-relaxed overflow-x-auto">{JSON.stringify({
-              event: "regime_change",
-              regime: "congested",
-              fee_gwei: 0.0045,
-              avg_blobs_per_block: 7.2,
-              timestamp: "2025-01-01T12:00:00.000Z",
-              source: "BlobLens",
-              alert_label: "my-operator",
-            }, null, 2)}</pre>
-          </details>
+          <div className="pt-6 border-t border-border">
+             <details className="group">
+                <summary className="cursor-pointer text-[9px] uppercase tracking-[0.2em] text-text-secondary opacity-40 hover:opacity-100 list-none flex items-center gap-2 transition-all">
+                  <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                  Technical Specification (Payload)
+                </summary>
+                <pre className="mt-4 rounded border border-border bg-background p-4 text-[10px] text-text-secondary font-mono leading-relaxed overflow-x-auto whitespace-pre">
+                  {JSON.stringify({
+                    event: "regime_change",
+                    regime: "congested",
+                    fee_gwei: 0.142,
+                    avg_blobs_per_block: 7.2,
+                    timestamp: new Date().toISOString(),
+                    source: "BlobLens Protocol Intelligence",
+                    alert_label: "production-sequencer",
+                  }, null, 2)}
+                </pre>
+             </details>
+          </div>
         </div>
       )}
     </div>

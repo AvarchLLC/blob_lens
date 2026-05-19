@@ -4,6 +4,7 @@ import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
 import { classifyRegime } from "@/lib/utils";
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { watermarkGraphic } from "@/lib/chartTheme";
 
 const REGIME_COLOR: Record<string, string> = {
   undersaturated: "#3D4F6B",
@@ -39,8 +40,9 @@ export function FeeBlobScatter({ data, ethUsd }: Props) {
   const option = {
     animation: true,
     animationEasing: "cubicOut" as const,
-    animationDuration: 600,
-    grid: { top: 16, right: 16, bottom: 24, left: 0, containLabel: true },
+    animationDuration: 700,
+    graphic: watermarkGraphic,
+    grid: { top: 24, right: 24, bottom: 24, left: 0, containLabel: true },
     xAxis: {
       type: "value" as const,
       name: "Blob count",

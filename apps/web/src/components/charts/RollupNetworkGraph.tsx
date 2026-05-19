@@ -2,6 +2,7 @@
 import ECharts from "echarts-for-react";
 import type { RollupNetworkGraph as NetworkGraphType } from "@/lib/queries";
 import { formatNumber } from "@/lib/utils";
+import { watermarkGraphic } from "@/lib/chartTheme";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 
@@ -238,6 +239,7 @@ export function RollupNetworkGraph({ data }: Props) {
   const option = {
     backgroundColor: "transparent",
     textStyle: { fontFamily: "'Space Grotesk', sans-serif" },
+    graphic: watermarkGraphic,
     series: [
       {
         type: "graph",

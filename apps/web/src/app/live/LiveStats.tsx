@@ -9,17 +9,12 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const REFRESH_MS = 12_000;
 
 const REGIME_COLOR: Record<string, string> = {
-  undersaturated: "#71717a",
-  healthy:        "#00df81",
-  congested:      "#fcbb00",
-  spike:          "#fb2c36",
+  undersaturated: "#71717A",
+  healthy:        "#00A86B",
+  congested:      "#F5A524",
+  spike:          "#E5484D",
 };
-const REGIME_BG: Record<string, string> = {
-  undersaturated: "rgba(63,63,70,0.12)",
-  healthy:        "rgba(0,223,129,0.10)",
-  congested:      "rgba(252,187,0,0.10)",
-  spike:          "rgba(251,44,54,0.10)",
-};
+
 const REGIME_LABEL: Record<string, string> = {
   undersaturated: "Quiet",
   healthy:        "Healthy",
@@ -42,14 +37,14 @@ function StatRow({ label, value, sub, tooltip }: {
   tooltip?: string;
 }) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0">
+    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">{label}</span>
         {tooltip && <InfoTooltip content={tooltip} side="right" />}
       </div>
       <div className="text-right">
-        <span className="font-mono text-sm text-foreground">{value}</span>
-        {sub && <p className="font-mono text-[10px] text-muted-foreground">{sub}</p>}
+        <span className="font-mono text-sm font-bold text-text-primary">{value}</span>
+        {sub && <p className="font-mono text-[10px] text-text-secondary opacity-50">{sub}</p>}
       </div>
     </div>
   );
@@ -78,7 +73,6 @@ export function LiveStats() {
 
   const regime = classifyRegime(lastHour?.max_blobs_in_block ?? 0);
   const rc = REGIME_COLOR[regime];
-  const rbg = REGIME_BG[regime];
 
   const avgFeeGwei = lastHour && Number(lastHour.avg_fee) > 0
     ? (Number(lastHour.avg_fee) / 1e9).toFixed(5)
@@ -101,98 +95,104 @@ export function LiveStats() {
   const topRollups = activeRollups.slice(0, 5);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Regime banner */}
       <div
-        className="flex items-center gap-3 rounded-xl border px-4 py-3"
-        style={{ background: rbg, borderColor: `${rc}33` }}
+        className="flex items-center gap-4 rounded-md border p-4 bg-surface"
+        style={{ borderLeft: `4px solid ${rc}` }}
       >
-        <span
-          className="h-3 w-3 rounded-full shrink-0"
-          style={{ backgroundColor: rc, boxShadow: `0 0 8px ${rc}99` }}
+        <div 
+          className="h-3 w-3 rounded-full shrink-0 animate-pulse" 
+          style={{ backgroundColor: rc }} 
         />
         <div>
-          <p className="text-sm font-semibold" style={{ color: rc }}>
-            {REGIME_LABEL[regime]} · {lastHour?.max_blobs_in_block ?? 0} blobs/block
+          <p className="text-sm font-bold uppercase tracking-tight" style={{ color: rc }}>
+            {REGIME_LABEL[regime]} Regime · {lastHour?.max_blobs_in_block ?? 0} blobs/block
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Current blob fee market state based on latest block
+          <p className="text-xs text-text-secondary mt-0.5">
+            Current blob fee market state based on the latest hourly snapshot.
           </p>
         </div>
         <div className="ml-auto text-right">
-          <p className="font-mono text-xs text-muted-foreground">
+          <p className="font-mono text-xs font-bold text-text-primary">
             {updatedAt ? updatedAt.toLocaleTimeString() : "—"}
           </p>
-          <p className="text-[10px] text-muted-foreground/60">last updated</p>
+          <p className="text-[10px] uppercase font-bold text-text-secondary opacity-40">Updated</p>
         </div>
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Column 1: Rate metrics */}
-        <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-0">
-          <p className="text-[10px] uppercase tracking-[0.10em] text-muted-foreground font-semibold mb-1">
-            Rate (last hour)
-          </p>
-          <StatRow
-            label="Blobs / min"
-            value={blobsPerMin}
-            sub={`${totalBlobsHr} total`}
-            tooltip="Average blob submission rate over the last hour. Divide total blobs by 60 minutes."
-          />
-          <StatRow
-            label="Transactions / min"
-            value={txsPerMin}
-            sub={`${totalTxsHr} total`}
-            tooltip="Average EIP-4844 type-3 transaction rate over the last hour."
-          />
-          <StatRow
-            label="Blob base fee"
-            value={`${avgFeeGwei} gwei`}
-            tooltip="Average blob base fee paid per blob in the last hour. This is the market rate set by EIP-4844's exponential mechanism, not the bid."
-          />
-          <StatRow
-            label="Avg utilization"
-            value={utilPct}
-            tooltip="Average percentage of the 9-blob block capacity used in the last hour. Above 50% = above target. Above 80% = fee pressure building."
-          />
+        <div className="surface-elevated p-6 rounded-md">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-50 mb-4">
+            Throughput (1h)
+          </h3>
+          <div className="flex flex-col">
+            <StatRow
+              label="Blobs / min"
+              value={blobsPerMin}
+              sub={`${totalBlobsHr} total`}
+              tooltip="Average blob submission rate over the last hour."
+            />
+            <StatRow
+              label="Txs / min"
+              value={txsPerMin}
+              sub={`${totalTxsHr} total`}
+              tooltip="Average EIP-4844 transaction rate over the last hour."
+            />
+            <StatRow
+              label="Avg Fee (Gwei)"
+              value={avgFeeGwei}
+              tooltip="Average blob base fee paid in the last hour."
+            />
+            <StatRow
+              label="Utilization (%)"
+              value={utilPct}
+              tooltip="Average percentage of the 9-blob block capacity used."
+            />
+          </div>
         </div>
 
         {/* Column 2: Rollup breakdown */}
-        <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-0">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[10px] uppercase tracking-[0.10em] text-muted-foreground font-semibold">
-              Top rollups (1h)
-            </p>
-            <span className="text-[10px] font-mono text-muted-foreground">
-              {activeRollups.length} active
+        <div className="surface-elevated p-6 rounded-md">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-50">
+              Active Rollups (1h)
+            </h3>
+            <span className="text-[10px] font-mono font-bold text-primary px-2 py-0.5 bg-primary/10 rounded">
+              {activeRollups.length}
             </span>
           </div>
-          {topRollups.length > 0 ? (
-            topRollups.map((r) => (
-              <div
-                key={r.rollup}
-                className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
-              >
-                <span className="text-xs text-foreground truncate max-w-[140px]">{r.rollup}</span>
-                <div className="text-right">
-                  <span className="font-mono text-xs text-foreground">
-                    {Number(r.total_blobs).toLocaleString()}
-                  </span>
-                  <span className="font-mono text-[10px] text-muted-foreground ml-2">
-                    {Number(r.network_share_pct).toFixed(1)}%
-                  </span>
+          <div className="flex flex-col">
+            {topRollups.length > 0 ? (
+              topRollups.map((r) => (
+                <div
+                  key={r.rollup}
+                  className="flex items-center justify-between py-2.5 border-b border-border last:border-0"
+                >
+                  <span className="text-xs font-medium text-text-primary truncate max-w-[140px]">{r.rollup}</span>
+                  <div className="flex items-center gap-4">
+                    <span className="font-mono text-xs font-bold text-text-primary">
+                      {Number(r.total_blobs).toLocaleString()}
+                    </span>
+                    <span className="font-mono text-[10px] font-bold text-primary w-12 text-right">
+                      {Number(r.network_share_pct).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="py-8 flex flex-col items-center justify-center opacity-30">
+                <p className="text-xs text-text-secondary">Awaiting live data...</p>
               </div>
-            ))
-          ) : (
-            <p className="py-4 text-xs text-center text-muted-foreground">Loading…</p>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      <p className="text-[10px] text-center text-muted-foreground/60">
-        Refreshes every {REFRESH_MS / 1000}s · Data sourced from Ethereum mainnet via BlobLens indexer
+      <p className="text-[10px] text-center font-bold uppercase tracking-widest text-text-secondary opacity-40 pt-4">
+        Refreshes every {REFRESH_MS / 1000}s · Direct Indexer Stream
       </p>
     </div>
   );

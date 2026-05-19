@@ -98,7 +98,7 @@ export function Banner({
       id={id}
       {...props}
       className={cn(
-        "flex flex-row items-center justify-center px-4 text-center text-sm font-medium",
+        "relative flex flex-row items-center justify-center px-4 text-center text-sm font-medium",
         variant === "normal" && "bg-fd-secondary",
         variant === "rainbow" && "bg-fd-background",
         !open && "hidden",
