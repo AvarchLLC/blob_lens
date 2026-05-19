@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk } from "next/font/google";
-import { FloatingNav } from "@/components/shared/FloatingNav";
+import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
+import { AppSidebar } from "@/components/shared/AppSidebar";
+import { AppNavbar } from "@/components/shared/AppNavbar";
 import { Footer } from "@/components/shared/Footer";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
-import { Spotlight } from "@/components/ui/spotlight-new";
 import { Banner } from "@/components/ui/banner";
 import "./globals.css";
 
@@ -11,6 +11,12 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -27,6 +33,7 @@ const averiaSerif = Averia_Serif_Libre({
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://bloblens.com";
 
 export const metadata: Metadata = {
+  // ... rest of metadata unchanged
   metadataBase: new URL(APP_URL),
 
   title: {
@@ -108,72 +115,62 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${geistMono.variable} ${averiaSerif.variable} antialiased`}
+      className={`${spaceGrotesk.variable} ${plusJakartaSans.variable} ${geistMono.variable} ${averiaSerif.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-background text-foreground">
+      <body className="h-screen bg-background text-foreground overflow-hidden">
         <ThemeProvider>
-          {/* Aceternity Spotlight — Bayland emerald beams, site-wide */}
-          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-            <Spotlight
-              gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(153, 100%, 44%, 0.10) 0, hsla(153, 100%, 44%, 0.03) 50%, transparent 80%)"
-              gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(153, 100%, 44%, 0.07) 0, hsla(153, 100%, 44%, 0.02) 80%, transparent 100%)"
-              gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(153, 100%, 44%, 0.04) 0, transparent 80%)"
-              translateY={-280}
-              width={520}
-              height={1200}
-              smallWidth={200}
-              duration={9}
-              xOffset={80}
-            />
-          </div>
+          <div className="flex h-screen overflow-hidden">
+            {/* Sidebar Rebuild */}
+            <AppSidebar />
 
-          {/* App shell: banner → sticky nav → scrollable content */}
-          <div className="relative z-10 flex flex-col min-h-screen">
-            {/* Banner */}
-            <Banner
-              id="giveth-qf-2026"
-              variant="rainbow"
-              height="2.5rem"
-              rainbowColors={[
-                "rgba(0,223,129,0.18)",
-                "rgba(0,223,129,0.06)",
-                "transparent",
-                "rgba(0,223,129,0.10)",
-                "transparent",
-                "rgba(0,223,129,0.15)",
-                "transparent",
-              ]}
-              className="shrink-0 border-b border-[#00df81]/15 bg-[#09090b]"
-              xColor="#71717a"
-            >
-              <span className="text-[0.8rem] text-[#a1a1aa] tracking-wide">
-                Public goods infrastructure for Ethereum governance.&nbsp;
-                <a
-                  href="https://qf.giveth.io/project/eipsinsight"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#00df81] hover:text-[#00df81]/80 underline underline-offset-2 transition-colors duration-150"
-                >
-                  Support us on Giveth QF
-                </a>
-                &nbsp;💜
-              </span>
-            </Banner>
+            <div className="flex flex-col flex-1 min-w-0 bg-background overflow-hidden">
+              {/* Institutional Banner */}
+              <Banner
+                id="giveth-qf-2026"
+                variant="rainbow"
+                height="2.5rem"
+                rainbowColors={[
+                  "rgba(0,167,181,0.18)", // Primary Teal
+                  "rgba(0,167,181,0.06)",
+                  "transparent",
+                  "rgba(90,215,226,0.10)", // Accent Teal
+                  "transparent",
+                  "rgba(0,138,150,0.15)", // Hover Teal
+                  "transparent",
+                ]}
+                className="shrink-0 border-b border-primary/15 bg-sidebar"
+                xColor="var(--text-secondary)"
+              >
+                <span className="text-[0.8rem] text-text-secondary tracking-wide">
+                  Protocol Intelligence for Ethereum. Support our development.&nbsp;
+                  <a
+                    href="https://qf.giveth.io/project/eipsinsight"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary-hover underline underline-offset-2 transition-colors duration-150"
+                  >
+                    Support on Giveth QF
+                  </a>
+                  &nbsp;💜
+                </span>
+              </Banner>
 
-            {/* Sticky floating nav */}
-            <div className="sticky top-0 z-50">
-              <FloatingNav />
+              {/* Navbar Rebuild */}
+              <AppNavbar />
+
+              {/* Page content */}
+              <main className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="max-w-[1600px] mx-auto p-6 md:p-10">
+                  {children}
+                  <Footer />
+                </div>
+              </main>
             </div>
-
-            {/* Page content */}
-            <main className="flex-1 min-w-0">
-              {children}
-              <Footer />
-            </main>
           </div>
         </ThemeProvider>
       </body>
     </html>
   );
 }
+

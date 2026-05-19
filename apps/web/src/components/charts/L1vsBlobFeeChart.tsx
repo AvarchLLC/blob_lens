@@ -5,6 +5,7 @@ import { formatUsd } from "@/lib/ethPrice";
 import type { HourlyL1Fee } from "@/lib/l1Fee";
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { watermarkGraphic } from "@/lib/chartTheme";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 

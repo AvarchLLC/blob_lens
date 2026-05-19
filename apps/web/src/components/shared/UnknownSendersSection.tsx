@@ -2,7 +2,7 @@
 
 import { formatNumber } from "@/lib/utils";
 import type { UnknownSender } from "@/types";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -16,68 +16,71 @@ export function UnknownSendersSection({ senders }: Props) {
   if (!senders.length) return null;
 
   return (
-    <div className="mt-8 rounded-lg border border-[#1E2D45] bg-[#111827]">
+    <div className="mt-12 surface border border-border overflow-hidden">
       <button
         type="button"
-        className="flex w-full items-center justify-between px-5 py-4 text-left"
+        className="flex w-full items-center justify-between px-6 py-5 text-left hover:bg-surface-elevated transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
-        <div className="flex items-center gap-2">
-          <span className="section-title text-[#9CA3AF]">Unattributed Senders</span>
-          <span className="rounded-full bg-[#1E2D45] px-2 py-0.5 font-mono text-xs text-[#6B7280]">
+        <div className="flex items-center gap-3">
+          <Info className="h-4 w-4 text-primary" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary opacity-60">
+            Unattributed Senders
+          </span>
+          <span className="rounded bg-surface-elevated border border-border px-1.5 py-0.5 font-mono text-[10px] font-bold text-text-primary">
             {senders.length}
           </span>
         </div>
         {open ? (
-          <ChevronDown className="h-4 w-4 text-[#4B5563]" />
+          <ChevronDown className="h-4 w-4 text-text-secondary opacity-40" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-[#4B5563]" />
+          <ChevronRight className="h-4 w-4 text-text-secondary opacity-40" />
         )}
       </button>
 
       {open && (
-        <div className="border-t border-[#1E2D45] px-5 pb-5 pt-4">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-xs text-[#4B5563]">
-              Top senders with rollup = UNKNOWN — not matched to any known sequencer.
+        <div className="border-t border-border px-0 pb-6 pt-4 animate-fade-down">
+          <div className="px-6 mb-6 flex items-center justify-between">
+            <p className="text-xs text-text-secondary opacity-70">
+              Top submitters with no match in the sequencer registry.
             </p>
             <Link
               href="/unknown"
-              className="text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors shrink-0 ml-4"
+              className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline underline-offset-4"
               onClick={(e) => e.stopPropagation()}
             >
-              View all →
+              View Full Directory →
             </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#1E2D45]">
-                  <th className="pb-2 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">#</th>
-                  <th className="pb-2 pr-4 text-left text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">From Address</th>
-                  <th className="pb-2 pr-4 text-right text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">TXs</th>
-                  <th className="pb-2 pr-4 text-right text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">Blobs/TX</th>
-                  <th className="pb-2 text-right text-xs font-medium uppercase tracking-[0.08em] text-[#4B5563]">Blobs</th>
+              <thead className="bg-sidebar/50 border-b border-border">
+                <tr>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-wider text-text-secondary">#</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-wider text-text-secondary">From Address</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider text-text-secondary">TXs</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider text-text-secondary">Blobs/TX</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-wider text-text-secondary">Blobs</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/30">
                 {senders.map((s, i) => (
-                  <tr key={s.from_address} className="border-b border-[#1E2D45]/50">
-                    <td className="py-2 pr-4 font-mono text-xs text-[#4B5563]">{i + 1}</td>
-                    <td className="py-2 pr-4 font-mono text-xs text-[#9CA3AF]">
+                  <tr key={s.from_address} className="hover:bg-surface-elevated transition-colors">
+                    <td className="px-6 py-4 font-mono text-[10px] text-text-secondary opacity-40">{i + 1}</td>
+                    <td className="px-6 py-4">
                       <a
                         href={`https://etherscan.io/address/${s.from_address}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="hover:text-[#10B981] transition-colors"
+                        className="font-mono text-xs font-bold text-text-primary hover:text-primary transition-colors"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {s.from_address}
                       </a>
                     </td>
-                    <td className="py-2 pr-4 text-right font-mono text-xs text-[#9CA3AF]">{formatNumber(Number(s.tx_count))}</td>
-                    <td className="py-2 pr-4 text-right font-mono text-xs text-[#9CA3AF]">{Number(s.avg_blobs_per_tx).toFixed(1)}</td>
-                    <td className="py-2 text-right font-mono text-xs text-foreground">{formatNumber(Number(s.total_blobs))}</td>
+                    <td className="px-6 py-4 text-right font-mono text-xs text-text-secondary">{formatNumber(Number(s.tx_count))}</td>
+                    <td className="px-6 py-4 text-right font-mono text-xs text-text-secondary">{Number(s.avg_blobs_per_tx).toFixed(1)}</td>
+                    <td className="px-6 py-4 text-right font-mono text-xs font-bold text-text-primary">{formatNumber(Number(s.total_blobs))}</td>
                   </tr>
                 ))}
               </tbody>

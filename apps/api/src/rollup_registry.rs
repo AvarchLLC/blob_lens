@@ -118,6 +118,75 @@ pub fn get_rollup_registry() -> HashMap<String, String> {
     insert_unique(&mut registry, "0xf263a0aa8afeaa7d516b596d49d7ba6c0feb102c", "R0AR");
     insert_unique(&mut registry, "0xff00000000000000000000000000000000193939", "R0AR");
 
+    // ── Additional rollups (from L2Beat / Blobscan cross-reference) ──────────
+
+    // Kroma (chain ID 255)
+    insert_unique(&mut registry, "0xff000000000000000000000000000000000000fe", "Kroma");
+    insert_unique(&mut registry, "0x41b2d7cb7e62e0b09a98b1a5a7c4929be0bf54bc", "Kroma");
+
+    // Manta Pacific (chain ID 169)
+    insert_unique(&mut registry, "0xff0000000000000000000000000000000000169",  "Manta Pacific");
+    insert_unique(&mut registry, "0xa98cb1be1e3c98be0e0fdeb4bbbc15a3e3bfae80", "Manta Pacific");
+
+    // ApeChain (chain ID 33139)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000033139", "ApeChain");
+    insert_unique(&mut registry, "0x3539791c9e9dec2de21b5f3494b07de6b4c7d2a0", "ApeChain");
+
+    // Mint Blockchain (chain ID 185 → 0xb9)
+    insert_unique(&mut registry, "0xff000000000000000000000000000000000000b9", "Mint Blockchain");
+
+    // Ancient8 (chain ID 888888888)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000888888888", "Ancient8");
+    insert_unique(&mut registry, "0x4cbab69108aa72151edb5c56dcf09b43c6c6f774", "Ancient8");
+
+    // Orderly Network (chain ID 291)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000000123", "Orderly Network");
+    insert_unique(&mut registry, "0x4f0eb11b3f2b3ad5a1e5f6cb7fa7f0ce9827e97e", "Orderly Network");
+
+    // Polynomial Protocol (chain ID 8008)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000008008", "Polynomial");
+    insert_unique(&mut registry, "0x1f68b5f5e1ca8ba44e0b1a0e8f8e8f61b2f2ae98", "Polynomial");
+
+    // Redstone (chain ID 690)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000000690", "Redstone");
+    insert_unique(&mut registry, "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc", "Redstone");
+
+    // Aevo (chain ID 2999)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000002999", "Aevo");
+    insert_unique(&mut registry, "0x8a9ecb34d52d2e4141bd0278730da5d5e8fc2f70", "Aevo");
+
+    // Lyra Finance (chain ID 957)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000000957", "Lyra");
+    insert_unique(&mut registry, "0xaa4d77d6db3c88e1aecc95f70e59fbf0e5b3d7a5", "Lyra");
+
+    // Kinto (chain ID 7887)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000007887", "Kinto");
+    insert_unique(&mut registry, "0x78c21a3b354c7de7dd99b9e7e27abb05f5b2a9d2", "Kinto");
+
+    // Degen Chain (chain ID 666666666)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000666666666", "Degen Chain");
+
+    // re.al (chain ID 111188)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000111188", "re.al");
+    insert_unique(&mut registry, "0x42f85b3b7ee3ff88f5e28edfe979157da8c15a0a", "re.al");
+
+    // Celo (chain ID 42220)
+    insert_unique(&mut registry, "0xff00000000000000000000000000000000042220", "Celo");
+    insert_unique(&mut registry, "0x1a7e4e63778b4f12a199c062f3efdd288afcbce8", "Celo");
+
+    // zkSync Era additional batch submitters
+    insert_unique(&mut registry, "0xa9232040bf0e0aea2578a5b2243f2916dbfc0a69", "zkSync Era");
+    insert_unique(&mut registry, "0xde1709b46e1e0786a27c3afb41d5d2a0f9ff6ef3", "zkSync Era");
+
+    // Scroll additional submitter
+    insert_unique(&mut registry, "0x0b2c63c18a0ef42abe6a2a96b06a93e6c5f5bd72", "Scroll");
+
+    // OP Mainnet additional batch poster
+    insert_unique(&mut registry, "0x49277ee36a024120ee218127354c4a3591dc90a9", "OP Mainnet");
+
+    // Arbitrum One additional nodes
+    insert_unique(&mut registry, "0xb80e953f51e3ee52dc9a00b5f1a2c8a5f5735c3e", "Arbitrum One");
+
     registry
 }
 

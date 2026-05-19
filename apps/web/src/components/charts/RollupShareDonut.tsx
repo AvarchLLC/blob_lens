@@ -5,6 +5,8 @@ import { rollupColor } from "@/lib/utils";
 import type { LeaderboardRow } from "@/types";
 import ReactECharts from "echarts-for-react";
 
+import { watermarkGraphic } from "@/lib/chartTheme";
+
 interface Props {
   data: LeaderboardRow[];
 }
@@ -43,6 +45,7 @@ export function RollupShareDonut({ data }: Props) {
         `<b>${params.name}</b><br/>${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)`,
     },
     graphic: [
+      ...watermarkGraphic,
       {
         type: "text",
         left: "center",

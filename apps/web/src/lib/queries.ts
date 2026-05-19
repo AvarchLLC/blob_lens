@@ -76,11 +76,48 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
         )::float8                                           AS cost_per_blob_gwei,
         -- Beacon sidecar metrics (NULL until indexer collects them)
         (AVG(fullness_ratio) * 100)::float8                 AS avg_fullness_pct,
-        COALESCE(SUM(CASE WHEN is_ghost_blob THEN 1 ELSE 0 END), 0)::bigint AS ghost_blob_count
+        COALESCE(SUM(CASE WHEN is_ghost_blob THEN 1 ELSE 0 END), 0)::bigint AS ghost_blob_count,
+        -- Cost-per-byte: bytes_used stored by beacon backfill
+        NULLIF(SUM(bytes_used), 0)::float8                  AS total_bytes_used,
+        CASE
+          WHEN NULLIF(SUM(bytes_used), 0) IS NOT NULL
+          THEN (
+            SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18
+          ) / (SUM(bytes_used)::float8 / 1024.0)
+          ELSE NULL
+        END::float8                                         AS cost_per_byte_eth
       FROM blob_transactions
       WHERE rollup IS NOT NULL
         AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
       GROUP BY rollup
+    ),
+    -- Per-rollup coordination score: avg co-occurrence weight with all peers
+    coordination AS (
+      WITH block_rollups AS (
+        SELECT block_number, ARRAY_AGG(DISTINCT rollup) AS rollups
+        FROM blob_transactions
+        WHERE rollup IS NOT NULL AND rollup != 'UNKNOWN'
+          AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
+        GROUP BY block_number
+      ),
+      total_blocks AS (
+        SELECT COUNT(DISTINCT block_number)::float8 AS cnt
+        FROM blob_transactions
+        WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
+      ),
+      pairs AS (
+        SELECT
+          br1.rollup AS rollup,
+          COUNT(*)::float8 AS co_count
+        FROM (SELECT block_number, unnest(rollups) AS rollup FROM block_rollups) br1
+        JOIN (SELECT block_number, unnest(rollups) AS rollup FROM block_rollups) br2
+          ON br1.block_number = br2.block_number AND br1.rollup != br2.rollup
+        GROUP BY br1.rollup
+      )
+      SELECT
+        rollup,
+        LEAST(100, (co_count / NULLIF((SELECT cnt FROM total_blocks), 0) * 100))::float8 AS coordination_score
+      FROM pairs
     )
     SELECT
       b.*,
@@ -98,8 +135,10 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
                 / NULLIF((SELECT network_avg_fee FROM period_stats), 1)
           ) * 50.0 + 50.0
         ))
-      ))::float8                                            AS efficiency_score
+      ))::float8                                            AS efficiency_score,
+      c.coordination_score
     FROM base b
+    LEFT JOIN coordination c ON c.rollup = b.rollup
     ORDER BY total_blobs DESC
   `;
 }

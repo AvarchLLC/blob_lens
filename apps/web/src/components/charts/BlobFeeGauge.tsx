@@ -49,7 +49,10 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
   const level = latestFeeWei > 0 ? getLevel(gaugeVal) : null;
 
   // Gap color matches card background per theme
-  const cardBg = theme === "light" ? "#FFFFFF" : "#050810";
+  const isDark = theme !== "light";
+  const cardBg = isDark ? "#0F1519" : "#FFFFFF";
+  const pointerColor = isDark ? "#F0F4F5" : "#1C2A30";
+  const anchorBorder = isDark ? "#4B5563" : "#D4E0E3";
 
   const GAP  = 0.012;
   const N    = 6;
@@ -81,14 +84,14 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
         pointer: {
           length: "62%",
           width: 5,
-          itemStyle: { color: "#F9FAFB" },
+          itemStyle: { color: pointerColor },
         },
         anchor: {
           show: true,
           size: 16,
           itemStyle: {
-            color: "#F9FAFB",
-            borderColor: "#4B5563",
+            color: pointerColor,
+            borderColor: anchorBorder,
             borderWidth: 3,
           },
         },
@@ -126,7 +129,7 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
       {feeGwei !== null && (
         <p className="caption">
           blob base fee:{" "}
-          <span className="font-mono text-[#9CA3AF]">
+          <span className="font-mono text-text-secondary">
             {feeGwei < 0.0001
               ? feeGwei.toPrecision(3)
               : feeGwei.toFixed(4)}{" "}
@@ -135,13 +138,13 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
         </p>
       )}
       {ethUsd != null && (
-        <p className="caption text-[#4B5563]">
+        <p className="caption text-text-secondary/60">
           ETH / USD:{" "}
           <span className="font-mono">${ethUsd.toLocaleString()}</span>
         </p>
       )}
       {ethUsd == null && latestFeeWei > 0 && (
-        <p className="caption text-[#4B5563]">ETH price unavailable</p>
+        <p className="caption text-text-secondary/60">ETH price unavailable</p>
       )}
     </div>
   );

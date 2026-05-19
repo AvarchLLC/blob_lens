@@ -1,43 +1,59 @@
 /**
- * Premium chart styling utilities for ECharts
- * Provides consistent, luxury-themed chart configurations
+ * Protocol Intelligence chart styling utilities for ECharts
+ * Provides consistent, institutional-grade chart configurations
  */
+
+export const watermarkGraphic = [
+  {
+    type: 'image',
+    id: 'logo',
+    left: 'center',
+    top: 'middle',
+    z: -10,
+    style: {
+      image: '/brand/bloblogo.png',
+      width: 120,
+      height: 120,
+      opacity: 0.1
+    }
+  }
+];
 
 export const chartTheme = {
   dark: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "rgba(10, 10, 12, 0.92)",
-      borderColor: "rgba(0, 223, 129, 0.3)",
+      backgroundColor: "#0F1519", // --surface
+      borderColor: "#1E2D33",
       borderWidth: 1,
       textStyle: {
-        color: "#fafafa",
+        color: "#F0F4F5",
         fontSize: 12,
-        fontFamily: "Space Grotesk, system-ui, sans-serif",
+        fontFamily: "var(--font-body), system-ui, sans-serif",
       },
       padding: [12, 14],
       axisPointer: {
         lineStyle: {
-          color: "rgba(0, 223, 129, 0.2)",
+          color: "rgba(0, 167, 181, 0.2)",
           width: 1,
         },
         shadowStyle: {
-          color: "rgba(0, 223, 129, 0.05)",
+          color: "rgba(0, 167, 181, 0.05)",
         },
       },
     },
     gridDefaults: {
-      top: 8,
-      right: 8,
+      top: 24,
+      right: 16,
       bottom: 24,
       left: 0,
       containLabel: true,
     },
     axis: {
       axisLabel: {
-        color: "#71717a",
+        color: "#7E9098", // Text Secondary
         fontSize: 11,
-        fontFamily: "Space Grotesk, system-ui, sans-serif",
+        fontFamily: "var(--font-mono), monospace",
       },
       axisLine: {
         show: false,
@@ -47,13 +63,14 @@ export const chartTheme = {
       },
       splitLine: {
         lineStyle: {
-          color: "rgba(255, 255, 255, 0.04)",
+          color: "#1E2D33", // Border color
+          opacity: 0.5,
         },
       },
     },
     lineStyle: {
-      color: "#00df81",
-      width: 2.5,
+      color: "#00A7B5", // Primary Teal
+      width: 2,
     },
     areaGradient: {
       type: "linear" as const,
@@ -62,46 +79,72 @@ export const chartTheme = {
       x2: 0,
       y2: 1,
       colorStops: [
-        { offset: 0, color: "rgba(0, 223, 129, 0.25)" },
-        { offset: 0.5, color: "rgba(0, 223, 129, 0.12)" },
-        { offset: 1, color: "rgba(0, 223, 129, 0.02)" },
+        { offset: 0, color: "rgba(0, 167, 181, 0.20)" },
+        { offset: 1, color: "rgba(0, 167, 181, 0.02)" },
       ],
     },
+    graphic: watermarkGraphic,
+    legend: {
+      show: true,
+      textStyle: { color: "#7E9098", fontSize: 10 },
+      itemWidth: 8,
+      itemHeight: 8,
+      selectedMode: true, // Allows deselecting individual L2s
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100,
+        zoomOnMouseWheel: 'alt', // Professional zoom behavior
+      },
+      {
+        type: 'slider',
+        show: false, // Keep slider hidden by default but available
+        start: 0,
+        end: 100,
+        height: 20,
+        bottom: 5,
+        borderColor: 'transparent',
+        fillerColor: 'rgba(0, 167, 181, 0.05)',
+        handleStyle: { color: 'rgba(0, 167, 181, 0.3)' }
+      }
+    ]
   },
   light: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "rgba(255, 255, 255, 0.96)",
-      borderColor: "rgba(5, 150, 105, 0.3)",
+      backgroundColor: "#FFFFFF",
+      borderColor: "#D9E5E7",
       borderWidth: 1,
       textStyle: {
-        color: "#0F172A",
+        color: "#0D1618",
         fontSize: 12,
-        fontFamily: "Space Grotesk, system-ui, sans-serif",
+        fontFamily: "var(--font-body), system-ui, sans-serif",
       },
       padding: [12, 14],
       axisPointer: {
         lineStyle: {
-          color: "rgba(5, 150, 105, 0.2)",
+          color: "rgba(0, 138, 150, 0.2)",
           width: 1,
         },
         shadowStyle: {
-          color: "rgba(5, 150, 105, 0.05)",
+          color: "rgba(0, 138, 150, 0.05)",
         },
       },
     },
     gridDefaults: {
-      top: 8,
-      right: 8,
+      top: 40, // Increased for legend
+      right: 16,
       bottom: 24,
       left: 0,
       containLabel: true,
     },
     axis: {
       axisLabel: {
-        color: "#94A3B8",
+        color: "#5C7077",
         fontSize: 11,
-        fontFamily: "Space Grotesk, system-ui, sans-serif",
+        fontFamily: "var(--font-mono), monospace",
       },
       axisLine: {
         show: false,
@@ -111,13 +154,14 @@ export const chartTheme = {
       },
       splitLine: {
         lineStyle: {
-          color: "rgba(0, 0, 0, 0.02)",
+          color: "#D4E0E3",
+          opacity: 0.5,
         },
       },
     },
     lineStyle: {
-      color: "#059669",
-      width: 2.5,
+      color: "#008A96",
+      width: 2,
     },
     areaGradient: {
       type: "linear" as const,
@@ -126,47 +170,64 @@ export const chartTheme = {
       x2: 0,
       y2: 1,
       colorStops: [
-        { offset: 0, color: "rgba(5, 150, 105, 0.20)" },
-        { offset: 0.5, color: "rgba(5, 150, 105, 0.10)" },
-        { offset: 1, color: "rgba(5, 150, 105, 0.02)" },
+        { offset: 0, color: "rgba(0, 138, 150, 0.15)" },
+        { offset: 1, color: "rgba(0, 138, 150, 0.02)" },
       ],
     },
+    graphic: watermarkGraphic,
+    legend: {
+      show: true,
+      textStyle: { color: "#5C7077", fontSize: 10 },
+      itemWidth: 8,
+      itemHeight: 8,
+      selectedMode: true,
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100,
+        zoomOnMouseWheel: 'alt',
+      },
+      {
+        type: 'slider',
+        show: false,
+        start: 0,
+        end: 100,
+        height: 20,
+        bottom: 5,
+        borderColor: 'transparent',
+        fillerColor: 'rgba(0, 138, 150, 0.05)',
+        handleStyle: { color: 'rgba(0, 138, 150, 0.3)' }
+      }
+    ]
   },
 };
 
-/**
- * Get the appropriate chart theme based on current theme
- */
 export function getChartTheme(isDark: boolean) {
   return isDark ? chartTheme.dark : chartTheme.light;
 }
 
-/**
- * Enhanced tooltip formatter helper
- */
 export function createTooltipFormatter(isUsd: boolean, formatter: (v: number) => string) {
   return (params: { axisValue: string; value: number | null }[]) => {
     const val = params[0].value;
     if (val == null) {
       return `<div style="display:flex;gap:8px;">
-        <span style="color:#71717a;font-size:11px">${params[0].axisValue}</span>
-        <span style="color:#52525b">—</span>
+        <span style="color:#8FA1A8;font-size:11px">${params[0].axisValue}</span>
+        <span style="color:#1C2A30">—</span>
       </div>`;
     }
 
     return `<div style="display:flex;flex-direction:column;gap:4px;">
-      <span style="color:#71717a;font-size:11px">${params[0].axisValue}</span>
-      <span style="font-family:monospace;color:#00df81;font-weight:600">${formatter(val)}</span>
+      <span style="color:#8FA1A8;font-size:11px">${params[0].axisValue}</span>
+      <span style="font-family:monospace;color:#00A7B5;font-weight:700">${formatter(val)}</span>
     </div>`;
   };
 }
 
-/**
- * Animation configuration for chart entrance
- */
 export const animationConfig = {
   animation: true,
   animationEasing: "cubicOut" as const,
   animationDuration: 600,
-  animationDelay: (i: number) => i * 30,
+  animationDelay: (i: number) => i * 20,
 };

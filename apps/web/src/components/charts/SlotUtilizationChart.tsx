@@ -2,6 +2,7 @@
 
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { watermarkGraphic } from "@/lib/chartTheme";
 
 function shortHour(iso: string) {
   const d = new Date(iso);
@@ -23,6 +24,7 @@ export function SlotUtilizationChart({ data }: Props) {
     animation: true,
     animationEasing: "cubicOut" as const,
     animationDuration: 600,
+    graphic: watermarkGraphic,
     grid: { top: 8, right: 8, bottom: 24, left: 0, containLabel: true },
     xAxis: {
       type: "category" as const,

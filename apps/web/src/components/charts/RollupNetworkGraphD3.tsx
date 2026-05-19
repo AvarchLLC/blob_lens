@@ -429,7 +429,7 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
   }, [data]);
 
   return (
-    <div className="relative rounded-xl overflow-hidden bg-[#09090b]/60">
+    <div className="relative rounded-xl overflow-hidden bg-surface-elevated">
       <div ref={containerRef} className="h-[560px] w-full">
         <svg ref={svgRef} className="w-full h-full" />
       </div>

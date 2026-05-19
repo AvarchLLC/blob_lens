@@ -47,36 +47,38 @@ export function LeaderboardClient({ initialLeaderboard, sparklines }: Props) {
   const rows = data?.data ?? [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-6 px-6 pt-2">
+        <div className="flex items-center gap-2">
+           <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Window:</span>
+           <Select value={hours} onValueChange={setHours}>
+              <SelectTrigger className="h-7 w-20 text-[10px] font-bold uppercase tracking-wider bg-surface-elevated border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-surface border-border">
+                {TIME_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-[10px] font-bold uppercase tracking-wider">
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+        </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">
           {rows.length} rollups tracked
         </p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Period:</span>
-          <Select value={hours} onValueChange={setHours}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIME_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {isLoading && rows.length === 0 ? (
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+        <div className="px-6 space-y-4">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full bg-surface-elevated" />
           ))}
         </div>
       ) : (
-        <BlobLeaderboardTable rows={rows} sparklines={sparklines} />
+        <div className="border-t border-border">
+          <BlobLeaderboardTable rows={rows} sparklines={sparklines} />
+        </div>
       )}
     </div>
   );

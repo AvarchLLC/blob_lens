@@ -3,7 +3,8 @@ import { RollupMetricLineChart } from "@/components/charts/RollupMetricLineChart
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { RollupTxTable } from "@/components/shared/RollupTxTable";
-import { StatCard } from "@/components/shared/StatCard";
+import { PageHeader, PageSection } from "@/components/shared/PageHeader";
+import { MetricCard } from "@/components/shared/MetricCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +19,13 @@ export const revalidate = 30;
 interface Props {
   params: Promise<{ id: string }>;
 }
+
+const REGIME_COLOR: Record<string, string> = {
+  undersaturated: "#71717A",
+  healthy:        "#00A86B",
+  congested:      "#F5A524",
+  spike:          "#E5484D",
+};
 
 function toMarketHours(txs: BlobTransaction[]): MarketHour[] {
   const map = new Map<string, { sum: number; count: number; blobs: number; maxBlobs: number }>();
@@ -83,25 +91,25 @@ function ScoreBar({ label, value, peerAvg, tooltip }: {
 }) {
   const pct = Math.min(100, Math.max(0, value));
   const isHigh = pct >= 80; const isMid = pct >= 50;
-  const color = isHigh ? "#00df81" : isMid ? "#fcbb00" : "#f97316";
+  const color = isHigh ? REGIME_COLOR.healthy : isMid ? REGIME_COLOR.congested : REGIME_COLOR.spike;
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">{label}</span>
           <InfoTooltip content={tooltip} side="right" />
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono">
+        <div className="flex items-center gap-2 text-xs font-mono font-bold">
           <span style={{ color }}>{pct.toFixed(0)}</span>
           {peerAvg > 0 && (
-            <span className="text-muted-foreground/60">vs {peerAvg.toFixed(0)} avg</span>
+            <span className="text-text-secondary opacity-50">/ {peerAvg.toFixed(0)} avg</span>
           )}
         </div>
       </div>
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[#1E2D45]">
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-surface-elevated">
         {peerAvg > 0 && (
           <div
-            className="absolute top-0 h-full w-0.5 bg-muted-foreground/30"
+            className="absolute top-0 h-full w-px bg-border z-10"
             style={{ left: `${Math.min(100, peerAvg)}%` }}
           />
         )}
@@ -156,199 +164,183 @@ export default async function RollupPage({ params }: Props) {
 
   const effIsHigh = effScore != null && effScore >= 80;
   const effIsMid = effScore != null && effScore >= 50;
-  const effColor = effIsHigh ? "#00df81" : effIsMid ? "#fcbb00" : "#f97316";
-  const effBg = effIsHigh ? "rgba(0,223,129,0.08)" : effIsMid ? "rgba(252,187,0,0.08)" : "rgba(249,115,22,0.08)";
-  const effBorder = effIsHigh ? "rgba(0,223,129,0.20)" : effIsMid ? "rgba(252,187,0,0.20)" : "rgba(249,115,22,0.20)";
+  const effColor = effIsHigh ? REGIME_COLOR.healthy : effIsMid ? REGIME_COLOR.congested : REGIME_COLOR.spike;
 
   return (
-    <div className="page-root py-8 space-y-6">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="topbar-title">{rollupName}</h1>
-          <p className="topbar-sub">Per-rollup blob analytics · last 500 transactions</p>
-        </div>
+    <div className="animate-page-in">
+      <PageHeader
+        meta="Rollup Performance"
+        title={rollupName}
+        summary={`Detailed analysis of ${rollupName}'s blob market performance. Track data availability efficiency, batching rhythm, and historical fee optimization.`}
+      >
         <RollupBadge rollup={rollupName} linkable={false} />
-      </div>
+      </PageHeader>
 
-      <Separator />
-
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard
-          label="Total Blobs"
+      {/* ── Metric cards ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <MetricCard
+          label="Total Blobs (500tx)"
           value={formatNumber(totalBlobs)}
-          tooltip="Total blobs submitted by this rollup across the last 500 transactions. Each blob carries ~128 KB of L2 state data."
+          note="Combined volume across recent submissions."
         />
-        <StatCard
+        <MetricCard
           label="Transactions"
           value={formatNumber(txs.length)}
-          tooltip="Number of EIP-4844 type-3 transactions from this rollup's sequencer address in the dataset (capped at 500 most recent)."
+          note="Number of indexed type-3 transactions."
         />
-        <StatCard
+        <MetricCard
           label="Avg Blobs / TX"
           value={avgBlobsPerTx.toFixed(2)}
-          tooltip="Average number of blobs per transaction. Higher is more efficient — the theoretical maximum is 6 blobs per transaction. A score near 6 means the rollup is batching heavily."
+          note="Packing efficiency. Higher = better (max 6)."
         />
-        <StatCard
+        <MetricCard
           label="Last Active"
           value={timeAgo(lastSeen)}
-          sub={new Date(lastSeen).toLocaleString()}
-          tooltip="Time since this rollup's most recent blob transaction was indexed. Staleness may indicate a pause in L2 activity or a change in sequencer address."
+          note={`Latest: ${new Date(lastSeen).toLocaleTimeString()}`}
         />
-      </section>
+      </div>
 
-      {/* DA Efficiency card */}
-      {thisRollupLb && effScore != null && (
-        <Card style={{ background: effBg, borderColor: effBorder }}>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <h2 className="section-title">DA Efficiency</h2>
-              <InfoTooltip
-                content="Composite score (0–100) measuring how efficiently this rollup uses Ethereum's blob market. Formula: 70% packing score (blobs per tx relative to 6-blob max) + 30% timing score (submitting when fees are below network average). Higher = cheaper DA costs."
-                side="bottom"
-              />
-              <span className="ml-auto text-[10px] text-muted-foreground/60">7-day window</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {/* Left: big score */}
-              <div className="flex items-center gap-5">
-                <div
-                  className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border text-3xl font-bold font-mono"
-                  style={{ color: effColor, borderColor: effBorder, background: effBg }}
-                >
-                  {effScore.toFixed(0)}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Column */}
+        <div className="xl:col-span-8 space-y-12">
+          
+          <PageSection
+            label="Performance"
+            title="DA Efficiency Analysis"
+            description="Composite scoring of market timing and packing efficiency."
+            interpretation="A high efficiency score indicates that the rollup is both packing multiple blobs into each transaction and timing submissions during low-fee market regimes."
+          >
+            {thisRollupLb && effScore != null ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="flex items-center gap-8">
+                  <div
+                    className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border-2 text-4xl font-bold font-mono bg-surface-elevated shadow-inner"
+                    style={{ color: effColor, borderColor: effColor }}
+                  >
+                    {effScore.toFixed(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold mb-1" style={{ color: effColor }}>
+                      {effIsHigh ? "Institutional Grade" : effIsMid ? "Optimal Efficiency" : "Needs Optimization"}
+                    </h4>
+                    <p className="text-xs text-text-secondary">
+                      Peer Average: <span className="font-mono font-bold text-text-primary">{peerAvgEfficiency.toFixed(0)}</span>
+                    </p>
+                    <p className="text-[10px] text-text-secondary mt-2 opacity-50 uppercase tracking-widest font-bold">
+                      70% Packing · 30% Timing
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-sm font-semibold" style={{ color: effColor }}>
-                    {effIsHigh ? "High Efficiency" : effIsMid ? "Moderate Efficiency" : "Low Efficiency"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Peer avg: <span className="font-mono text-foreground">{peerAvgEfficiency.toFixed(0)}</span>
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/60">
-                    70% packing · 30% timing
-                  </p>
+
+                <div className="space-y-6">
+                  <ScoreBar
+                    label="Packing score"
+                    value={packScore ?? 0}
+                    peerAvg={peerAvgPacking}
+                    tooltip="Efficiency of blob slot usage per transaction."
+                  />
+                  <ScoreBar
+                    label="Timing score"
+                    value={timeScore ?? 0}
+                    peerAvg={peerAvgTiming}
+                    tooltip="Market timing relative to network average fee."
+                  />
+                  {costGwei != null && (
+                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                      <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-text-secondary">Avg Cost / Blob</span>
+                      <div className="text-right">
+                        <span className="font-mono text-sm font-bold text-text-primary">{costGwei.toFixed(5)} Gwei</span>
+                        <p className="text-[10px] text-text-secondary opacity-40">vs {peerAvgCostGwei.toFixed(5)} avg</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+            ) : (
+              <div className="py-10 text-center text-text-secondary opacity-40 italic text-sm">Insufficient data for scoring.</div>
+            )}
+          </PageSection>
 
-              {/* Right: component bars */}
-              <div className="space-y-4">
-                <ScoreBar
-                  label="Packing score"
-                  value={packScore ?? 0}
-                  peerAvg={peerAvgPacking}
-                  tooltip="Measures how many blobs this rollup fits per transaction relative to the 6-blob maximum. A score of 100 = always sending 6 blobs per tx (maximum compression). Low score = many single-blob transactions."
-                />
-                <ScoreBar
-                  label="Timing score"
-                  value={timeScore ?? 0}
-                  peerAvg={peerAvgTiming}
-                  tooltip="Measures how well this rollup times its submissions relative to network fees. Score 50 = pays exactly the network average. Above 50 = pays less than average (good timing). Below 50 = pays more than average."
-                />
-                {costGwei != null && (
-                  <div className="flex items-center justify-between pt-1 border-t border-border/30">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">Cost / blob</span>
-                      <InfoTooltip
-                        content="Average blob base fee paid per blob in gwei, over the 7-day window. Compare to the peer average to see if this rollup is paying more or less than its competitors."
-                        side="right"
-                      />
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono text-xs text-foreground">{costGwei.toFixed(5)} gwei</span>
-                      {peerAvgCostGwei > 0 && (
-                        <p className="font-mono text-[10px] text-muted-foreground/60">
-                          vs {peerAvgCostGwei.toFixed(5)} avg
-                        </p>
-                      )}
+          <PageSection
+            label="Behavior"
+            title="Activity & Fees"
+            description="Operational rhythm and cost benchmarking."
+            noPadding
+          >
+            <Tabs defaultValue="activity" className="w-full">
+              <TabsList className="flex gap-1 p-2 bg-sidebar/50 border-b border-border rounded-none h-12">
+                <TabsTrigger value="activity" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Rhythm</TabsTrigger>
+                <TabsTrigger value="fees" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Benchmarking</TabsTrigger>
+                <TabsTrigger value="transactions" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Raw Feed</TabsTrigger>
+              </TabsList>
+              
+              <div className="p-6">
+                <TabsContent value="activity" className="space-y-10 animate-fade-up m-0">
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">Submission Intensity (7d)</h4>
+                    <RollupActivityHeatmap txs={txs} />
+                  </div>
+                  <div className="pt-10 border-t border-border/50">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">Hourly Submission Volume</h4>
+                    <RollupMetricLineChart data={feeComparison} mode="fee-wei" />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="fees" className="animate-fade-up m-0">
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">Fee Paid vs. Network Average</h4>
+                    <RollupMetricLineChart data={feeComparison} mode="fee-wei" />
+                    <div className="p-4 bg-primary/5 border border-primary/10 rounded-md">
+                      <p className="text-xs text-text-secondary leading-relaxed">
+                        <span className="font-bold text-text-primary mr-1">Analysis:</span> When the rollup line persists below the Network Average, the sequencer is successfully avoiding congestion spikes and saving on DA costs.
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                </TabsContent>
 
-      <Tabs defaultValue="activity">
-        <TabsList>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="fees">Fees</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="activity" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Hourly Blob Activity</h2>
-                <InfoTooltip
-                  content="Blob count and estimated cost per hour for this rollup, built from the last 500 transactions. Peaks show when the rollup batches most aggressively. The fee line reflects market conditions at submission time — compare to the market-wide fee to see if this rollup is timing well."
-                  side="bottom"
-                />
+                <TabsContent value="transactions" className="animate-fade-up m-0">
+                  <div className="max-h-[600px] overflow-y-auto custom-scrollbar -mx-6">
+                    <RollupTxTable txs={txs} ethUsd={ethUsd} />
+                  </div>
+                </TabsContent>
               </div>
-            </CardHeader>
-            <CardContent>
-              <RollupMetricLineChart data={feeComparison} mode="fee-wei" />
-            </CardContent>
-          </Card>
+            </Tabs>
+          </PageSection>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Rollup Activity Heatmap</h2>
-                <InfoTooltip
-                  content="Hour-of-day (x-axis) × day-of-week (y-axis) heatmap showing when this rollup submits blobs most frequently. Darker cells = more blobs. Reveals the sequencer's batching schedule — useful for predicting future submission windows."
-                  side="bottom"
-                />
+        {/* Right Column */}
+        <div className="xl:col-span-4 space-y-8">
+           <div className="p-8 surface border border-border space-y-6">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Sequencer Identity</h3>
+              <div className="space-y-4">
+                 <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest opacity-60">Registry Name</span>
+                    <span className="text-sm font-medium text-text-primary">{rollupName}</span>
+                 </div>
+                 <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest opacity-60">Status</span>
+                    <div className="flex items-center gap-2">
+                       <span className="h-2 w-2 rounded-full bg-status-healthy animate-pulse" />
+                       <span className="text-xs text-text-secondary font-medium">Tracking Active</span>
+                    </div>
+                 </div>
+                 <div className="pt-4 border-t border-border/50">
+                    <button className="w-full py-2.5 bg-surface-elevated border border-border hover:bg-surface transition-colors rounded-md text-[10px] font-bold uppercase tracking-widest text-text-primary">
+                       Export Rollup Data (CSV)
+                    </button>
+                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <RollupActivityHeatmap txs={txs} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+           </div>
 
-        <TabsContent value="transactions">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Recent Transactions (last 500)</h2>
-                <InfoTooltip
-                  content="The 500 most recent EIP-4844 type-3 transactions from this rollup's sequencer address. Each row shows the transaction hash (links to Etherscan), block number, blob count, blob base fee paid, and timestamp. Sort or filter to explore submission patterns."
-                  side="bottom"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RollupTxTable txs={txs} ethUsd={ethUsd} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="fees">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <h2 className="section-title">Fee History vs Network Avg</h2>
-                <InfoTooltip
-                  content="This rollup's hourly blob base fee compared to the network-wide average. When the rollup line is below Network Avg, it is timing submissions during cheaper windows. Consistent divergence above average suggests suboptimal batching timing."
-                  side="bottom"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {feeComparison.length > 0
-                ? <RollupMetricLineChart data={feeComparison} mode="fee-wei" />
-                : <p className="py-8 text-center text-sm text-muted-foreground">No fee data</p>}
-              <p className="mt-3 text-xs text-muted-foreground">
-                First seen: {new Date(firstSeen).toLocaleString()} · Last seen: {new Date(lastSeen).toLocaleString()}
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+           <div className="p-8 border border-primary/20 bg-primary/5 rounded-xl">
+             <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary mb-3">Governance Impact</h3>
+             <p className="text-xs text-text-secondary leading-relaxed">
+               {rollupName}&apos;s batching strategy accounts for roughly {thisRollupLb ? Number(thisRollupLb.network_share_pct).toFixed(1) : '—'}% of total Ethereum blob volume. Optimization here directly impacts L1 state growth and fee burning.
+             </p>
+           </div>
+        </div>
+      </div>
     </div>
   );
 }

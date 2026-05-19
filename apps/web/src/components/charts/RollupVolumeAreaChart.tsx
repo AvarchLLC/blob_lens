@@ -1,16 +1,28 @@
 "use client";
 
+import { getChartTheme, animationConfig } from "@/lib/chartTheme";
 import { formatNumber, rollupColor } from "@/lib/utils";
 import type { DailyRollupBlob } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 interface Props {
   data: DailyRollupBlob[];
 }
 
 export function RollupVolumeAreaChart({ data }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-[340px] w-full animate-pulse bg-surface-elevated rounded-md" />;
+
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#5C5575]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-text-secondary opacity-50 italic">No historical volume data</p>;
+
+  const isDark = theme !== "light";
+  const t = getChartTheme(isDark);
 
   const byDay = new Map<string, Map<string, number>>();
   const totalsByRollup = new Map<string, number>();
@@ -35,94 +47,98 @@ export function RollupVolumeAreaChart({ data }: Props) {
   );
 
   const option = {
-    animation: true,
-    animationEasing: "cubicOut" as const,
-    animationDuration: 700,
-    grid: { top: 8, right: 16, bottom: 8, left: 0, containLabel: true },
+    ...animationConfig,
+    backgroundColor: t.backgroundColor,
+    graphic: t.graphic,
+    grid: { 
+      ...t.gridDefaults,
+      bottom: 80 
+    },
     xAxis: {
       type: "category" as const,
       data: xLabels,
+      ...t.axis,
       axisLabel: {
-        color: "#4B5563",
-        fontSize: 11,
-        fontFamily: "Space Grotesk, system-ui",
-      },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { show: false },
+        ...t.axis.axisLabel,
+        interval: Math.floor(dayKeys.length / 8)
+      }
     },
     yAxis: {
       type: "value" as const,
+      ...t.axis,
+      name: "BLOBS",
+      nameTextStyle: { ...t.axis.axisLabel, padding: [0, 0, 0, 30] },
       axisLabel: {
-        color: "#4B5563",
-        fontSize: 11,
-        fontFamily: "Space Grotesk, system-ui",
+        ...t.axis.axisLabel,
         formatter: (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(v)),
       },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)" } },
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#1A2235",
-      borderColor: "rgba(16,185,129,0.2)",
-      borderWidth: 1,
-      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
-      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(16,185,129,0.06)" } },
-      formatter: (
-        params: { axisValue: string; seriesName: string; value: number; marker: string }[]
-      ) => {
+      ...t.tooltip,
+      appendToBody: true,
+      confine: false,
+      axisPointer: { type: "shadow" as const, shadowStyle: { color: "rgba(0, 167, 181, 0.05)" } },
+      formatter: (params: any[]) => {
         if (!params.length) return "";
 
         const dayIdx = xLabels.findIndex((l) => l === params[0].axisValue);
         const dayKey = dayKeys[Math.max(0, dayIdx)];
         const dayDate = new Date(dayKey);
-        const weekday = dayDate.toLocaleDateString("en-US", { weekday: "long" });
-        const month = dayDate.toLocaleDateString("en-US", { month: "long" });
-        const day = dayDate.toLocaleDateString("en-US", { day: "2-digit" });
-        const year = dayDate.toLocaleDateString("en-US", { year: "numeric" });
+        const fullDate = dayDate.toLocaleDateString("en-US", { 
+          weekday: "short", month: "short", day: "numeric", year: "numeric" 
+        });
+        
         const total = params.reduce((sum, p) => sum + Number(p.value || 0), 0);
+        const sortedParams = [...params].sort((a, b) => (b.value || 0) - (a.value || 0));
 
-        const values = new Map<string, number>();
-        for (const p of params) values.set(p.seriesName, Number(p.value || 0));
-
-        const rows = rollups
-          .map((rollup) => {
-            const v = values.get(rollup) ?? 0;
-            const pct = total > 0 ? ` (${((v / total) * 100).toFixed(2)}%)` : "";
-            const valueLabel = v > 0 ? formatNumber(v) : "-";
-            return `<div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;">
-                <span style="display:flex;align-items:center;gap:7px;color:#9CA3AF;">
-                  <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${rollupColor(rollup)}"></span>
-                  ${rollup}
-                </span>
-                <span style="color:#F9FAFB;font-weight:600;">${valueLabel}<span style="color:#4B5563;font-weight:500;">${v > 0 ? pct : ""}</span></span>
-              </div>`;
-          })
-          .join("");
-
-        return `<div style="min-width:280px;">
-          <div style="font-weight:700;margin-bottom:8px;color:#F9FAFB;">${weekday}, ${month}, ${day} ${year}</div>
-          ${rows}
-          <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;">
-            <span style="font-weight:700;color:#F9FAFB;">Total</span>
-            <span style="font-weight:700;color:#10B981;">${formatNumber(total)}</span>
+        return `
+          <div style="min-width:240px;display:flex;flex-direction:column;gap:8px;">
+            <div style="border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:4px;margin-bottom:4px;">
+              <span style="font-size:10px;font-weight:bold;color:#8FA1A8;text-transform:uppercase;">${fullDate}</span>
+            </div>
+            ${sortedParams.slice(0, 10).map(p => {
+              const v = Number(p.value || 0);
+              const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
+              return `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="width:6px;height:6px;border-radius:full;background-color:${rollupColor(p.seriesName)};"></div>
+                    <span style="font-size:11px;color:#F5F7F8;">${p.seriesName}</span>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:baseline;">
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:bold;color:#F5F7F8;">${formatNumber(v)}</span>
+                    <span style="font-size:9px;color:#8FA1A8;width:35px;text-align:right;">${pct}%</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+            ${params.length > 10 ? `<div style="font-size:9px;color:#8FA1A8;text-align:center;">+ ${params.length - 10} more rollups</div>` : ''}
+            <div style="border-top:1px solid rgba(255,255,255,0.05);margin-top:4px;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;font-weight:bold;color:#F5F7F8;text-transform:uppercase;letter-spacing:0.05em;">Total</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:bold;color:#00A7B5;">${formatNumber(total)}</span>
+            </div>
           </div>
-        </div>`;
+        `;
       },
     },
-    legend: { show: false },
+    legend: {
+      ...t.legend,
+      top: 0,
+      type: 'scroll',
+      icon: 'circle',
+    },
+    dataZoom: t.dataZoom,
     series: rollups.map((rollup) => ({
       name: rollup,
       type: "bar" as const,
       stack: "blobs",
-      barMaxWidth: 28,
+      barMaxWidth: 32,
       itemStyle: { color: rollupColor(rollup) },
       emphasis: { focus: "series" as const },
       data: dayKeys.map((day) => byDay.get(day)?.get(rollup) ?? 0),
     })),
   };
 
-  return <ReactECharts option={option} style={{ height: "340px", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "400px", width: "100%" }} opts={{ renderer: 'svg' }} />;
 }

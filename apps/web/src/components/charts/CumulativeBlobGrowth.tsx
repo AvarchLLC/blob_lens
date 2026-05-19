@@ -2,6 +2,7 @@
 
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
+import { watermarkGraphic } from "@/lib/chartTheme";
 
 function shortHour(iso: string) {
   const d = new Date(iso);
@@ -28,8 +29,9 @@ export function CumulativeBlobGrowth({ data }: Props) {
   const option = {
     animation: true,
     animationEasing: "cubicOut" as const,
-    animationDuration: 800,
-    grid: { top: 8, right: 8, bottom: 24, left: 0, containLabel: true },
+    animationDuration: 700,
+    graphic: watermarkGraphic,
+    grid: { top: 16, right: 16, bottom: 24, left: 0, containLabel: true },
     xAxis: {
       type: "category" as const,
       data: labels,
