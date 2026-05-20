@@ -1,6 +1,7 @@
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader, PageSection } from "@/components/shared/PageHeader";
-import { formatUsd, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
+import { formatUsd } from "@/lib/ethPrice";
 import { getRWATokens } from "@/lib/queries";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
