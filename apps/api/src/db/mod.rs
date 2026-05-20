@@ -104,6 +104,87 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .await?;
 
     sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS regime_alerts (
+            id          SERIAL PRIMARY KEY,
+            webhook_url TEXT NOT NULL,
+            label       TEXT NOT NULL DEFAULT '',
+            min_regime  TEXT NOT NULL DEFAULT 'congested',
+            last_fired_regime TEXT,
+            last_fired_at     TIMESTAMPTZ,
+            enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // PHASE 1A: RWA Token Valuation
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS rwa_tokens (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            symbol VARCHAR UNIQUE NOT NULL,
+            name VARCHAR NOT NULL,
+            contract_addresses JSONB NOT NULL,
+            decimals INT NOT NULL DEFAULT 18,
+            coingecko_id VARCHAR,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS rwa_token_prices (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            rwa_token_id UUID REFERENCES rwa_tokens(id),
+            chain VARCHAR NOT NULL,
+            price_usd DECIMAL(28, 8) NOT NULL,
+            market_cap_usd DECIMAL(28, 2),
+            volume_24h_usd DECIMAL(28, 2),
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // PHASE 1B: ETH Liquidity Distribution
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS eth_liquidity_categories (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            category VARCHAR UNIQUE NOT NULL,
+            address_list TEXT[] NOT NULL,
+            description TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS eth_liquidity_snapshot (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            category VARCHAR NOT NULL,
+            balance_eth DECIMAL(28, 8) NOT NULL,
+            balance_usd DECIMAL(28, 2) NOT NULL,
+            num_addresses INT NOT NULL,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
         r#"CREATE INDEX IF NOT EXISTS idx_blob_transactions_rollup ON blob_transactions(rollup)"#,
     )
     .execute(&pool)

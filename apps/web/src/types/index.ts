@@ -127,3 +127,24 @@ export interface RegimeAlert {
   enabled: boolean;
   created_at: string;
 }
+
+export interface RWAToken {
+  id: string;
+  symbol: string;
+  name: string;
+  contract_addresses: Record<string, string>;
+  decimals: number;
+  coingecko_id: string | null;
+  price_usd: number | null;
+  market_cap_usd: number | null;
+  volume_24h_usd: number | null;
+  updated_at: string | null;
+}
+
+export interface ETHLiquiditySnapshot {
+  category: string;
+  balance_eth: number;
+  balance_usd: number;
+  num_addresses: number;
+  timestamp: string;
+}

@@ -232,19 +232,19 @@ export default async function OverviewPage() {
           <h2 className="text-lg font-bold text-text-primary tracking-tight">Market Structure</h2>
           <p className="text-xs text-text-secondary opacity-70">Demand density and ecosystem distribution.</p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           {/* Blobs per Block */}
-          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col min-h-[420px]">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
               Demand Density
             </h3>
-            <div className="h-[280px] flex-1">
+            <div className="flex-1">
               <BlobsPerBlockChart data={market24h} />
             </div>
           </div>
 
           {/* Rollup Share */}
-          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col min-h-[420px]">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
               Who Contributes
             </h3>
@@ -281,16 +281,16 @@ export default async function OverviewPage() {
         </div>
 
         {/* Below: 2-col */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           {ethUsd != null && (
-            <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+            <div className="bg-surface border border-border rounded-xl p-6 flex flex-col min-h-[340px]">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
                 Cost Heatmap (7d × 24h)
               </h3>
               <div className="flex-1"><CostHeatmap data={market} ethUsd={ethUsd} /></div>
             </div>
           )}
-          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col">
+          <div className="bg-surface border border-border rounded-xl p-6 flex flex-col min-h-[340px]">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
               Utilization Trend
             </h3>
@@ -311,10 +311,10 @@ export default async function OverviewPage() {
           <h2 className="text-lg font-bold text-text-primary tracking-tight">Efficiency Intelligence</h2>
           <p className="text-xs text-text-secondary opacity-70">Cross-rollup cost vs. utilization analysis. Bubble size indicates volume.</p>
         </div>
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
           {/* Left: Scatter */}
           <div className="xl:col-span-7">
-            <div className="bg-surface border border-border rounded-xl p-6">
+            <div className="bg-surface border border-border rounded-xl p-6 h-full min-h-[460px]">
               <EfficiencyScatterplot data={leaderboard} />
             </div>
           </div>

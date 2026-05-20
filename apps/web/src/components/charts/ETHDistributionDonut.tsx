@@ -1,17 +1,24 @@
 "use client";
 
 import { getChartTheme, watermarkGraphic, animationConfig } from "@/lib/chartTheme";
-import { rollupColor } from "@/lib/utils";
-import type { LeaderboardRow } from "@/types";
+import type { ETHLiquiditySnapshot } from "@/types";
 import ReactECharts from "echarts-for-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 interface Props {
-  data: LeaderboardRow[];
+  data: ETHLiquiditySnapshot[];
 }
 
-export function RollupShareDonut({ data }: Props) {
+const CAT_COLORS: Record<string, string> = {
+  staked: "#00A86B",
+  cex: "#3B82F6",
+  enterprise: "#F5A524",
+  bridges: "#8B5CF6",
+  other: "#71717A",
+};
+
+export function ETHDistributionDonut({ data }: Props) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -24,24 +31,7 @@ export function RollupShareDonut({ data }: Props) {
   const isDark = theme !== "light";
   const t = getChartTheme(isDark);
 
-  const grandTotal = data.reduce((s, d) => s + Number(d.total_blobs), 0);
-
-  const named: { name: string; value: number }[] = [];
-  let otherValue = 0;
-
-  for (const d of data) {
-    const v = Number(d.total_blobs);
-    const pct = grandTotal > 0 ? v / grandTotal : 0;
-    if (d.rollup === "UNKNOWN" || pct < 0.01) {
-      otherValue += v;
-    } else {
-      named.push({ name: d.rollup, value: v });
-    }
-  }
-
-  named.sort((a, b) => b.value - a.value);
-  const chartData = otherValue > 0 ? [...named, { name: "Other", value: otherValue }] : named;
-  const total = grandTotal;
+  const grandTotal = data.reduce((s, d) => s + d.balance_eth, 0);
 
   const option = {
     ...animationConfig,
@@ -49,7 +39,7 @@ export function RollupShareDonut({ data }: Props) {
       trigger: "item" as const,
       ...t.tooltip,
       formatter: (params: { name: string; value: number; percent: number }) =>
-        `<b>${params.name}</b><br/>${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)`,
+        `<b>${params.name.toUpperCase()}</b><br/>${params.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ETH (${params.percent.toFixed(1)}%)`,
     },
     graphic: [
       ...watermarkGraphic,
@@ -58,7 +48,7 @@ export function RollupShareDonut({ data }: Props) {
         left: "center",
         top: "42%",
         style: {
-          text: total.toLocaleString(),
+          text: grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }),
           fill: isDark ? "#F0F4F5" : "#0D1618",
           fontSize: 17,
           fontWeight: "700",
@@ -71,7 +61,7 @@ export function RollupShareDonut({ data }: Props) {
         left: "center",
         top: "53%",
         style: {
-          text: "TOTAL BLOBS",
+          text: "INDEXED ETH",
           fill: isDark ? "#7E9098" : "#5C7077",
           fontSize: 10,
           fontFamily: "Space Grotesk, system-ui",
@@ -85,11 +75,11 @@ export function RollupShareDonut({ data }: Props) {
         radius: ["62%", "80%"],
         padAngle: 2,
         center: ["50%", "50%"],
-        data: chartData.map((d) => ({
-          name: d.name,
-          value: d.value,
+        data: data.map((d) => ({
+          name: d.category,
+          value: d.balance_eth,
           itemStyle: {
-            color: d.name === "Other" ? (isDark ? "#374151" : "#CBD5E1") : rollupColor(d.name),
+            color: CAT_COLORS[d.category] || CAT_COLORS.other,
           },
         })),
         label: { show: false },

@@ -3,6 +3,7 @@ import * as d3 from "d3";
 import type { RollupNetworkGraph as NetworkGraphType } from "@/lib/queries";
 import { formatNumber } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 // ── Logo map ───────────────────────────────────────────────────────────────
 const LOGOS: Record<string, string> = {
@@ -140,6 +141,8 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const animRef = useRef<number>(0);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; node: GNode } | null>(null);
+  const { theme } = useTheme();
+  const isDark = theme !== "light";
 
   useEffect(() => {
     if (!containerRef.current || !svgRef.current || !data.nodes.length) return;
@@ -232,7 +235,7 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
     const tf = defs.append("filter").attr("id", "txt-shadow")
       .attr("x", "-20%").attr("y", "-20%").attr("width", "140%").attr("height", "140%");
     tf.append("feDropShadow").attr("dx", 0).attr("dy", 1)
-      .attr("stdDeviation", 2.5).attr("flood-color", "#000").attr("flood-opacity", 0.8);
+      .attr("stdDeviation", isDark ? 2.5 : 1.5).attr("flood-color", isDark ? "#000" : "#fff").attr("flood-opacity", isDark ? 0.8 : 0.9);
 
     // ── Per-node: radial gradient + circular clip path ─────────────────────
     nodes.forEach((n) => {
@@ -435,8 +438,10 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
       </div>
 
       {/* Efficiency halo legend */}
-      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-lg border border-white/8 bg-black/55 px-3 py-2.5 backdrop-blur-sm pointer-events-none">
-        <p className="text-[9px] uppercase tracking-[0.13em] text-muted-foreground/50 mb-0.5">
+      <div className={`absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 backdrop-blur-sm pointer-events-none ${
+        isDark ? "border-white/8 bg-black/55" : "border-border bg-white/80"
+      }`}>
+        <p className="text-[9px] uppercase tracking-[0.13em] text-text-secondary/50 mb-0.5">
           Efficiency halo
         </p>
         {[
@@ -450,25 +455,27 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
               className="h-2 w-2 rounded-full shrink-0"
               style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
             />
-            <span className="font-mono text-[9px] text-muted-foreground/70">{label}</span>
+            <span className="font-mono text-[9px] text-text-secondary/70">{label}</span>
           </div>
         ))}
       </div>
 
       {/* Edge type legend */}
-      <div className="absolute bottom-8 right-3 z-10 flex flex-col gap-1.5 rounded-lg border border-white/8 bg-black/55 px-3 py-2 backdrop-blur-sm pointer-events-none">
+      <div className={`absolute bottom-8 right-3 z-10 flex flex-col gap-1.5 rounded-lg border px-3 py-2 backdrop-blur-sm pointer-events-none ${
+        isDark ? "border-white/8 bg-black/55" : "border-border bg-white/80"
+      }`}>
         <div className="flex items-center gap-2">
-          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2" strokeDasharray="4 3"/></svg>
-          <span className="font-mono text-[9px] text-muted-foreground/60">ETH spoke</span>
+          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke={isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)"} strokeWidth="1.2" strokeDasharray="4 3"/></svg>
+          <span className="font-mono text-[9px] text-text-secondary/60">ETH spoke</span>
         </div>
         <div className="flex items-center gap-2">
           <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="#0052FF" strokeWidth="2" strokeDasharray="6 4"/></svg>
-          <span className="font-mono text-[9px] text-muted-foreground/60">co-occurrence ›</span>
+          <span className="font-mono text-[9px] text-text-secondary/60">co-occurrence ›</span>
         </div>
       </div>
 
       {/* Hint */}
-      <p className="absolute bottom-3 left-3 z-10 text-[9px] text-muted-foreground/30 pointer-events-none">
+      <p className="absolute bottom-3 left-3 z-10 text-[9px] text-text-secondary/30 pointer-events-none">
         Drag nodes · Scroll to zoom · Hover for details
       </p>
 
@@ -484,7 +491,9 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
         const top  = tooltip.y + TH + 5 > vh ? tooltip.y - TH - 5 : tooltip.y + 5;
         return (
         <div
-          className="fixed z-30 rounded-xl border border-white/10 bg-black/80 px-4 py-3 backdrop-blur-md pointer-events-none shadow-xl"
+          className={`fixed z-30 rounded-xl border px-4 py-3 backdrop-blur-md pointer-events-none shadow-xl ${
+            isDark ? "border-white/10 bg-black/80" : "border-border bg-white/90"
+          }`}
           style={{ left, top, minWidth: 200 }}
         >
           <div className="flex items-center gap-2.5 mb-3">
@@ -501,17 +510,17 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
             </span>
           </div>
           <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-[11px] font-mono">
-            <span className="text-muted-foreground">Blobs (24h)</span>
+            <span className="text-text-secondary">Blobs (24h)</span>
             <span className="text-[#00df81] font-semibold">{formatNumber(tooltip.node.value)}</span>
-            <span className="text-muted-foreground">Efficiency</span>
+            <span className="text-text-secondary">Efficiency</span>
             <span style={{ color: effColor(tooltip.node.efficiency) }} className="font-semibold">
               {tooltip.node.efficiency.toFixed(1)}
             </span>
-            <span className="text-muted-foreground">Avg fee</span>
+            <span className="text-text-secondary">Avg fee</span>
             <span className="text-amber-400">{tooltip.node.avgFeeGwei.toFixed(5)} gwei</span>
-            <span className="text-muted-foreground">Transactions</span>
-            <span className="text-muted-foreground">{tooltip.node.txCount}</span>
-            <span className="text-muted-foreground">DA cost</span>
+            <span className="text-text-secondary">Transactions</span>
+            <span className="text-text-secondary">{tooltip.node.txCount}</span>
+            <span className="text-text-secondary">DA cost</span>
             <span className="text-indigo-400">{tooltip.node.costEth.toFixed(4)} ETH</span>
           </div>
         </div>

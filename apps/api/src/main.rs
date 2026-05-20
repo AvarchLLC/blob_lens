@@ -1,6 +1,6 @@
 mod api;
 
-use blob_lens::{db, services::blob_parser};
+use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution}};
 use dotenvy::dotenv;
 use std::env;
 use axum::Router;
@@ -45,12 +45,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start blob listener with auto-retry so the HTTP server stays alive
     // even when the Alchemy WebSocket connection drops or errors.
+    let pool_for_blobs = pool.clone();
     let blob_handle = tokio::spawn(async move {
         let mut attempt: u32 = 0;
         loop {
             attempt += 1;
             tracing::info!("Starting blob transaction listener (attempt {})...", attempt);
-            match blob_parser::fetch_blob(&pool).await {
+            match blob_parser::fetch_blob(&pool_for_blobs).await {
                 Ok(_)  => tracing::warn!("Blob parser exited cleanly; reconnecting in 30s"),
                 Err(e) => tracing::error!("Blob parser error: {}; reconnecting in 30s", e),
             }
@@ -58,11 +59,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Start persistent alert worker
+    let pool_for_alerts = pool.clone();
+    let alert_handle = tokio::spawn(async move {
+        alerts::run_alert_worker(pool_for_alerts).await;
+    });
+
+    // Start RWA indexer
+    let pool_for_rwa = pool.clone();
+    let rwa_handle = tokio::spawn(async move {
+        rwa_indexer::run_rwa_indexer(pool_for_rwa).await;
+    });
+
+    // Start ETH distribution indexer
+    let pool_for_eth = pool.clone();
+    let eth_handle = tokio::spawn(async move {
+        eth_distribution::run_eth_distribution_indexer(pool_for_eth).await;
+    });
+
     // Only the API server exiting should bring down the process.
     // The blob handle is an infinite retry loop and never resolves.
     tokio::select! {
-        _ = api_handle  => tracing::error!("API server stopped unexpectedly"),
-        _ = blob_handle => tracing::error!("Blob parser task stopped unexpectedly"),
+        _ = api_handle   => tracing::error!("API server stopped unexpectedly"),
+        _ = blob_handle  => tracing::error!("Blob parser task stopped unexpectedly"),
+        _ = alert_handle => tracing::error!("Alert worker task stopped unexpectedly"),
+        _ = rwa_handle   => tracing::error!("RWA indexer task stopped unexpectedly"),
+        _ = eth_handle   => tracing::error!("ETH distribution indexer task stopped unexpectedly"),
     }
 
     Ok(())
