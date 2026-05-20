@@ -1,6 +1,6 @@
 mod api;
 
-use blob_lens::{db, services::{alerts, blob_parser}};
+use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution}};
 use dotenvy::dotenv;
 use std::env;
 use axum::Router;
@@ -65,12 +65,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         alerts::run_alert_worker(pool_for_alerts).await;
     });
 
+    // Start RWA indexer
+    let pool_for_rwa = pool.clone();
+    let rwa_handle = tokio::spawn(async move {
+        rwa_indexer::run_rwa_indexer(pool_for_rwa).await;
+    });
+
+    // Start ETH distribution indexer
+    let pool_for_eth = pool.clone();
+    let eth_handle = tokio::spawn(async move {
+        eth_distribution::run_eth_distribution_indexer(pool_for_eth).await;
+    });
+
     // Only the API server exiting should bring down the process.
     // The blob handle is an infinite retry loop and never resolves.
     tokio::select! {
         _ = api_handle   => tracing::error!("API server stopped unexpectedly"),
         _ = blob_handle  => tracing::error!("Blob parser task stopped unexpectedly"),
         _ = alert_handle => tracing::error!("Alert worker task stopped unexpectedly"),
+        _ = rwa_handle   => tracing::error!("RWA indexer task stopped unexpectedly"),
+        _ = eth_handle   => tracing::error!("ETH distribution indexer task stopped unexpectedly"),
     }
 
     Ok(())

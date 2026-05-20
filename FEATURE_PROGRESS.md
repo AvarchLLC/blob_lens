@@ -107,7 +107,27 @@ Phase 4 — Market Health Layer (Gap 2)                       COMPLETE
 ✅ Webhook alert panel + CRUD
 ✅ Alert firing with threshold + cooldown logic
 ✅ Persistent server-side alert worker (Rust)
+
+Phase 5 — Market Intelligence (Expansion)                   IN PROGRESS
+─────────────────────────────────────────────────────────────────────
+✅ RWA Token Valuation (Phase 1A)
+✅ ETH Liquidity Distribution (Phase 1B)
+⏳ Whale Watch indexing (Phase 2A)
+⏳ OFAC Sanctions List (Phase 2B)
 ```
+
+---
+
+## Phase 5: Market Intelligence (Expansion Roadmap)
+
+### Status: ~50% complete (Phase 1 Delivered)
+
+| Feature | Status | Where |
+|---|---|---|
+| **RWA Token Valuation** | **Done** | `rwa_tokens` table, `rwa_indexer.rs`, `/rwa` page |
+| **ETH Liquidity Distribution** | **Done** | `eth_liquidity_snapshot` table, `eth_distribution.rs`, `/eth-liquidity` page |
+| Whale Watch (Leaderboard) | **In Progress** | Schema defined, indexing strategy in Plan.md |
+| OFAC Sanctions List | **Planned** | Compliance tracking features |
 
 ---
 
@@ -115,15 +135,10 @@ Phase 4 — Market Health Layer (Gap 2)                       COMPLETE
 
 | Item | Effort | Priority |
 |---|---|---|
-| Cost-per-byte metric in leaderboard | ~2h | High — closes the most cited gap claim |
-| Persistent alert background worker | ~4h | High — makes alerts work without a browser open |
-| Per-rollup coordination opportunity score (from existing co-occurrence data) | ~4h | Medium — data already exists, needs promotion to leaderboard column |
 | Self-hostable scoring engine (Docker) | ~1d | Low — nice-to-have for operator adoption |
 | Amortized DA cost per L2 tx | TBD | Blocked on external L2 tx count data source |
-
-**To fully close Gap 2:** ~4h (one persistent worker task).
-
-**To fully close Gap 1 (excluding blocked item):** ~1–2 days of implementation.
+| Whale Watch (Leaderboard) | ~2w | High — Background indexing |
+| OFAC Sanctions List | ~1w | Medium — Compliance module |
 
 ---
 

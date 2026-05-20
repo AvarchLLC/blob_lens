@@ -62,6 +62,29 @@ pub struct UnknownTopQuery {
     pub limit: Option<i64>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RWAToken {
+    pub id: uuid::Uuid,
+    pub symbol: String,
+    pub name: String,
+    pub contract_addresses: serde_json::Value,
+    pub decimals: i32,
+    pub coingecko_id: Option<String>,
+    pub price_usd: Option<f64>,
+    pub market_cap_usd: Option<f64>,
+    pub volume_24h_usd: Option<f64>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ETHLiquiditySnapshot {
+    pub category: String,
+    pub balance_eth: f64,
+    pub balance_usd: f64,
+    pub num_addresses: i32,
+    pub timestamp: String,
+}
+
 // GET /api/stats
 async fn stats_handler(State(pool): State<PgPool>) -> Result<Json<StatsResponse>, StatusCode> {
     let row: (i64, i64, Option<f64>) = sqlx::query_as(
@@ -249,6 +272,79 @@ async fn unknown_top_handler(
     Ok(Json(stats))
 }
 
+// GET /api/rwa/tokens
+async fn rwa_tokens_handler(State(pool): State<PgPool>) -> Result<Json<Vec<RWAToken>>, StatusCode> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT 
+            t.id, t.symbol, t.name, t.contract_addresses, t.decimals, t.coingecko_id,
+            p.price_usd, p.market_cap_usd, p.volume_24h_usd, p.timestamp::text as updated_at
+        FROM rwa_tokens t
+        LEFT JOIN (
+            SELECT DISTINCT ON (rwa_token_id) *
+            FROM rwa_token_prices
+            ORDER BY rwa_token_id, timestamp DESC
+        ) p ON t.id = p.rwa_token_id
+        ORDER BY p.market_cap_usd DESC NULLS LAST
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("rwa_tokens_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let tokens = rows
+        .into_iter()
+        .map(|row| RWAToken {
+            id: row.id,
+            symbol: row.symbol,
+            name: row.name,
+            contract_addresses: row.contract_addresses,
+            decimals: row.decimals,
+            coingecko_id: row.coingecko_id,
+            price_usd: row.price_usd.map(|d| d.to_string().parse().unwrap_or(0.0)),
+            market_cap_usd: row.market_cap_usd.map(|d| d.to_string().parse().unwrap_or(0.0)),
+            volume_24h_usd: row.volume_24h_usd.map(|d| d.to_string().parse().unwrap_or(0.0)),
+            updated_at: row.updated_at,
+        })
+        .collect();
+
+    Ok(Json(tokens))
+}
+
+// GET /api/eth-distribution
+async fn eth_distribution_handler(State(pool): State<PgPool>) -> Result<Json<Vec<ETHLiquiditySnapshot>>, StatusCode> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT DISTINCT ON (category) 
+            category, balance_eth, balance_usd, num_addresses, timestamp::text
+        FROM eth_liquidity_snapshot
+        ORDER BY category, timestamp DESC
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("eth_distribution_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let snapshots = rows
+        .into_iter()
+        .map(|row| ETHLiquiditySnapshot {
+            category: row.category,
+            balance_eth: row.balance_eth.to_string().parse().unwrap_or(0.0),
+            balance_usd: row.balance_usd.to_string().parse().unwrap_or(0.0),
+            num_addresses: row.num_addresses,
+            timestamp: row.timestamp.unwrap_or_default(),
+        })
+        .collect();
+
+    Ok(Json(snapshots))
+}
+
 // GET /health
 async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
@@ -262,6 +358,8 @@ pub fn api_router(pool: PgPool) -> Router {
         .route("/api/blobs/unknown-top", get(unknown_top_handler))
         .route("/api/activity/hourly", get(activity_hourly_handler))
         .route("/api/fees/trend", get(fee_trend_handler))
+        .route("/api/rwa/tokens", get(rwa_tokens_handler))
+        .route("/api/eth-distribution", get(eth_distribution_handler))
         .route("/health", get(health_handler))
         .with_state(pool)
 }

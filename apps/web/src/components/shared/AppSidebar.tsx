@@ -18,6 +18,8 @@ import {
     X,
     ExternalLink,
     BookOpen,
+    Landmark,
+    Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSectionObserver } from '@/lib/useSectionObserver';
@@ -78,6 +80,21 @@ const NAV_GROUPS: NavGroup[] = [
                     { label: 'Rollup Rankings', sectionId: 'rollup-leaderboard' },
                 ],
             },
+        ],
+    },
+    {
+        label: 'Market Intelligence',
+        items: [
+            {
+                href: '/rwa',
+                label: 'RWA Valuation',
+                icon: Landmark,
+            },
+            {
+                href: '/eth-liquidity',
+                label: 'ETH Liquidity',
+                icon: Wallet,
+            },
             {
                 href: '/market',
                 label: 'Market Intel',
@@ -91,6 +108,11 @@ const NAV_GROUPS: NavGroup[] = [
                     { label: 'Network Graph', sectionId: 'ecosystem-relationships' },
                 ],
             },
+        ],
+    },
+    {
+        label: 'Research',
+        items: [
             {
                 href: '/research',
                 label: 'Deep Research',
