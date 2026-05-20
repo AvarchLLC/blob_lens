@@ -1,8 +1,10 @@
 "use client";
 
+import { getChartTheme, animationConfig } from "@/lib/chartTheme";
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
-import { watermarkGraphic } from "@/lib/chartTheme";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 function shortHour(iso: string) {
   const d = new Date(iso);
@@ -14,49 +16,50 @@ interface Props {
 }
 
 export function BlobUtilizationChart({ data }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
+    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;
+
+  const isDark = theme !== "light";
+  const t = getChartTheme(isDark);
 
   const labels = data.map((d) => shortHour(d.hour));
   const values = data.map((d) => parseFloat(Number(d.avg_utilization).toFixed(1)));
 
   const option = {
-    animation: true,
-    animationEasing: "cubicOut" as const,
-    animationDuration: 600,
-    graphic: watermarkGraphic,
+    ...animationConfig,
+    backgroundColor: t.backgroundColor,
+    graphic: t.graphic,
     grid: { top: 16, right: 16, bottom: 24, left: 0, containLabel: true },
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { show: false },
+      ...t.axis,
       boundaryGap: false,
     },
     yAxis: {
       type: "value" as const,
       min: 0,
       max: 100,
+      ...t.axis,
       axisLabel: {
-        color: "#4B5563",
-        fontSize: 11,
-        fontFamily: "Space Grotesk, system-ui",
+        ...t.axis.axisLabel,
         formatter: (v: number) => `${v}%`,
       },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#1A2235",
-      borderColor: "rgba(16,185,129,0.2)",
-      borderWidth: 1,
-      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
-      formatter: (params: { axisValue: string; value: number }[]) =>
-        `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b>${params[0].value}%</b> avg utilization`,
+      ...t.tooltip,
+      formatter: (params: { axisValue: string; value: number }[]) => {
+        const ttText = isDark ? "#F0F4F5" : "#0D1618";
+        const ttMuted = isDark ? "#7E9098" : "#5C7077";
+        return `<span style="color:${ttMuted};font-size:11px">${params[0].axisValue}</span><br/><b style="color:${ttText}">${params[0].value}%</b> avg utilization`;
+      },
     },
     series: [
       {
@@ -78,10 +81,10 @@ export function BlobUtilizationChart({ data }: Props) {
         markLine: {
           silent: true,
           symbol: "none",
-          lineStyle: { color: "rgba(255,255,255,0.15)", type: "dashed" as const, width: 1 },
+          lineStyle: { color: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)", type: "dashed" as const, width: 1 },
           label: {
             formatter: "Target",
-            color: "#4B5563",
+            color: isDark ? "#7E9098" : "#5C7077",
             fontSize: 10,
             position: "end" as const,
           },
@@ -91,5 +94,5 @@ export function BlobUtilizationChart({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "280px", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: 'svg' }} />;
 }

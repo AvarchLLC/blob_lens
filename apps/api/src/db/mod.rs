@@ -104,6 +104,23 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .await?;
 
     sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS regime_alerts (
+            id          SERIAL PRIMARY KEY,
+            webhook_url TEXT NOT NULL,
+            label       TEXT NOT NULL DEFAULT '',
+            min_regime  TEXT NOT NULL DEFAULT 'congested',
+            last_fired_regime TEXT,
+            last_fired_at     TIMESTAMPTZ,
+            enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
         r#"CREATE INDEX IF NOT EXISTS idx_blob_transactions_rollup ON blob_transactions(rollup)"#,
     )
     .execute(&pool)

@@ -75,5 +75,5 @@ export function BlobsPerBlockChart({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "280px", width: "100%" }} opts={{ renderer: 'svg' }} />;
+  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: 'svg' }} />;
 }

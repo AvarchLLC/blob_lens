@@ -13,7 +13,7 @@ import * as React from "react";
 
 type SortKey = keyof Pick<
   LeaderboardRow,
-  "total_blobs" | "tx_count" | "avg_blobs_per_tx" | "avg_fee" | "da_cost_eth" | "packing_score" | "network_share_pct" | "efficiency_score" | "cost_per_byte_eth" | "coordination_score"
+  "total_blobs" | "tx_count" | "avg_blobs_per_tx" | "avg_fee" | "da_cost_eth" | "packing_score" | "network_share_pct" | "efficiency_score" | "cost_per_byte_eth" | "coordination_score" | "avg_fullness_pct"
 >;
 
 function FullnessBar({ pct }: { pct: number | null }) {
@@ -26,6 +26,22 @@ function FullnessBar({ pct }: { pct: number | null }) {
         <div className="h-full rounded-full transition-all" style={{ width: `${clamped}%`, backgroundColor: color }} />
       </div>
       <span className="font-mono text-[10px] font-bold" style={{ color }}>{clamped.toFixed(0)}%</span>
+    </div>
+  );
+}
+
+function CoordinationScore({ score }: { score: number | null }) {
+  if (score == null) return <span className="font-mono text-[10px] text-text-secondary opacity-30">—</span>;
+  const val = Math.min(100, Math.max(0, score));
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="h-1 w-8 overflow-hidden rounded-full bg-surface-elevated">
+        <div 
+          className="h-full rounded-full bg-primary opacity-60" 
+          style={{ width: `${val}%` }} 
+        />
+      </div>
+      <span className="font-mono text-[10px] font-bold text-text-secondary">{val.toFixed(0)}</span>
     </div>
   );
 }
@@ -140,8 +156,8 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
          </div>
          <button 
            onClick={() => {
-              const header = "Rollup,Total Blobs,TX Count,Avg Blobs/TX,Efficiency Score";
-              const lines = sorted.map(r => `${r.rollup},${r.total_blobs},${r.tx_count},${r.avg_blobs_per_tx},${r.efficiency_score}`);
+              const header = "Rollup,Total Blobs,TX Count,Avg Blobs/TX,Efficiency Score,Coordination Score,Cost per KB (ETH)";
+              const lines = sorted.map(r => `${r.rollup},${r.total_blobs},${r.tx_count},${r.avg_blobs_per_tx},${r.efficiency_score},${r.coordination_score ?? 0},${r.cost_per_byte_eth ?? 0}`);
               const csv = [header, ...lines].join("\n");
               const a = document.createElement("a");
               a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -163,10 +179,10 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
               <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary min-w-[200px]">Rollup</th>
               <th className={th} onClick={() => toggleSort("total_blobs")}>Blobs <SortIcon k="total_blobs" /></th>
               <th className={th} onClick={() => toggleSort("tx_count")}>TXs <SortIcon k="tx_count" /></th>
-              <th className={th} onClick={() => toggleSort("avg_blobs_per_tx")}>Avg/TX <SortIcon k="avg_blobs_per_tx" /></th>
-              <th className={th} onClick={() => toggleSort("packing_score")}>Packing <SortIcon k="packing_score" /></th>
               <th className={th} onClick={() => toggleSort("efficiency_score")}>Efficiency <SortIcon k="efficiency_score" /></th>
-              <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">Fullness</th>
+              <th className={th} onClick={() => toggleSort("coordination_score")}>Coordination <SortIcon k="coordination_score" /></th>
+              <th className={th} onClick={() => toggleSort("avg_fullness_pct")}>Fullness <SortIcon k="avg_fullness_pct" /></th>
+              <th className={th} onClick={() => toggleSort("cost_per_byte_eth")}>Cost/KB <SortIcon k="cost_per_byte_eth" /></th>
               <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">24H Trend</th>
               <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-secondary">Action</th>
             </tr>
@@ -184,18 +200,27 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
                   <td className="px-6 py-4"><RollupBadge rollup={row.rollup} linkable={false} /></td>
                   <td className="px-6 py-4 font-mono text-xs font-bold text-text-primary">{formatNumber(Number(row.total_blobs))}</td>
                   <td className="px-6 py-4 font-mono text-xs text-text-secondary opacity-60">{formatNumber(Number(row.tx_count))}</td>
-                  <td className="px-6 py-4 font-mono text-xs text-text-secondary opacity-60">{Number(row.avg_blobs_per_tx).toFixed(2)}</td>
-                  <td className="px-6 py-4">
-                    <PackingBar score={Number(row.packing_score)} />
-                  </td>
                   <td className="px-6 py-4">
                     <EfficiencyScore score={Number(row.efficiency_score)} />
+                  </td>
+                  <td className="px-6 py-4">
+                    <CoordinationScore score={row.coordination_score} />
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <FullnessBar pct={row.avg_fullness_pct} />
                       <GhostBadge count={Number(row.ghost_blob_count ?? 0)} />
                     </div>
+                  </td>
+                  <td className="px-6 py-4 font-mono text-[10px] text-text-secondary">
+                    {row.cost_per_byte_eth ? (
+                      <div className="flex flex-col">
+                        <span className="font-bold text-text-primary">{row.cost_per_byte_eth.toFixed(6)} ETH</span>
+                        {ethUsd && <span className="opacity-40 text-[8px]">{formatUsd(row.cost_per_byte_eth * ethUsd)}</span>}
+                      </div>
+                    ) : (
+                      <span className="opacity-20">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                      <div className="w-24 opacity-80 group-hover:opacity-100 transition-opacity">

@@ -65,7 +65,7 @@ export function EfficiencyScatterplot({ data }: Props) {
       itemStyle: {
         color: effColor(eff),
         opacity: 0.85,
-        borderColor: "rgba(255,255,255,0.15)",
+        borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)",
         borderWidth: 1,
       },
       name: r.rollup,
@@ -129,8 +129,10 @@ export function EfficiencyScatterplot({ data }: Props) {
   };
 
   return (
-    <div>
-      <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: "svg" }} />
+    <div className="flex flex-col h-full">
+      <div className="flex-1 min-h-[350px]">
+        <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: "svg" }} />
+      </div>
       {/* Legend */}
       <div className="flex items-center gap-4 mt-2 justify-center">
         {[

@@ -11,10 +11,10 @@ export function RollupBadge({ rollup, linkable = false }: Props) {
   const icon = rollupIcon(rollup);
   const color = rollupColor(rollup);
   const cls =
-    "inline-flex items-center gap-1.5 rounded-full border border-[#1E2D45] bg-[#1A2235] px-2 py-0.5 text-xs font-medium text-[#9CA3AF] transition-colors hover:border-[rgba(16,185,129,0.2)]";
+    "inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-elevated px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/20";
 
   const indicator = isUnknown ? (
-    <span className="inline-block text-[#4B5563] text-[0.65rem] leading-none shrink-0 font-medium">?</span>
+    <span className="inline-block text-text-secondary/60 text-[0.65rem] leading-none shrink-0 font-medium">?</span>
   ) : icon ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -33,7 +33,7 @@ export function RollupBadge({ rollup, linkable = false }: Props) {
   );
 
   const label = isUnknown ? (
-    <em className="not-italic italic text-[#4B5563]">Unknown</em>
+    <em className="not-italic italic text-text-secondary/60">Unknown</em>
   ) : (
     <span>{rollup}</span>
   );

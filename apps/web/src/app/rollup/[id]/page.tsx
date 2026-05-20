@@ -8,7 +8,7 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getEthPrice } from "@/lib/ethPrice";
+import { formatUsd, getEthPrice } from "@/lib/ethPrice";
 import { getLeaderboard, getMarketActivity, getRollupTransactions } from "@/lib/queries";
 import { formatNumber, timeAgo } from "@/lib/utils";
 import type { BlobTransaction, HourlyRollupValue, MarketHour } from "@/types";
@@ -22,9 +22,9 @@ interface Props {
 
 const REGIME_COLOR: Record<string, string> = {
   undersaturated: "#71717A",
-  healthy:        "#00A86B",
-  congested:      "#F5A524",
-  spike:          "#E5484D",
+  healthy: "#00A86B",
+  congested: "#F5A524",
+  spike: "#E5484D",
 };
 
 function toMarketHours(txs: BlobTransaction[]): MarketHour[] {
@@ -161,6 +161,8 @@ export default async function RollupPage({ params }: Props) {
   const packScore = thisRollupLb ? Number(thisRollupLb.packing_score) : null;
   const timeScore = thisRollupLb ? Number(thisRollupLb.timing_score) : null;
   const costGwei = thisRollupLb ? Number(thisRollupLb.cost_per_blob_gwei) : null;
+  const coordScore = thisRollupLb ? Number(thisRollupLb.coordination_score) : null;
+  const costPerByte = thisRollupLb ? Number(thisRollupLb.cost_per_byte_eth) : null;
 
   const effIsHigh = effScore != null && effScore >= 80;
   const effIsMid = effScore != null && effScore >= 50;
@@ -201,10 +203,10 @@ export default async function RollupPage({ params }: Props) {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        
+
         {/* Left Column */}
         <div className="xl:col-span-8 space-y-12">
-          
+
           <PageSection
             label="Performance"
             title="DA Efficiency Analysis"
@@ -246,15 +248,32 @@ export default async function RollupPage({ params }: Props) {
                     peerAvg={peerAvgTiming}
                     tooltip="Market timing relative to network average fee."
                   />
-                  {costGwei != null && (
-                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                      <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-text-secondary">Avg Cost / Blob</span>
-                      <div className="text-right">
-                        <span className="font-mono text-sm font-bold text-text-primary">{costGwei.toFixed(5)} Gwei</span>
-                        <p className="text-[10px] text-text-secondary opacity-40">vs {peerAvgCostGwei.toFixed(5)} avg</p>
+                  <ScoreBar
+                    label="Coordination"
+                    value={coordScore ?? 0}
+                    peerAvg={0}
+                    tooltip="Average co-occurrence weight with peer rollups. Higher indicates more regular coordination in same blocks."
+                  />
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
+                    {costGwei != null && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-text-secondary">Avg Cost / Blob</span>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-sm font-bold text-text-primary">{costGwei.toFixed(5)} Gwei</span>
+                          <p className="text-[10px] text-text-secondary opacity-40">vs {peerAvgCostGwei.toFixed(5)} avg</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {costPerByte != null && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-text-secondary">DA Cost / KB</span>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-sm font-bold text-text-primary">{costPerByte.toFixed(6)} ETH</span>
+                          {ethUsd && <p className="text-[10px] text-text-secondary opacity-40">~ {formatUsd(costPerByte * ethUsd)}</p>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -274,7 +293,7 @@ export default async function RollupPage({ params }: Props) {
                 <TabsTrigger value="fees" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Benchmarking</TabsTrigger>
                 <TabsTrigger value="transactions" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Raw Feed</TabsTrigger>
               </TabsList>
-              
+
               <div className="p-6">
                 <TabsContent value="activity" className="space-y-10 animate-fade-up m-0">
                   <div>
@@ -311,34 +330,34 @@ export default async function RollupPage({ params }: Props) {
 
         {/* Right Column */}
         <div className="xl:col-span-4 space-y-8">
-           <div className="p-8 surface border border-border space-y-6">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Sequencer Identity</h3>
-              <div className="space-y-4">
-                 <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest opacity-60">Registry Name</span>
-                    <span className="text-sm font-medium text-text-primary">{rollupName}</span>
-                 </div>
-                 <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest opacity-60">Status</span>
-                    <div className="flex items-center gap-2">
-                       <span className="h-2 w-2 rounded-full bg-status-healthy animate-pulse" />
-                       <span className="text-xs text-text-secondary font-medium">Tracking Active</span>
-                    </div>
-                 </div>
-                 <div className="pt-4 border-t border-border/50">
-                    <button className="w-full py-2.5 bg-surface-elevated border border-border hover:bg-surface transition-colors rounded-md text-[10px] font-bold uppercase tracking-widest text-text-primary">
-                       Export Rollup Data (CSV)
-                    </button>
-                 </div>
+          <div className="p-8 surface border border-border space-y-6">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Sequencer Identity</h3>
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest opacity-60">Registry Name</span>
+                <span className="text-sm font-medium text-text-primary">{rollupName}</span>
               </div>
-           </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest opacity-60">Status</span>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-status-healthy animate-pulse" />
+                  <span className="text-xs text-text-secondary font-medium">Tracking Active</span>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-border/50">
+                <button className="w-full py-2.5 bg-surface-elevated border border-border hover:bg-surface transition-colors rounded-md text-[10px] font-bold uppercase tracking-widest text-text-primary">
+                  Export Rollup Data (CSV)
+                </button>
+              </div>
+            </div>
+          </div>
 
-           <div className="p-8 border border-primary/20 bg-primary/5 rounded-xl">
-             <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary mb-3">Governance Impact</h3>
-             <p className="text-xs text-text-secondary leading-relaxed">
-               {rollupName}&apos;s batching strategy accounts for roughly {thisRollupLb ? Number(thisRollupLb.network_share_pct).toFixed(1) : '—'}% of total Ethereum blob volume. Optimization here directly impacts L1 state growth and fee burning.
-             </p>
-           </div>
+          <div className="p-8 border border-primary/20 bg-primary/5 rounded-xl">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary mb-3">Governance Impact</h3>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              {rollupName}&apos;s batching strategy accounts for roughly {thisRollupLb ? Number(thisRollupLb.network_share_pct).toFixed(1) : '—'}% of total Ethereum blob volume. Optimization here directly impacts L1 state growth and fee burning.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 # BlobLens — Feature Progress & ETA
 
-_Last updated: 2026-05-13_
+_Last updated: 2026-05-20_
 
 ---
 
@@ -18,7 +18,7 @@ No public system classifies the current market regime, forecasts congestion from
 
 ## Gap 1: Per-rollup DA Cost-Efficiency Scoring
 
-### Status: ~75% complete
+### Status: ~90% complete
 
 | Feature | Status | Where |
 |---|---|---|
@@ -30,18 +30,16 @@ No public system classifies the current market regime, forecasts congestion from
 | DA cost in ETH per rollup | **Done** | `da_cost_eth = SUM(blobs × base_fee × 131072) / 1e18`, in leaderboard |
 | Sortable leaderboard + CSV export | **Done** | `/leaderboard` page with all efficiency columns, CSV download |
 | Efficiency glow in network graph | **Done** | `RollupNetworkGraphD3` node border color = efficiency tier |
-| **Cost per byte actually used** | **Missing** | `bytes_used` is stored in DB per-tx but no query computes `da_cost_eth / bytes_used`; ratio not surfaced in any UI column |
+| **Cost per byte actually used** | **Done** | `cost_per_byte_eth` surfaced in leaderboard and per-rollup pages. |
 | Public REST API for leaderboard | **Done** | `GET /api/leaderboard?hours=N` returns full JSON (`{ data, updatedAt }`) with all efficiency columns — packing, timing, efficiency_score, da_cost_eth, avg_fullness_pct, network_share_pct (`apps/web/src/app/api/leaderboard/route.ts`) |
 | **Amortized DA cost per L2 transaction** | **Blocked** | Requires L2 transaction count per rollup — not in current schema, no external data source wired in |
-| **Blob coordination opportunity score (per-rollup)** | **Partial** | Co-occurrence between rollup pairs is computed in SQL as a `weight` (0–100) and drives edge thickness + opacity in `RollupNetworkGraphD3`. Not yet a per-rollup named metric or leaderboard column. |
+| **Blob coordination opportunity score (per-rollup)** | **Done** | `coordination_score` surfaced in leaderboard and per-rollup pages. |
 | **Self-hostable scoring engine** | **Not built** | Scoring logic is embedded in Next.js SQL queries, not a standalone Docker-composable service or epoch-updated feed |
 
 ### Remaining work
 
 | Task | Effort |
 |---|---|
-| Add `cost_per_byte` column to leaderboard query + UI | ~2h |
-| Promote co-occurrence `weight` into a per-rollup coordination score column | ~4h |
 | L2 tx amortized cost (needs external data source decision first) | TBD |
 | Self-hostable scoring engine / Docker-composable export | ~1d |
 
@@ -49,7 +47,7 @@ No public system classifies the current market regime, forecasts congestion from
 
 ## Gap 2: Live Blob Fee Market Health Layer
 
-### Status: ~90% complete
+### Status: ~100% complete
 
 | Feature | Status | Where |
 |---|---|---|
@@ -58,15 +56,13 @@ No public system classifies the current market regime, forecasts congestion from
 | Regime timeline strip | **Done** | `MarketRegimeTimeline` on `/`, `/market`, `/research` |
 | 4–12 slot congestion forecast | **Done** | `CongestionForecast` uses exact EIP-4844 formula at +4 / +8 / +12 / +25 / +50 blocks; `excess_blob_gas` slope adjusts projected utilization |
 | Regime alert panel (UI) | **Done** | `RegimeAlertPanel` on `/market` — CRUD for webhook URLs, threshold levels (Healthy+ / Congested+ / Spike), 1-minute cooldown |
-| Webhook alert firing | **Done** | `POST /api/alerts/check` fires webhooks when regime crosses threshold and changed since last fire; payload includes regime, fee_gwei, avg_blobs_per_block, timestamp |
+| Webhook alert firing | **Done** | `POST /api/alerts/check` and Rust background worker `alerts::run_alert_worker` |
 | Fee pressure indicator | **Done** | Rising / Stable / Falling label with color in `CongestionForecast` header |
-| **Persistent background alert worker** | **Missing** | Alert check is browser-triggered — `RegimeAlertPanel.tsx:50–51` polls `/api/alerts/check` every 30s only while the panel is open. If no browser session is active, no webhooks fire. Not a true push system for operators. |
+| **Persistent background alert worker** | **Done** | Implemented as a persistent Rust task in `apps/api/src/services/alerts.rs`. |
 
 ### Remaining work
 
-| Task | Effort |
-|---|---|
-| Server-side background worker for alert polling (Next.js cron route or Rust task) | ~4h |
+_None (Core goals reached)_
 
 ---
 
@@ -90,7 +86,7 @@ Phase 2 — Dashboard Core                                    COMPLETE
 ✅ Per-rollup page (stats, heatmap, tx table, blob viewer)
 ✅ Light/dark theme, mobile nav
 
-Phase 3 — Efficiency Scoring (Gap 1)                        ~65% DONE
+Phase 3 — Efficiency Scoring (Gap 1)                        ~90% DONE
 ─────────────────────────────────────────────────────────────────────
 ✅ Packing score (avg blobs/tx ÷ 6)
 ✅ Timing score (fee vs. network avg)
@@ -99,18 +95,18 @@ Phase 3 — Efficiency Scoring (Gap 1)                        ~65% DONE
 ✅ Fullness ratio per blob
 ✅ Ghost blob flag
 ✅ Public REST API for leaderboard (/api/leaderboard?hours=N → JSON)
-⚠️  Blob coordination score (co-occurrence computed, not per-rollup metric yet)  ~4h remaining
-❌ Cost-per-byte metric                               ~2h remaining
+✅ Blob coordination score (surfaced in UI)
+✅ Cost-per-byte metric (surfaced in UI)
 ❌ Amortized DA cost per L2 tx                        BLOCKED
 ❌ Self-hostable scoring engine                       ~1d remaining
 
-Phase 4 — Market Health Layer (Gap 2)                       ~90% DONE
+Phase 4 — Market Health Layer (Gap 2)                       COMPLETE
 ─────────────────────────────────────────────────────────────────────
 ✅ Regime classifier (4 states)
 ✅ Congestion forecast (EIP-4844 formula, 4-50 blocks)
 ✅ Webhook alert panel + CRUD
 ✅ Alert firing with threshold + cooldown logic
-❌ Persistent server-side alert worker                ~4h remaining
+✅ Persistent server-side alert worker (Rust)
 ```
 
 ---

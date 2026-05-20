@@ -1,19 +1,28 @@
 "use client";
 
-import { blobLensTheme } from "@/lib/echarts-theme";
+import { getChartTheme, watermarkGraphic, animationConfig } from "@/lib/chartTheme";
 import { rollupColor } from "@/lib/utils";
 import type { LeaderboardRow } from "@/types";
 import ReactECharts from "echarts-for-react";
-
-import { watermarkGraphic } from "@/lib/chartTheme";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 interface Props {
   data: LeaderboardRow[];
 }
 
 export function RollupShareDonut({ data }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
+    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;
+
+  const isDark = theme !== "light";
+  const t = getChartTheme(isDark);
 
   const grandTotal = data.reduce((s, d) => s + Number(d.total_blobs), 0);
 
@@ -35,12 +44,10 @@ export function RollupShareDonut({ data }: Props) {
   const total = grandTotal;
 
   const option = {
-    animation: true,
-    animationEasing: "cubicOut" as const,
-    animationDuration: 700,
+    ...animationConfig,
     tooltip: {
       trigger: "item" as const,
-      ...blobLensTheme.tooltip,
+      ...t.tooltip,
       formatter: (params: { name: string; value: number; percent: number }) =>
         `<b>${params.name}</b><br/>${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)`,
     },
@@ -52,7 +59,7 @@ export function RollupShareDonut({ data }: Props) {
         top: "42%",
         style: {
           text: total.toLocaleString(),
-          fill: "#F9FAFB",
+          fill: isDark ? "#F0F4F5" : "#0D1618",
           fontSize: 17,
           fontWeight: "700",
           fontFamily: "var(--font-geist-mono)",
@@ -65,7 +72,7 @@ export function RollupShareDonut({ data }: Props) {
         top: "53%",
         style: {
           text: "TOTAL BLOBS",
-          fill: "#4B5563",
+          fill: isDark ? "#7E9098" : "#5C7077",
           fontSize: 10,
           fontFamily: "Space Grotesk, system-ui",
           textAlign: "center",
@@ -82,7 +89,7 @@ export function RollupShareDonut({ data }: Props) {
           name: d.name,
           value: d.value,
           itemStyle: {
-            color: d.name === "Other" ? "#374151" : rollupColor(d.name),
+            color: d.name === "Other" ? (isDark ? "#374151" : "#CBD5E1") : rollupColor(d.name),
           },
         })),
         label: { show: false },
@@ -91,12 +98,12 @@ export function RollupShareDonut({ data }: Props) {
           scaleSize: 4,
           itemStyle: {
             shadowBlur: 16,
-            shadowColor: "rgba(0,0,0,0.4)",
+            shadowColor: isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.12)",
           },
         },
       },
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "280px", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />;
 }
