@@ -3,6 +3,12 @@ use std::time::Duration;
 use reqwest::Client;
 use std::env;
 
+#[derive(sqlx::FromRow)]
+struct CategoryRow {
+    category: String,
+    address_list: Vec<String>,
+}
+
 pub async fn run_eth_distribution_indexer(pool: Pool<Postgres>) {
     tracing::info!("📈 ETH distribution indexer started");
 
@@ -20,10 +26,9 @@ pub async fn run_eth_distribution_indexer(pool: Pool<Postgres>) {
 }
 
 async fn seed_eth_categories(pool: &Pool<Postgres>) -> eyre::Result<()> {
-    let count: i64 = sqlx::query_scalar!("SELECT COUNT(*) FROM eth_liquidity_categories")
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM eth_liquidity_categories")
         .fetch_one(pool)
-        .await?
-        .unwrap_or(0);
+        .await?;
 
     if count > 0 {
         return Ok(());
@@ -39,10 +44,12 @@ async fn seed_eth_categories(pool: &Pool<Postgres>) -> eyre::Result<()> {
     ];
 
     for (cat, addresses, desc) in categories {
-        sqlx::query!(
-            "INSERT INTO eth_liquidity_categories (category, address_list, description) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-            cat, &addresses, desc
+        sqlx::query(
+            "INSERT INTO eth_liquidity_categories (category, address_list, description) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
         )
+        .bind(cat)
+        .bind(&addresses)
+        .bind(desc)
         .execute(pool)
         .await?;
     }
@@ -51,11 +58,18 @@ async fn seed_eth_categories(pool: &Pool<Postgres>) -> eyre::Result<()> {
 }
 
 async fn update_eth_distribution(pool: &Pool<Postgres>) -> eyre::Result<()> {
-    let categories = sqlx::query!("SELECT category, address_list FROM eth_liquidity_categories")
+    let categories = sqlx::query_as::<_, CategoryRow>("SELECT category, address_list FROM eth_liquidity_categories")
         .fetch_all(pool)
         .await?;
 
-    let rpc_url = env::var("RPC_URL").expect("RPC_URL must be set");
+    let rpc_url = if let Ok(url) = env::var("RPC_URL") {
+        url
+    } else if let Ok(key) = env::var("ALCHEMY_KEY") {
+        format!("https://eth-mainnet.g.alchemy.com/v2/{}", key)
+    } else {
+        tracing::error!("Neither RPC_URL nor ALCHEMY_KEY set in .env for ETH distribution tracking");
+        return Ok(());
+    };
     let client = Client::new();
 
     // Fetch ETH price from CoinGecko for USD conversion
@@ -88,14 +102,14 @@ async fn update_eth_distribution(pool: &Pool<Postgres>) -> eyre::Result<()> {
         let balance_eth = total_balance_wei as f64 / 1e18;
         let balance_usd = balance_eth * eth_price_usd;
 
-        sqlx::query!(
+        sqlx::query(
             "INSERT INTO eth_liquidity_snapshot (category, balance_eth, balance_usd, num_addresses)
-             VALUES ($1, $2, $3, $4)",
-            cat.category,
-            balance_eth,
-            balance_usd,
-            cat.address_list.len() as i32
+             VALUES ($1, $2, $3, $4)"
         )
+        .bind(cat.category)
+        .bind(balance_eth)
+        .bind(balance_usd)
+        .bind(cat.address_list.len() as i32)
         .execute(pool)
         .await?;
     }

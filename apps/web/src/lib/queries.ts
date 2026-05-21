@@ -17,29 +17,39 @@ import type {
 import sql from "./db";
 
 export async function getRWATokens(): Promise<RWAToken[]> {
-  const rows = await sql<RWAToken[]>`
-    SELECT 
-        t.id::text, t.symbol, t.name, t.contract_addresses, t.decimals, t.coingecko_id,
-        p.price_usd::float8, p.market_cap_usd::float8, p.volume_24h_usd::float8, p.timestamp::text as updated_at
-    FROM rwa_tokens t
-    LEFT JOIN (
-        SELECT DISTINCT ON (rwa_token_id) *
-        FROM rwa_token_prices
-        ORDER BY rwa_token_id, timestamp DESC
-    ) p ON t.id = p.rwa_token_id
-    ORDER BY p.market_cap_usd DESC NULLS LAST
-  `;
-  return rows;
+  try {
+    const rows = await sql<RWAToken[]>`
+      SELECT 
+          t.id::text, t.symbol, t.name, t.contract_addresses, t.decimals, t.coingecko_id,
+          p.price_usd::float8, p.market_cap_usd::float8, p.volume_24h_usd::float8, p.timestamp::text as updated_at
+      FROM rwa_tokens t
+      LEFT JOIN (
+          SELECT DISTINCT ON (rwa_token_id) *
+          FROM rwa_token_prices
+          ORDER BY rwa_token_id, timestamp DESC
+      ) p ON t.id = p.rwa_token_id
+      ORDER BY p.market_cap_usd DESC NULLS LAST
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getRWATokens error (likely table not created yet):", e);
+    return [];
+  }
 }
 
 export async function getETHLiquidity(): Promise<ETHLiquiditySnapshot[]> {
-  const rows = await sql<ETHLiquiditySnapshot[]>`
-    SELECT DISTINCT ON (category) 
-        category, balance_eth::float8, balance_usd::float8, num_addresses, timestamp::text
-    FROM eth_liquidity_snapshot
-    ORDER BY category, timestamp DESC
-  `;
-  return rows;
+  try {
+    const rows = await sql<ETHLiquiditySnapshot[]>`
+      SELECT DISTINCT ON (category) 
+          category, balance_eth::float8, balance_usd::float8, num_addresses, timestamp::text
+      FROM eth_liquidity_snapshot
+      ORDER BY category, timestamp DESC
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getETHLiquidity error (likely table not created yet):", e);
+    return [];
+  }
 }
 
 export async function getOverviewStats(): Promise<OverviewStats> {
