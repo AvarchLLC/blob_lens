@@ -10,9 +10,9 @@ This roadmap expands beyond EIP-4844 blob data into broader Ethereum ecosystem i
 
 ## Feature Breakdown & Implementation Plan
 
-### PHASE 1: Foundational Features (Weeks 1-4)
+### PHASE 1: Foundational Features (Weeks 1-4) — COMPLETE
 
-#### Feature 1A: RWA Token Valuation (Week 1-2)
+#### Feature 1A: RWA Token Valuation (Week 1-2) — DONE
 
 **Goal**: Track USD value of Real-World Asset tokens across different chains (Ethereum, Arbitrum, Base, etc.).
 
@@ -72,7 +72,7 @@ This roadmap expands beyond EIP-4844 blob data into broader Ethereum ecosystem i
 
 ---
 
-#### Feature 1B: ETH Liquidity Distribution (Week 2-3)
+#### Feature 1B: ETH Liquidity Distribution (Week 2-3) — DONE
 
 **Goal**: Chart ETH holdings by category (staked, enterprise, personal wallets, CEX holdings, etc.).
 
@@ -138,7 +138,7 @@ This roadmap expands beyond EIP-4844 blob data into broader Ethereum ecosystem i
 
 ### PHASE 2: Wallet & Compliance Features (Weeks 3-6)
 
-#### Feature 2A: Wallet Ranking ("Whale Watch") (Week 3-4)
+#### Feature 2A: Wallet Ranking ("Whale Watch") (Week 3-4) — IN PROGRESS
 
 **Goal**: Interactive page ranking wallets by ETH holdings; gamified, fun presentation.
 

@@ -52,6 +52,23 @@ export async function getETHLiquidity(): Promise<ETHLiquiditySnapshot[]> {
   }
 }
 
+export async function getWhales(limit = 100): Promise<WhaleWallet[]> {
+  try {
+    const rows = await sql<WhaleWallet[]>`
+      SELECT 
+          id::text, address, balance_eth::float8, balance_usd::float8, 
+          label, category, is_verified, last_updated::text
+      FROM whale_wallets
+      ORDER BY balance_eth DESC
+      LIMIT ${limit}
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getWhales error (likely table not created yet):", e);
+    return [];
+  }
+}
+
 export async function getOverviewStats(): Promise<OverviewStats> {
   const rows = await sql<OverviewStats[]>`
     SELECT

@@ -126,7 +126,7 @@ Phase 5 — Market Intelligence (Expansion)                   IN PROGRESS
 |---|---|---|
 | **RWA Token Valuation** | **Done** | `rwa_tokens` table, `rwa_indexer.rs`, `/rwa` page |
 | **ETH Liquidity Distribution** | **Done** | `eth_liquidity_snapshot` table, `eth_distribution.rs`, `/eth-liquidity` page |
-| Whale Watch (Leaderboard) | **In Progress** | Schema defined, indexing strategy in Plan.md |
+| **Whale Watch (Leaderboard)** | **Done** | Base implementation: `whale_wallets` table, `whale_indexer.rs`, `/whale-watch` page. _Historical indexing ongoing._ |
 | OFAC Sanctions List | **Planned** | Compliance tracking features |
 
 ---

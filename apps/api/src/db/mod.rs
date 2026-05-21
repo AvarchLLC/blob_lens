@@ -184,6 +184,69 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .execute(&pool)
     .await?;
 
+    // PHASE 2A: Whale Watch
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS whale_wallets (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR UNIQUE NOT NULL,
+            balance_eth DECIMAL(28, 8) NOT NULL DEFAULT 0,
+            balance_usd DECIMAL(28, 2) NOT NULL DEFAULT 0,
+            label VARCHAR,
+            category VARCHAR DEFAULT 'unknown',
+            first_seen TIMESTAMPTZ DEFAULT NOW(),
+            last_updated TIMESTAMPTZ DEFAULT NOW(),
+            is_verified BOOLEAN DEFAULT FALSE,
+            community_tags TEXT[] DEFAULT '{}'
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS whale_wallet_snapshots (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR NOT NULL REFERENCES whale_wallets(address),
+            balance_eth DECIMAL(28, 8) NOT NULL,
+            rank INT,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS whale_activity_log (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR NOT NULL,
+            tx_hash VARCHAR NOT NULL,
+            from_addr VARCHAR NOT NULL,
+            to_addr VARCHAR NOT NULL,
+            amount_eth DECIMAL(28, 8) NOT NULL,
+            tx_type VARCHAR NOT NULL,
+            timestamp TIMESTAMPTZ NOT NULL
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_whale_wallets_balance ON whale_wallets(balance_eth DESC)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_whale_activity_address ON whale_activity_log(address)"#,
+    )
+    .execute(&pool)
+    .await?;
+
     sqlx::query(
         r#"CREATE INDEX IF NOT EXISTS idx_blob_transactions_rollup ON blob_transactions(rollup)"#,
     )

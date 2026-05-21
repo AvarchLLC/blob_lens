@@ -96,6 +96,11 @@ const NAV_GROUPS: NavGroup[] = [
                 icon: Wallet,
             },
             {
+                href: '/whale-watch',
+                label: 'Whale Watch',
+                icon: Activity,
+            },
+            {
                 href: '/market',
                 label: 'Market Intel',
                 icon: BarChart3,

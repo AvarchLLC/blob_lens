@@ -148,3 +148,23 @@ export interface ETHLiquiditySnapshot {
   num_addresses: number;
   timestamp: string;
 }
+
+export interface WhaleWallet {
+  id: string;
+  address: string;
+  balance_eth: number;
+  balance_usd: number;
+  label: string | null;
+  category: string | null;
+  is_verified: boolean;
+  last_updated: string;
+}
+
+export interface WhaleActivity {
+  tx_hash: string;
+  from_addr: string;
+  to_addr: string;
+  amount_eth: number;
+  tx_type: string;
+  timestamp: string;
+}

@@ -86,6 +86,33 @@ pub struct ETHLiquiditySnapshot {
     pub timestamp: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WhaleWallet {
+    pub id: uuid::Uuid,
+    pub address: String,
+    pub balance_eth: f64,
+    pub balance_usd: f64,
+    pub label: Option<String>,
+    pub category: Option<String>,
+    pub is_verified: bool,
+    pub last_updated: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WhaleActivity {
+    pub tx_hash: String,
+    pub from_addr: String,
+    pub to_addr: String,
+    pub amount_eth: f64,
+    pub tx_type: String,
+    pub timestamp: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct WhaleQuery {
+    pub limit: Option<i64>,
+}
+
 // GET /api/stats
 async fn stats_handler(State(pool): State<PgPool>) -> Result<Json<StatsResponse>, StatusCode> {
     let row: (i64, i64, Option<f64>) = sqlx::query_as(
@@ -346,6 +373,48 @@ async fn eth_distribution_handler(State(pool): State<PgPool>) -> Result<Json<Vec
     Ok(Json(snapshots))
 }
 
+// GET /api/whale-watch
+async fn whale_watch_handler(
+    State(pool): State<PgPool>,
+    Query(params): Query<WhaleQuery>,
+) -> Result<Json<Vec<WhaleWallet>>, StatusCode> {
+    let limit = params.limit.unwrap_or(100).clamp(1, 1000);
+
+    let rows: Vec<(uuid::Uuid, String, f64, f64, Option<String>, Option<String>, bool, String)> = sqlx::query_as(
+        r#"
+        SELECT 
+            id, address, balance_eth::FLOAT8, balance_usd::FLOAT8, 
+            label, category, is_verified, last_updated::text
+        FROM whale_wallets
+        ORDER BY balance_eth DESC
+        LIMIT $1
+        "#
+    )
+    .bind(limit)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("whale_watch_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let whales = rows
+        .into_iter()
+        .map(|row| WhaleWallet {
+            id: row.0,
+            address: row.1,
+            balance_eth: row.2,
+            balance_usd: row.3,
+            label: row.4,
+            category: row.5,
+            is_verified: row.6,
+            last_updated: row.7,
+        })
+        .collect();
+
+    Ok(Json(whales))
+}
+
 // GET /health
 async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
@@ -361,6 +430,7 @@ pub fn api_router(pool: PgPool) -> Router {
         .route("/api/fees/trend", get(fee_trend_handler))
         .route("/api/rwa/tokens", get(rwa_tokens_handler))
         .route("/api/eth-distribution", get(eth_distribution_handler))
+        .route("/api/whale-watch", get(whale_watch_handler))
         .route("/health", get(health_handler))
         .with_state(pool)
 }

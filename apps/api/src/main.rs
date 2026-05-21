@@ -1,6 +1,6 @@
 mod api;
 
-use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution}};
+use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution, whale_indexer}};
 use dotenvy::dotenv;
 use std::env;
 use axum::Router;
@@ -77,6 +77,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eth_distribution::run_eth_distribution_indexer(pool_for_eth).await;
     });
 
+    // Start Whale Watch indexer
+    let pool_for_whales = pool.clone();
+    let whale_handle = tokio::spawn(async move {
+        whale_indexer::run_whale_indexer(pool_for_whales).await;
+    });
+
     // Only the API server exiting should bring down the process.
     // The blob handle is an infinite retry loop and never resolves.
     tokio::select! {
@@ -85,6 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ = alert_handle => tracing::error!("Alert worker task stopped unexpectedly"),
         _ = rwa_handle   => tracing::error!("RWA indexer task stopped unexpectedly"),
         _ = eth_handle   => tracing::error!("ETH distribution indexer task stopped unexpectedly"),
+        _ = whale_handle => tracing::error!("Whale Watch indexer task stopped unexpectedly"),
     }
 
     Ok(())
