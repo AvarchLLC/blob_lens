@@ -1,14 +1,21 @@
 use sqlx::{Pool, Postgres};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::time::Duration;
 use reqwest::Client;
 use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 struct CoinGeckoPrice {
     usd: f64,
     usd_market_cap: f64,
     usd_24h_vol: f64,
+}
+
+#[derive(sqlx::FromRow)]
+struct TokenRow {
+    id: Uuid,
+    coingecko_id: Option<String>,
 }
 
 pub async fn run_rwa_indexer(pool: Pool<Postgres>) {
@@ -29,10 +36,9 @@ pub async fn run_rwa_indexer(pool: Pool<Postgres>) {
 }
 
 async fn seed_rwa_tokens(pool: &Pool<Postgres>) -> eyre::Result<()> {
-    let count: i64 = sqlx::query_scalar!("SELECT COUNT(*) FROM rwa_tokens")
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM rwa_tokens")
         .fetch_one(pool)
-        .await?
-        .unwrap_or(0);
+        .await?;
 
     if count > 0 {
         return Ok(());
@@ -49,10 +55,14 @@ async fn seed_rwa_tokens(pool: &Pool<Postgres>) -> eyre::Result<()> {
     ];
 
     for (symbol, name, cg_id, addresses, decimals) in tokens {
-        sqlx::query!(
-            "INSERT INTO rwa_tokens (symbol, name, coingecko_id, contract_addresses, decimals) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
-            symbol, name, cg_id, addresses, decimals as i32
+        sqlx::query(
+            "INSERT INTO rwa_tokens (symbol, name, coingecko_id, contract_addresses, decimals) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING"
         )
+        .bind(symbol)
+        .bind(name)
+        .bind(cg_id)
+        .bind(addresses)
+        .bind(decimals as i32)
         .execute(pool)
         .await?;
     }
@@ -61,7 +71,7 @@ async fn seed_rwa_tokens(pool: &Pool<Postgres>) -> eyre::Result<()> {
 }
 
 async fn update_rwa_prices(pool: &Pool<Postgres>, client: &Client) -> eyre::Result<()> {
-    let tokens = sqlx::query!("SELECT id, coingecko_id FROM rwa_tokens WHERE coingecko_id IS NOT NULL")
+    let tokens = sqlx::query_as::<_, TokenRow>("SELECT id, coingecko_id FROM rwa_tokens WHERE coingecko_id IS NOT NULL")
         .fetch_all(pool)
         .await?;
 
@@ -88,21 +98,21 @@ async fn update_rwa_prices(pool: &Pool<Postgres>, client: &Client) -> eyre::Resu
     for token in tokens {
         if let Some(cg_id) = &token.coingecko_id {
             if let Some(price_data) = prices.get(cg_id) {
-                sqlx::query!(
+                sqlx::query(
                     "INSERT INTO rwa_token_prices (rwa_token_id, chain, price_usd, market_cap_usd, volume_24h_usd)
-                     VALUES ($1, 'ethereum', $2, $3, $4)",
-                    token.id,
-                    price_data.usd as f64,
-                    price_data.usd_market_cap as f64,
-                    price_data.usd_24h_vol as f64
+                     VALUES ($1, 'ethereum', $2, $3, $4)"
                 )
+                .bind(token.id)
+                .bind(price_data.usd)
+                .bind(price_data.usd_market_cap)
+                .bind(price_data.usd_24h_vol)
                 .execute(pool)
                 .await?;
 
-                sqlx::query!(
-                    "UPDATE rwa_tokens SET updated_at = NOW() WHERE id = $1",
-                    token.id
+                sqlx::query(
+                    "UPDATE rwa_tokens SET updated_at = NOW() WHERE id = $1"
                 )
+                .bind(token.id)
                 .execute(pool)
                 .await?;
             }

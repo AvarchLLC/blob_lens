@@ -5,6 +5,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
+
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::error;
@@ -274,11 +275,11 @@ async fn unknown_top_handler(
 
 // GET /api/rwa/tokens
 async fn rwa_tokens_handler(State(pool): State<PgPool>) -> Result<Json<Vec<RWAToken>>, StatusCode> {
-    let rows = sqlx::query!(
+    let rows: Vec<(uuid::Uuid, String, String, serde_json::Value, i32, Option<String>, Option<f64>, Option<f64>, Option<f64>, Option<String>)> = sqlx::query_as(
         r#"
         SELECT 
             t.id, t.symbol, t.name, t.contract_addresses, t.decimals, t.coingecko_id,
-            p.price_usd, p.market_cap_usd, p.volume_24h_usd, p.timestamp::text as updated_at
+            p.price_usd::FLOAT8, p.market_cap_usd::FLOAT8, p.volume_24h_usd::FLOAT8, p.timestamp::text as updated_at
         FROM rwa_tokens t
         LEFT JOIN (
             SELECT DISTINCT ON (rwa_token_id) *
@@ -298,16 +299,16 @@ async fn rwa_tokens_handler(State(pool): State<PgPool>) -> Result<Json<Vec<RWATo
     let tokens = rows
         .into_iter()
         .map(|row| RWAToken {
-            id: row.id,
-            symbol: row.symbol,
-            name: row.name,
-            contract_addresses: row.contract_addresses,
-            decimals: row.decimals,
-            coingecko_id: row.coingecko_id,
-            price_usd: row.price_usd.map(|d| d.to_string().parse().unwrap_or(0.0)),
-            market_cap_usd: row.market_cap_usd.map(|d| d.to_string().parse().unwrap_or(0.0)),
-            volume_24h_usd: row.volume_24h_usd.map(|d| d.to_string().parse().unwrap_or(0.0)),
-            updated_at: row.updated_at,
+            id: row.0,
+            symbol: row.1,
+            name: row.2,
+            contract_addresses: row.3,
+            decimals: row.4,
+            coingecko_id: row.5,
+            price_usd: row.6,
+            market_cap_usd: row.7,
+            volume_24h_usd: row.8,
+            updated_at: row.9,
         })
         .collect();
 
@@ -316,10 +317,10 @@ async fn rwa_tokens_handler(State(pool): State<PgPool>) -> Result<Json<Vec<RWATo
 
 // GET /api/eth-distribution
 async fn eth_distribution_handler(State(pool): State<PgPool>) -> Result<Json<Vec<ETHLiquiditySnapshot>>, StatusCode> {
-    let rows = sqlx::query!(
+    let rows: Vec<(String, f64, f64, i32, Option<String>)> = sqlx::query_as(
         r#"
         SELECT DISTINCT ON (category) 
-            category, balance_eth, balance_usd, num_addresses, timestamp::text
+            category, balance_eth::FLOAT8, balance_usd::FLOAT8, num_addresses, timestamp::text
         FROM eth_liquidity_snapshot
         ORDER BY category, timestamp DESC
         "#
@@ -334,11 +335,11 @@ async fn eth_distribution_handler(State(pool): State<PgPool>) -> Result<Json<Vec
     let snapshots = rows
         .into_iter()
         .map(|row| ETHLiquiditySnapshot {
-            category: row.category,
-            balance_eth: row.balance_eth.to_string().parse().unwrap_or(0.0),
-            balance_usd: row.balance_usd.to_string().parse().unwrap_or(0.0),
-            num_addresses: row.num_addresses,
-            timestamp: row.timestamp.unwrap_or_default(),
+            category: row.0,
+            balance_eth: row.1,
+            balance_usd: row.2,
+            num_addresses: row.3,
+            timestamp: row.4.unwrap_or_default(),
         })
         .collect();
 
