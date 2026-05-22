@@ -184,8 +184,172 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .execute(&pool)
     .await?;
 
+    // PHASE 2A: Whale Watch
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS whale_wallets (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR UNIQUE NOT NULL,
+            balance_eth DECIMAL(28, 8) NOT NULL DEFAULT 0,
+            balance_usd DECIMAL(28, 2) NOT NULL DEFAULT 0,
+            label VARCHAR,
+            category VARCHAR DEFAULT 'unknown',
+            first_seen TIMESTAMPTZ DEFAULT NOW(),
+            last_updated TIMESTAMPTZ DEFAULT NOW(),
+            is_verified BOOLEAN DEFAULT FALSE,
+            community_tags TEXT[] DEFAULT '{}'
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS whale_wallet_snapshots (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR NOT NULL REFERENCES whale_wallets(address),
+            balance_eth DECIMAL(28, 8) NOT NULL,
+            rank INT,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS whale_activity_log (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR NOT NULL,
+            tx_hash VARCHAR NOT NULL,
+            from_addr VARCHAR NOT NULL,
+            to_addr VARCHAR NOT NULL,
+            amount_eth DECIMAL(28, 8) NOT NULL,
+            tx_type VARCHAR NOT NULL,
+            timestamp TIMESTAMPTZ NOT NULL
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_whale_wallets_balance ON whale_wallets(balance_eth DESC)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_whale_activity_address ON whale_activity_log(address)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // PHASE 2B: OFAC Sanctions List
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS ofac_sanctions_list (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR UNIQUE NOT NULL,
+            label VARCHAR,
+            source VARCHAR DEFAULT 'official_ofac',
+            severity VARCHAR DEFAULT 'high',
+            risk_tags TEXT[] DEFAULT '{}',
+            added_at TIMESTAMPTZ DEFAULT NOW(),
+            community_votes INT DEFAULT 0
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS ofac_sanctions_history (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            address VARCHAR NOT NULL,
+            action VARCHAR NOT NULL,
+            actor_type VARCHAR DEFAULT 'system',
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_ofac_address ON ofac_sanctions_list(address)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // PHASE 3A: L1 Transaction Cost
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS l1_transaction_costs (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            block_number BIGINT UNIQUE NOT NULL,
+            avg_gwei_per_gas DECIMAL(18, 8) NOT NULL,
+            avg_usd_per_tx DECIMAL(18, 2) NOT NULL,
+            avg_usd_per_swap DECIMAL(18, 2) NOT NULL,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_l1_costs_timestamp ON l1_transaction_costs(timestamp DESC)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // PHASE 3B: L1 Security
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS chain_security_metrics (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            chain_name VARCHAR UNIQUE NOT NULL,
+            validator_count INT NOT NULL,
+            staking_ratio DECIMAL(5, 2),
+            avg_stake_eth DECIMAL(18, 2),
+            sequencer_count INT,
+            timestamp TIMESTAMPTZ DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
     sqlx::query(
         r#"CREATE INDEX IF NOT EXISTS idx_blob_transactions_rollup ON blob_transactions(rollup)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // PHASE 4: AI-Driven Intelligence
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS ai_insights (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            insight_type VARCHAR NOT NULL,
+            title VARCHAR NOT NULL,
+            body TEXT NOT NULL,
+            data_context JSONB,
+            confidence_score DECIMAL(3, 2),
+            generated_at TIMESTAMPTZ DEFAULT NOW(),
+            published BOOLEAN DEFAULT TRUE
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_ai_insights_timestamp ON ai_insights(generated_at DESC)"#,
     )
     .execute(&pool)
     .await?;

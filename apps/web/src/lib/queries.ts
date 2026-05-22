@@ -1,4 +1,5 @@
 import type {
+  AIInsight,
   BlockRow,
   BlobTransaction,
   DailyRollupBlob,
@@ -6,13 +7,17 @@ import type {
   FullnessHistogramBucket,
   HourlyRollupBlob,
   HourlyRollupValue,
+  L1Cost,
   LeaderboardRow,
   MarketHour,
+  OFACSanction,
   OverviewStats,
   RWAToken,
   ETHLiquiditySnapshot,
+  SecurityMetric,
   SparklinePoint,
   UnknownSender,
+  WhaleWallet,
 } from "@/types";
 import sql from "./db";
 
@@ -48,6 +53,91 @@ export async function getETHLiquidity(): Promise<ETHLiquiditySnapshot[]> {
     return rows;
   } catch (e) {
     console.error("getETHLiquidity error (likely table not created yet):", e);
+    return [];
+  }
+}
+
+export async function getWhales(limit = 100): Promise<WhaleWallet[]> {
+  try {
+    const rows = await sql<any[]>`
+      SELECT 
+          w.id::text, w.address, w.balance_eth::float8, w.balance_usd::float8, 
+          w.label, w.category, w.is_verified, w.last_updated::text,
+          (o.address IS NOT NULL) as is_sanctioned
+      FROM whale_wallets w
+      LEFT JOIN ofac_sanctions_list o ON w.address = o.address
+      ORDER BY w.balance_eth DESC
+      LIMIT ${limit}
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getWhales error (likely table not created yet):", e);
+    return [];
+  }
+}
+
+export async function getOFACList(): Promise<OFACSanction[]> {
+  try {
+    const rows = await sql<OFACSanction[]>`
+      SELECT id::text, address, label, source, severity, risk_tags, added_at::text
+      FROM ofac_sanctions_list
+      ORDER BY added_at DESC
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getOFACList error (likely table not created yet):", e);
+    return [];
+  }
+}
+
+export async function getL1Costs(days = 30): Promise<L1Cost[]> {
+  try {
+    const rows = await sql<L1Cost[]>`
+      SELECT block_number, avg_gwei_per_gas::float8, avg_usd_per_tx::float8, avg_usd_per_swap::float8, timestamp::text
+      FROM l1_transaction_costs
+      WHERE timestamp > NOW() - INTERVAL '1 day' * ${days}
+      ORDER BY timestamp ASC
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getL1Costs error (likely table not created yet):", e);
+    return [];
+  }
+}
+
+export async function getSecurityMetrics(): Promise<SecurityMetric[]> {
+  try {
+    const rows = await sql<SecurityMetric[]>`
+      SELECT chain_name, validator_count, staking_ratio::float8, avg_stake_eth::float8, sequencer_count, timestamp::text
+      FROM chain_security_metrics
+      ORDER BY validator_count DESC
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getSecurityMetrics error (likely table not created yet):", e);
+    return [];
+  }
+}
+
+export async function getAIInsights(type?: string, limit = 10): Promise<AIInsight[]> {
+  try {
+    const rows = type 
+      ? await sql<AIInsight[]>`
+          SELECT id::text, insight_type, title, body, confidence_score::float8, generated_at::text
+          FROM ai_insights
+          WHERE insight_type = ${type}
+          ORDER BY generated_at DESC
+          LIMIT ${limit}
+        `
+      : await sql<AIInsight[]>`
+          SELECT id::text, insight_type, title, body, confidence_score::float8, generated_at::text
+          FROM ai_insights
+          ORDER BY generated_at DESC
+          LIMIT ${limit}
+        `;
+    return rows;
+  } catch (e) {
+    console.error("getAIInsights error (likely table not created yet):", e);
     return [];
   }
 }

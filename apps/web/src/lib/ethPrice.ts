@@ -26,3 +26,11 @@ export function formatUsd(usd: number | null | undefined): string {
   const exp = Math.floor(Math.log10(usd));
   return `$${usd.toFixed(Math.min(-exp + 2, 12))}`;
 }
+
+export function formatEth(eth: number | null | undefined): string {
+  if (eth == null || !isFinite(eth) || eth === 0) return "0 ETH";
+  if (eth >= 1000) return `${(eth / 1000).toFixed(1)}K ETH`;
+  if (eth >= 1)    return `${eth.toFixed(2)} ETH`;
+  return `${eth.toFixed(4)} ETH`;
+}
+

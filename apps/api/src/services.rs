@@ -3,3 +3,8 @@ pub mod blob_parser;
 pub mod alerts;
 pub mod rwa_indexer;
 pub mod eth_distribution;
+pub mod whale_indexer;
+pub mod ofac_sync;
+pub mod l1_cost_tracker;
+pub mod security_metrics;
+pub mod ai_analyst;

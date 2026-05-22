@@ -1,6 +1,6 @@
 mod api;
 
-use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution}};
+use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution, whale_indexer, ofac_sync, l1_cost_tracker, security_metrics, ai_analyst}};
 use dotenvy::dotenv;
 use std::env;
 use axum::Router;
@@ -77,6 +77,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         eth_distribution::run_eth_distribution_indexer(pool_for_eth).await;
     });
 
+    // Start Whale Watch indexer
+    let pool_for_whales = pool.clone();
+    let whale_handle = tokio::spawn(async move {
+        whale_indexer::run_whale_indexer(pool_for_whales).await;
+    });
+
+    // Start OFAC sync
+    let pool_for_ofac = pool.clone();
+    let ofac_handle = tokio::spawn(async move {
+        ofac_sync::run_ofac_sync(pool_for_ofac).await;
+    });
+
+    // Start L1 cost tracker
+    let pool_for_l1 = pool.clone();
+    let l1_handle = tokio::spawn(async move {
+        l1_cost_tracker::run_l1_cost_tracker(pool_for_l1).await;
+    });
+
+    // Start security metrics indexer
+    let pool_for_security = pool.clone();
+    let security_handle = tokio::spawn(async move {
+        security_metrics::run_security_metrics_indexer(pool_for_security).await;
+    });
+
+    // Start AI analyst
+    let pool_for_ai = pool.clone();
+    let ai_handle = tokio::spawn(async move {
+        ai_analyst::run_ai_analyst(pool_for_ai).await;
+    });
+
     // Only the API server exiting should bring down the process.
     // The blob handle is an infinite retry loop and never resolves.
     tokio::select! {
@@ -85,6 +115,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ = alert_handle => tracing::error!("Alert worker task stopped unexpectedly"),
         _ = rwa_handle   => tracing::error!("RWA indexer task stopped unexpectedly"),
         _ = eth_handle   => tracing::error!("ETH distribution indexer task stopped unexpectedly"),
+        _ = whale_handle => tracing::error!("Whale Watch indexer task stopped unexpectedly"),
+        _ = ofac_handle  => tracing::error!("OFAC sync task stopped unexpectedly"),
+        _ = l1_handle    => tracing::error!("L1 cost tracker task stopped unexpectedly"),
+        _ = security_handle => tracing::error!("Security metrics indexer task stopped unexpectedly"),
+        _ = ai_handle       => tracing::error!("AI analyst task stopped unexpectedly"),
     }
 
     Ok(())

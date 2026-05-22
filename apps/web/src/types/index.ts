@@ -148,3 +148,60 @@ export interface ETHLiquiditySnapshot {
   num_addresses: number;
   timestamp: string;
 }
+
+export interface WhaleWallet {
+  id: string;
+  address: string;
+  balance_eth: number;
+  balance_usd: number;
+  label: string | null;
+  category: string | null;
+  is_verified: boolean;
+  is_sanctioned?: boolean;
+  last_updated: string;
+}
+
+export interface WhaleActivity {
+  tx_hash: string;
+  from_addr: string;
+  to_addr: string;
+  amount_eth: number;
+  tx_type: string;
+  timestamp: string;
+}
+
+export interface OFACSanction {
+  id: string;
+  address: string;
+  label: string | null;
+  source: string;
+  severity: string;
+  risk_tags: string[];
+  added_at: string;
+}
+
+export interface L1Cost {
+  block_number: number;
+  avg_gwei_per_gas: number;
+  avg_usd_per_tx: number;
+  avg_usd_per_swap: number;
+  timestamp: string;
+}
+
+export interface SecurityMetric {
+  chain_name: string;
+  validator_count: number;
+  staking_ratio: number | null;
+  avg_stake_eth: number | null;
+  sequencer_count: number | null;
+  timestamp: string;
+}
+
+export interface AIInsight {
+  id: string;
+  insight_type: string;
+  title: string;
+  body: string;
+  confidence_score: number | null;
+  generated_at: string;
+}
