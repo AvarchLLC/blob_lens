@@ -2,32 +2,37 @@ import { BlobFeeGauge } from "@/components/charts/BlobFeeGauge";
 import { BlobFeeLineChartSelector } from "@/components/charts/BlobFeeLineChartSelector";
 import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
+import { CongestionForecast } from "@/components/charts/CongestionForecast";
 import { CostHeatmap } from "@/components/charts/CostHeatmap";
 import { DACostCharts } from "@/components/charts/DACostCharts";
 import { EfficiencyScatterplot } from "@/components/charts/EfficiencyScatterplot";
+import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
 import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
 import { BlockFeed } from "@/components/shared/BlockFeed";
 import { EfficiencyLeaderboardMini } from "@/components/shared/EfficiencyLeaderboardMini";
 import { LiveBlobFeed } from "@/components/shared/LiveBlobFeed";
+import { RegimeBadge } from "@/components/shared/RegimeBadge";
+import { RollupBadge } from "@/components/shared/RollupBadge";
 import { RollupShareCard } from "@/components/shared/RollupShareCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEthPrice } from "@/lib/ethPrice";
 import {
   getDailyRollupBreakdown,
+  getForecastData,
   getHourlyRollupFee,
   getLeaderboard,
   getMarketActivity,
   getRollupNetworkGraph,
   getRollupSparklines,
 } from "@/lib/queries";
-import { formatNumber } from "@/lib/utils";
-import { LayoutGrid } from "lucide-react";
+import { classifyRegime, formatNumber } from "@/lib/utils";
+import { LayoutGrid, Trophy, Activity } from "lucide-react";
 
 export const revalidate = 60;
 
 export default async function OverviewPage() {
-  const [leaderboard, market, dailyRollups, ethUsd, rollupFeeData, networkGraph, sparklines] = await Promise.all([
+  const [leaderboard, market, dailyRollups, ethUsd, rollupFeeData, networkGraph, sparklines, forecast] = await Promise.all([
     getLeaderboard(24).catch(() => []),
     getMarketActivity(720).catch(() => []), 
     getDailyRollupBreakdown(30, 16).catch(() => []),
@@ -35,6 +40,7 @@ export default async function OverviewPage() {
     getHourlyRollupFee(24, 20).catch(() => []),
     getRollupNetworkGraph(24).catch(() => ({ nodes: [], edges: [] })),
     getRollupSparklines().catch(() => []),
+    getForecastData().catch(() => null),
   ]);
 
   const market24h = market.slice(-24);
@@ -62,6 +68,15 @@ export default async function OverviewPage() {
   const topByEfficiency = [...leaderboard]
     .filter(r => r.rollup !== "UNKNOWN" && Number(r.total_blobs) > 10)
     .sort((a, b) => Number(b.efficiency_score) - Number(a.efficiency_score))[0];
+
+  // Gap 1: Top 3 DA performers
+  const top3Efficient = [...leaderboard]
+    .filter((r) => r.rollup !== "UNKNOWN" && Number(r.total_blobs) > 0)
+    .sort((a, b) => Number(b.efficiency_score) - Number(a.efficiency_score))
+    .slice(0, 3);
+
+  // Gap 2: Regime classification
+  const latestMaxBlobsInBlock = market24h.length > 0 ? Math.max(...market24h.map((m) => m.max_blobs_in_block)) : 0;
 
   return (
     <div className="animate-page-in space-y-0">
@@ -175,6 +190,89 @@ export default async function OverviewPage() {
           <p className="text-xs text-text-secondary opacity-70">Surgical breakdown of rollup data availability expenditures and packing efficiency.</p>
         </div>
         <DACostCharts leaderboard={leaderboard} ethUsd={ethUsd} />
+
+        {/* Top DA Performers */}
+        {top3Efficient.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-5">
+              <Trophy className="h-4 w-4 text-primary" />
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-secondary opacity-60">Top DA Performers (24h)</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {top3Efficient.map((row, idx) => {
+                const score = Number(row.efficiency_score);
+                const packing = Number(row.packing_score);
+                const timing = Number(row.timing_score);
+                const color = score >= 80 ? "var(--status-healthy)" : score >= 50 ? "var(--status-warning)" : "var(--status-critical)";
+                const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
+                return (
+                  <div key={row.rollup} className="bg-surface border border-border rounded-xl p-5 border-l-2" style={{ borderLeftColor: color }}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{medal}</span>
+                        <RollupBadge rollup={row.rollup} linkable />
+                      </div>
+                      <div className="font-mono text-2xl font-bold tracking-tighter" style={{ color }}>
+                        {score.toFixed(0)}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-text-secondary opacity-60 mb-1">
+                          <span>Packing</span><span style={{ color }}>{packing.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-1 w-full bg-surface-elevated rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${packing}%`, backgroundColor: color }} />
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-border/30 flex justify-between text-[10px] font-bold">
+                        <span className="text-text-secondary opacity-50 uppercase tracking-wider">Timing</span>
+                        <span className="text-text-primary">{timing.toFixed(0)}/100</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §02.6 — FEE MARKET HEALTH (GAP 2)
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="fee-market-health" className="scroll-mt-24 mb-10">
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Fee Market Health</span>
+            <h2 className="text-lg font-bold text-text-primary tracking-tight">Market Regime & Congestion</h2>
+            <p className="text-xs text-text-secondary opacity-70">Live classification of blob market state and short-term fee forecasting.</p>
+          </div>
+          <RegimeBadge maxBlobsInBlock={latestMaxBlobsInBlock} size="lg" />
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Regime Heatmap */}
+          <div className="xl:col-span-8 bg-surface border border-border rounded-xl p-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">24h Regime Classification</h3>
+            <div className="min-h-[280px]">
+              <RegimeHeatmap data={market24h} />
+            </div>
+          </div>
+
+          {/* Congestion Forecast */}
+          <div className="xl:col-span-4 bg-surface border border-border rounded-xl p-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">Congestion Forecast</h3>
+            {forecast && forecast.current_fee_wei > 0 ? (
+              <CongestionForecast data={forecast} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs min-h-[200px]">Insufficient data for forecast.</div>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* ── Section Divider ── */}

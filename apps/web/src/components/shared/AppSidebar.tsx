@@ -21,6 +21,8 @@ import {
     Landmark,
     Wallet,
     ShieldAlert,
+    ShieldCheck,
+    Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSectionObserver } from '@/lib/useSectionObserver';

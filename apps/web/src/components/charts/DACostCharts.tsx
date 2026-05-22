@@ -25,13 +25,18 @@ export function DACostCharts({ leaderboard, ethUsd }: DACostChartsProps) {
   // Filter and sort data for Cost per Byte (USD)
   const costPerByteData = useMemo(() => {
     return leaderboard
-      .filter((r) => r.rollup !== "UNKNOWN" && r.cost_per_byte_eth !== null)
-      .map((r) => ({
-        name: r.rollup,
-        // cost_per_byte_eth is ETH per KB actually used. 
-        // We want USD per MB for readability.
-        value: ethUsd ? (r.cost_per_byte_eth! * 1024 * ethUsd) : 0,
-      }))
+      .filter((r) => r.rollup !== "UNKNOWN" && Number(r.total_blobs) > 0)
+      .map((r) => {
+        // Prefer beacon-sourced cost_per_byte_eth if available,
+        // otherwise estimate from da_cost_eth / (total_blobs * 128KB)
+        const costPerMbUsd = r.cost_per_byte_eth != null && ethUsd
+          ? r.cost_per_byte_eth * 1024 * ethUsd
+          : ethUsd
+            ? (r.da_cost_eth / (Number(r.total_blobs) * 0.128)) * ethUsd
+            : 0;
+        return { name: r.rollup, value: costPerMbUsd };
+      })
+      .filter((r) => r.value > 0)
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
   }, [leaderboard, ethUsd]);
@@ -39,11 +44,13 @@ export function DACostCharts({ leaderboard, ethUsd }: DACostChartsProps) {
   // Sort data for Blobfulness Ratio
   const blobfulnessData = useMemo(() => {
     return leaderboard
-      .filter((r) => r.rollup !== "UNKNOWN" && r.avg_fullness_pct !== null)
+      .filter((r) => r.rollup !== "UNKNOWN" && Number(r.total_blobs) > 0)
       .map((r) => ({
         name: r.rollup,
-        value: r.avg_fullness_pct || 0,
+        // Prefer beacon fullness_pct, fall back to packing_score
+        value: r.avg_fullness_pct != null ? r.avg_fullness_pct : (r.packing_score || 0),
       }))
+      .filter((r) => r.value > 0)
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
   }, [leaderboard]);

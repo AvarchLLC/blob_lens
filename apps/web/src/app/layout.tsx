@@ -115,7 +115,7 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${plusJakartaSans.variable} ${geistMono.variable} ${averiaSerif.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-screen bg-background text-foreground overflow-hidden">
+      <body className="h-screen bg-background text-foreground overflow-hidden" suppressHydrationWarning>
         <ThemeProvider>
           <AppShell>
             {children}

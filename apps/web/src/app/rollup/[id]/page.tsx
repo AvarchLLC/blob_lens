@@ -8,7 +8,7 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getEthPrice } from "@/lib/ethPrice";
+import { getEthPrice, formatUsd } from "@/lib/ethPrice";
 import { getL1Costs, getLeaderboard, getMarketActivity, getRollupTransactions } from "@/lib/queries";
 import { formatNumber, timeAgo } from "@/lib/utils";
 import type { BlobTransaction, HourlyRollupValue, MarketHour } from "@/types";

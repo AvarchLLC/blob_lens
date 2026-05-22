@@ -3,7 +3,7 @@
 import { formatUsd } from "@/lib/ethPrice";
 import { L1Cost } from "@/types";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDownIcon, Zap } from "lucide-react";
+import { ArrowDown, Zap } from "lucide-react";
 
 interface L1CostComparisonTableProps {
   latestL1: L1Cost | null;
@@ -60,7 +60,7 @@ export function L1CostComparisonTable({ latestL1, avgBlobUsd }: L1CostComparison
               </td>
               <td className="px-6 py-4 text-right">
                 <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 gap-1 font-mono">
-                  <ArrowDownIcon className="h-3 w-3" />
+                  <ArrowDown className="h-3 w-3" />
                   {row.savings.toFixed(0)}x cheaper
                 </Badge>
               </td>
