@@ -3,7 +3,7 @@ import { PageHeader, PageSection } from "@/components/shared/PageHeader";
 import { formatUsd, formatEth } from "@/lib/ethPrice";
 import { getWhales } from "@/lib/queries";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, ShieldCheck, History, Search } from "lucide-react";
+import { Wallet, ShieldCheck, History, Search, AlertTriangle } from "lucide-react";
 
 export const revalidate = 300; // 5 minutes
 
@@ -13,6 +13,7 @@ export default async function WhaleWatchPage() {
   const totalEth = whales.reduce((acc, w) => acc + (w.balance_eth || 0), 0);
   const totalUsd = whales.reduce((acc, w) => acc + (w.balance_usd || 0), 0);
   const verifiedCount = whales.filter(w => w.is_verified).length;
+  const sanctionedWhales = whales.filter(w => w.is_sanctioned);
 
   return (
     <div className="animate-page-in">
@@ -26,6 +27,20 @@ export default async function WhaleWatchPage() {
            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Verified Entity Tracking</span>
         </div>
       </PageHeader>
+
+      {sanctionedWhales.length > 0 && (
+        <div className="mb-8 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-destructive">Compliance Alert</h3>
+            <p className="text-xs text-destructive/80">
+              {sanctionedWhales.length} whale wallet(s) in the top 100 are currently on the OFAC Sanctions List. Regulatory restrictions apply.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         <MetricCard
@@ -81,6 +96,11 @@ export default async function WhaleWatchPage() {
                         </span>
                         {whale.is_verified && (
                           <ShieldCheck className="h-3 w-3 text-primary" />
+                        )}
+                        {whale.is_sanctioned && (
+                          <Badge variant="destructive" className="text-[8px] h-3.5 px-1 uppercase tracking-tighter">
+                            Sanctioned
+                          </Badge>
                         )}
                       </div>
                       <span className="text-[10px] font-mono text-text-secondary opacity-40 truncate max-w-[200px]">

@@ -8,8 +8,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatUsd, getEthPrice } from "@/lib/ethPrice";
-import { getLeaderboard, getMarketActivity, getRollupTransactions } from "@/lib/queries";
+import { getEthPrice } from "@/lib/ethPrice";
+import { getL1Costs, getLeaderboard, getMarketActivity, getRollupTransactions } from "@/lib/queries";
 import { formatNumber, timeAgo } from "@/lib/utils";
 import type { BlobTransaction, HourlyRollupValue, MarketHour } from "@/types";
 import { notFound } from "next/navigation";
@@ -126,13 +126,16 @@ export default async function RollupPage({ params }: Props) {
   const { id } = await params;
   const rollupName = decodeURIComponent(id);
 
-  const [txs, ethUsd, leaderboard, market72h] = await Promise.all([
+  const [txs, ethUsd, leaderboard, market72h, l1Costs] = await Promise.all([
     getRollupTransactions(rollupName).catch(() => null),
     getEthPrice(),
     getLeaderboard(168).catch(() => []),
     getMarketActivity(72).catch(() => []),
+    getL1Costs(7).catch(() => []),
   ]);
   if (!txs || txs.length === 0) notFound();
+
+  const latestL1 = l1Costs[l1Costs.length - 1] || null;
 
   const totalBlobs = txs.reduce((s, t) => s + t.num_blobs, 0);
   const avgBlobsPerTx = totalBlobs / txs.length;
@@ -271,6 +274,17 @@ export default async function RollupPage({ params }: Props) {
                           <span className="font-mono text-sm font-bold text-text-primary">{costPerByte.toFixed(6)} ETH</span>
                           {ethUsd && <p className="text-[10px] text-text-secondary opacity-40">~ {formatUsd(costPerByte * ethUsd)}</p>}
                         </div>
+                      </div>
+                    )}
+                    {costGwei != null && latestL1 && (
+                      <div className="flex flex-col gap-1 col-span-2 pt-4 border-t border-border/20">
+                         <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-primary">Efficiency Gain (vs L1)</span>
+                         <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-bold text-text-primary">
+                               {((latestL1.avg_usd_per_tx / ((costGwei * 131072 / 1e18) * (ethUsd || 0))) || 0).toFixed(0)}x cheaper
+                            </span>
+                            <span className="text-[10px] text-text-secondary opacity-40">than standard L1 ETH transfer</span>
+                         </div>
                       </div>
                     )}
                   </div>

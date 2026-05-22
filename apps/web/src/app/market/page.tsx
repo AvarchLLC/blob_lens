@@ -10,6 +10,7 @@ import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { RegimeAlertPanel } from "@/components/shared/RegimeAlertPanel";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
+import { L1CostComparisonTable } from "@/components/shared/L1CostComparisonTable";
 import { PageHeader, PageSection } from "@/components/shared/PageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
   getHourlyRollupActivity,
   getHourlyRollupFee,
   getHourlyRollupUtilization,
+  getL1Costs,
   getLeaderboard,
   getMarketActivity,
   getRollupNetworkGraph,
@@ -36,7 +38,7 @@ const REGIME_COLOR: Record<string, string> = {
 };
 
 export default async function MarketPage() {
-  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil, networkGraph, l1FeeData] =
+  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil, networkGraph, l1FeeData, l1HistoricalCosts] =
     await Promise.all([
       getMarketActivity(720).catch(() => []), // 30 days
       getMarketActivity(2160).catch(() => []), // 90 days
@@ -48,8 +50,10 @@ export default async function MarketPage() {
       getHourlyRollupUtilization(24, 10).catch(() => []),
       getRollupNetworkGraph(24).catch(() => ({ nodes: [], edges: [] })),
       getHourlyL1Fee(24).catch(() => []),
+      getL1Costs(30).catch(() => []),
     ]);
 
+  const latestL1Cost = l1HistoricalCosts[l1HistoricalCosts.length - 1] || null;
   const market = market24h;
   const latest = market[market.length - 1];
   const topRollup = leaderboard[0]?.rollup ?? "—";
@@ -130,6 +134,13 @@ export default async function MarketPage() {
           >
             <div className="space-y-10">
               <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                  L2 Transaction Efficiency (vs. L1)
+                </h4>
+                <L1CostComparisonTable latestL1={latestL1Cost} avgBlobUsd={latest ? Number(latest.avg_fee) * 131_072 / 1e18 * (ethUsd || 0) : null} />
+              </div>
+
+              <div className="pt-10 border-t border-border/50">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
                   Blob Base Fee Trend (24h)
                 </h4>

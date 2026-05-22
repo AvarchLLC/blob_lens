@@ -108,6 +108,70 @@ pub struct WhaleActivity {
     pub timestamp: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OFACSanction {
+    pub id: uuid::Uuid,
+    pub address: String,
+    pub label: Option<String>,
+    pub source: String,
+    pub severity: String,
+    pub risk_tags: Vec<String>,
+    pub added_at: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct L1Cost {
+    pub block_number: i64,
+    pub avg_gwei_per_gas: f64,
+    pub avg_usd_per_tx: f64,
+    pub avg_usd_per_swap: f64,
+    pub timestamp: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SecurityMetric {
+    pub chain_name: String,
+    pub validator_count: i32,
+    pub staking_ratio: Option<f64>,
+    pub avg_stake_eth: Option<f64>,
+    pub sequencer_count: Option<i32>,
+    pub timestamp: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AIInsight {
+    pub id: uuid::Uuid,
+    pub insight_type: String,
+    pub title: String,
+    pub body: String,
+    pub confidence_score: Option<f64>,
+    pub generated_at: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AIInsightQuery {
+    pub insight_type: Option<String>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct L1CostQuery {
+...
+
+    pub days: Option<i64>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct OFACCheckQuery {
+    pub address: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct OFACReportRequest {
+    pub address: String,
+    pub label: String,
+    pub risk_tags: Vec<String>,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct WhaleQuery {
     pub limit: Option<i64>,
@@ -415,6 +479,216 @@ async fn whale_watch_handler(
     Ok(Json(whales))
 }
 
+// GET /api/ofac/list
+async fn ofac_list_handler(State(pool): State<PgPool>) -> Result<Json<Vec<OFACSanction>>, StatusCode> {
+    let rows: Vec<(uuid::Uuid, String, Option<String>, String, String, Vec<String>, String)> = sqlx::query_as(
+        r#"
+        SELECT id, address, label, source, severity, risk_tags, added_at::text
+        FROM ofac_sanctions_list
+        ORDER BY added_at DESC
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("ofac_list_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let sanctions = rows
+        .into_iter()
+        .map(|row| OFACSanction {
+            id: row.0,
+            address: row.1,
+            label: row.2,
+            source: row.3,
+            severity: row.4,
+            risk_tags: row.5,
+            added_at: row.6,
+        })
+        .collect();
+
+    Ok(Json(sanctions))
+}
+
+// GET /api/ofac/check?address=0x...
+async fn ofac_check_handler(
+    State(pool): State<PgPool>,
+    Query(params): Query<OFACCheckQuery>,
+) -> Result<Json<Option<OFACSanction>>, StatusCode> {
+    let row: Option<(uuid::Uuid, String, Option<String>, String, String, Vec<String>, String)> = sqlx::query_as(
+        r#"
+        SELECT id, address, label, source, severity, risk_tags, added_at::text
+        FROM ofac_sanctions_list
+        WHERE address = $1
+        "#
+    )
+    .bind(&params.address)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        error!("ofac_check_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let sanction = row.map(|r| OFACSanction {
+        id: r.0,
+        address: r.1,
+        label: r.2,
+        source: r.3,
+        severity: r.4,
+        risk_tags: r.5,
+        added_at: r.6,
+    });
+
+    Ok(Json(sanction))
+}
+
+// POST /api/ofac/report
+async fn ofac_report_handler(
+    State(pool): State<PgPool>,
+    Json(payload): Json<OFACReportRequest>,
+) -> Result<StatusCode, StatusCode> {
+    sqlx::query(
+        "INSERT INTO ofac_sanctions_list (address, label, source, risk_tags) 
+         VALUES ($1, $2, 'community', $3) 
+         ON CONFLICT (address) DO UPDATE SET community_votes = ofac_sanctions_list.community_votes + 1"
+    )
+    .bind(&payload.address)
+    .bind(&payload.label)
+    .bind(&payload.risk_tags)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        error!("ofac_report_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(StatusCode::CREATED)
+}
+
+// GET /api/l1-costs?days=30
+async fn l1_costs_handler(
+    State(pool): State<PgPool>,
+    Query(params): Query<L1CostQuery>,
+) -> Result<Json<Vec<L1Cost>>, StatusCode> {
+    let days = params.days.unwrap_or(30).clamp(1, 365);
+
+    let rows: Vec<(i64, f64, f64, f64, String)> = sqlx::query_as(
+        r#"
+        SELECT block_number, avg_gwei_per_gas::FLOAT8, avg_usd_per_tx::FLOAT8, avg_usd_per_swap::FLOAT8, timestamp::text
+        FROM l1_transaction_costs
+        WHERE timestamp > NOW() - INTERVAL '1 day' * $1
+        ORDER BY timestamp ASC
+        "#
+    )
+    .bind(days)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("l1_costs_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let costs = rows
+        .into_iter()
+        .map(|row| L1Cost {
+            block_number: row.0,
+            avg_gwei_per_gas: row.1,
+            avg_usd_per_tx: row.2,
+            avg_usd_per_swap: row.3,
+            timestamp: row.4,
+        })
+        .collect();
+
+    Ok(Json(costs))
+}
+
+// GET /api/security-comparison
+async fn security_comparison_handler(State(pool): State<PgPool>) -> Result<Json<Vec<SecurityMetric>>, StatusCode> {
+    let rows: Vec<(String, i32, Option<f64>, Option<f64>, Option<i32>, String)> = sqlx::query_as(
+        r#"
+        SELECT chain_name, validator_count, staking_ratio::FLOAT8, avg_stake_eth::FLOAT8, sequencer_count, timestamp::text
+        FROM chain_security_metrics
+        ORDER BY validator_count DESC
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        error!("security_comparison_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let metrics = rows
+        .into_iter()
+        .map(|row| SecurityMetric {
+            chain_name: row.0,
+            validator_count: row.1,
+            staking_ratio: row.2,
+            avg_stake_eth: row.3,
+            sequencer_count: row.4,
+            timestamp: row.5,
+        })
+        .collect();
+
+    Ok(Json(metrics))
+}
+
+// GET /api/ai-insights
+async fn ai_insights_handler(
+    State(pool): State<PgPool>,
+    Query(params): Query<AIInsightQuery>,
+) -> Result<Json<Vec<AIInsight>>, StatusCode> {
+    let limit = params.limit.unwrap_or(10).clamp(1, 100);
+
+    let rows: Vec<(uuid::Uuid, String, String, String, Option<f64>, String)> = if let Some(t) = params.insight_type {
+        sqlx::query_as(
+            r#"
+            SELECT id, insight_type, title, body, confidence_score::FLOAT8, generated_at::text
+            FROM ai_insights
+            WHERE insight_type = $1
+            ORDER BY generated_at DESC
+            LIMIT $2
+            "#
+        )
+        .bind(t)
+        .bind(limit)
+        .fetch_all(&pool)
+        .await
+    } else {
+        sqlx::query_as(
+            r#"
+            SELECT id, insight_type, title, body, confidence_score::FLOAT8, generated_at::text
+            FROM ai_insights
+            ORDER BY generated_at DESC
+            LIMIT $1
+            "#
+        )
+        .bind(limit)
+        .fetch_all(&pool)
+        .await
+    }
+    .map_err(|e| {
+        error!("ai_insights_handler error: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let insights = rows
+        .into_iter()
+        .map(|row| AIInsight {
+            id: row.0,
+            insight_type: row.1,
+            title: row.2,
+            body: row.3,
+            confidence_score: row.4,
+            generated_at: row.5,
+        })
+        .collect();
+
+    Ok(Json(insights))
+}
+
 // GET /health
 async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
@@ -431,6 +705,12 @@ pub fn api_router(pool: PgPool) -> Router {
         .route("/api/rwa/tokens", get(rwa_tokens_handler))
         .route("/api/eth-distribution", get(eth_distribution_handler))
         .route("/api/whale-watch", get(whale_watch_handler))
+        .route("/api/ofac/list", get(ofac_list_handler))
+        .route("/api/ofac/check", get(ofac_check_handler))
+        .route("/api/ofac/report", axum::routing::post(ofac_report_handler))
+        .route("/api/l1-costs", get(l1_costs_handler))
+        .route("/api/security-comparison", get(security_comparison_handler))
+        .route("/api/ai-insights", get(ai_insights_handler))
         .route("/health", get(health_handler))
         .with_state(pool)
 }

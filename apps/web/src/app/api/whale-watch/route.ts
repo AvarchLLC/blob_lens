@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8080';
 
 export const dynamic = 'force-dynamic';
 
-export async fn GET(request: Request) {
+export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit') || '100';
 

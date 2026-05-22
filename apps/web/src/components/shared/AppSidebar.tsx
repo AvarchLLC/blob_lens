@@ -20,6 +20,7 @@ import {
     BookOpen,
     Landmark,
     Wallet,
+    ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSectionObserver } from '@/lib/useSectionObserver';
@@ -51,6 +52,11 @@ const NAV_GROUPS: NavGroup[] = [
         items: [
             {
                 href: '/',
+                label: 'Home',
+                icon: Info,
+            },
+            {
+                href: '/dashboard',
                 label: 'Overview',
                 icon: LayoutDashboard,
                 children: [
@@ -131,9 +137,29 @@ const NAV_GROUPS: NavGroup[] = [
                 ],
             },
             {
+                href: '/research/security',
+                label: 'Security Comparison',
+                icon: ShieldCheck,
+            },
+            {
+                href: '/research/ai-insights',
+                label: 'AI Insights',
+                icon: Brain,
+            },
+            {
                 href: '/unknown',
                 label: 'Unknown Senders',
                 icon: Info,
+            },
+        ],
+    },
+    {
+        label: 'Compliance',
+        items: [
+            {
+                href: '/compliance/ofac',
+                label: 'OFAC List',
+                icon: ShieldAlert,
             },
         ],
     },
