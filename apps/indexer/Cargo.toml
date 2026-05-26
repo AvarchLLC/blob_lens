@@ -1,0 +1,51 @@
+[package]
+name = "blob-indexer"
+version = "0.1.0"
+edition = "2021"
+# No default-run — user must specify --bin explicitly
+
+[[bin]]
+name = "blob-indexer"
+path = "src/main.rs"
+# Reth is heavy; this binary requires --features node to compile
+required-features = ["node"]
+
+[[bin]]
+name = "backfill"
+path = "src/bin/backfill.rs"
+# No Reth deps — builds in ~30s
+
+[features]
+# Enable the full Reth ExEx node binary.
+# Without this, only the backfill binary is compiled (fast, no Reth).
+node = [
+    "dep:reth",
+    "dep:reth-exex",
+    "dep:reth-node-ethereum",
+    "dep:reth-node-api",
+    "dep:reth-primitives",
+    "dep:reth-execution-types",
+    "dep:futures-util",
+]
+
+[dependencies]
+# Reth — optional, only needed for the ExEx node binary
+# Pin to exact version running on ba-data (v2.2.0-88505c7)
+reth                 = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", optional = true }
+reth-exex            = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", optional = true }
+reth-node-ethereum   = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", optional = true }
+reth-node-api        = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", optional = true }
+reth-primitives      = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", optional = true }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", optional = true }
+futures-util         = { version = "0.3", optional = true }
+
+# Always-on: ClickHouse, async runtime, serde, HTTP, logging
+clickhouse = { version = "0.13", features = ["lz4"] }
+tokio      = { version = "1", features = ["full"] }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest    = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+eyre    = "0.6"
+dotenvy = "0.15"

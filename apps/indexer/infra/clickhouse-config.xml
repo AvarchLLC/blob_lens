@@ -1,0 +1,18 @@
+<!-- Minimal ClickHouse tuning for a high-RAM analytics server (ba-data: 61 GB RAM) -->
+<clickhouse>
+    <!-- Allow remote access from the Tailscale interface -->
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- Memory: cap at 50 GB so OS and Reth have room -->
+    <max_server_memory_usage_to_ram_ratio>0.80</max_server_memory_usage_to_ram_ratio>
+
+    <!-- Parallelism: ba-data has 32 cores -->
+    <max_threads>16</max_threads>
+
+    <!-- Log retention -->
+    <logger>
+        <level>warning</level>
+        <size>100M</size>
+        <count>3</count>
+    </logger>
+</clickhouse>

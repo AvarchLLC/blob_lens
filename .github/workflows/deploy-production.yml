@@ -54,7 +54,7 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'pnpm-lock.yaml'
             api:
-              - 'apps/api/**'
+              - 'apps/api_v1/**'
             infra:
               - 'ops/**'
               - '.github/workflows/deploy-production.yml'
@@ -127,7 +127,7 @@ jobs:
             echo "==> Creating release $RELEASE_NAME"
             git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$NEW_RELEASE"
 
-            ln -sfn "$SHARED_DIR/env/api.env" "$NEW_RELEASE/apps/api/.env"
+            ln -sfn "$SHARED_DIR/env/api.env" "$NEW_RELEASE/apps/api_v1/.env"
             ln -sfn "$SHARED_DIR/env/web.env" "$NEW_RELEASE/apps/web/.env.local"
 
             # ── Build web ──────────────────────────────────────────────────────
@@ -156,15 +156,15 @@ jobs:
               . "$HOME/.cargo/env"
               rustup default stable
               rustc --version && cargo --version
-              cd "$NEW_RELEASE/apps/api"
+              cd "$NEW_RELEASE/apps/api_v1"
               cargo build --release
             else
               echo "==> Skipping API build — carrying binary forward"
               # target/ is gitignored; copy the existing binary so PM2 can run it
               # from the new release path (PM2 always reloads with the new config).
               if [ -L "$CURRENT_DIR" ]; then
-                OLD_BIN="$(readlink -f "$CURRENT_DIR")/apps/api/target/release/blob_lens"
-                NEW_BIN="$NEW_RELEASE/apps/api/target/release/blob_lens"
+                OLD_BIN="$(readlink -f "$CURRENT_DIR")/apps/api_v1/target/release/blob_lens"
+                NEW_BIN="$NEW_RELEASE/apps/api_v1/target/release/blob_lens"
                 mkdir -p "$(dirname "$NEW_BIN")"
                 if [ -f "$OLD_BIN" ]; then
                   cp "$OLD_BIN" "$NEW_BIN"
