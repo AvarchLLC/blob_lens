@@ -13,11 +13,10 @@ services:
     container_name: clickhouse
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8123:8123"   # HTTP interface
-      - "127.0.0.1:9000:9000"   # Native protocol (binary, used by Rust client)
+      - "0.0.0.0:8123:8123"   # HTTP interface — used by the Rust clickhouse crate
+      # Native TCP port 9000 intentionally not exposed (port already in use on host)
     volumes:
       - /ethereum/data/clickhouse:/var/lib/clickhouse
-      - ./clickhouse-config.xml:/etc/clickhouse-server/config.d/custom.xml:ro
     environment:
       # Default credentials — change CLICKHOUSE_PASSWORD before first start
       CLICKHOUSE_USER:     blob_lens
