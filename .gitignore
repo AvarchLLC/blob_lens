@@ -1,42 +1,44 @@
-# Rust
-apps/api/target/
-apps/api/Cargo.lock
+# ── Rust ────────────────────────────────────────────────────────────────────
+apps/api_v1/target/
+apps/api_v1/Cargo.lock
+apps/indexer/target/
+apps/indexer/Cargo.lock
 **/*.rs.bk
 *.pdb
 
-# Environment
+# ── Environment ──────────────────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
+# .env.example files are intentionally tracked (safe templates)
 
-# IDE
+# ── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 *.iml
 
-# OS
+# ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Logs
+# ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 *.log.*
 
-# Database
+# ── Database ─────────────────────────────────────────────────────────────────
 *.db
 *.sqlite
 *.sqlite3
 
-# Node
+# ── Node / Next.js ───────────────────────────────────────────────────────────
 node_modules/
 .next/
 .turbo/
 
-# Python (if any)
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -44,7 +46,7 @@ __pycache__/
 env/
 venv/
 
-CLAUDE.md
+# ── Planning / scratch docs (not for version control) ────────────────────────
 DASHBOARD_PLAN.md
 STATUS.md
 TODO.md

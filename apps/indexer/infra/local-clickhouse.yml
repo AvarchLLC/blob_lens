@@ -1,0 +1,25 @@
+# Local ClickHouse for development / running backfill from your Mac.
+# Ports are forwarded to localhost so the backfill binary can reach it.
+#
+#   docker compose -f infra/local-clickhouse.yml up -d
+#   cargo run --bin backfill    # RETH_RPC=http://ba-data:8545 points at the live node
+#
+# Data is NOT persisted (no volume) — fine for a temporary backfill run.
+# Switch to a named volume if you want to keep the data locally.
+
+services:
+  clickhouse-local:
+    image: clickhouse/clickhouse-server:25.3-alpine
+    container_name: clickhouse-local
+    ports:
+      - "8123:8123"   # HTTP — used by the Rust clickhouse crate
+      - "9000:9000"   # Native binary protocol
+    environment:
+      CLICKHOUSE_USER:     blob_lens
+      CLICKHOUSE_PASSWORD: changeme
+      CLICKHOUSE_DB:       blob_lens
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

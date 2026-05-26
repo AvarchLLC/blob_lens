@@ -27,8 +27,8 @@ module.exports = {
     },
     {
       name: "blob-lens-indexer",
-      cwd: path.join(root, "apps", "api"),
-      script: path.join(root, "apps", "api", "target", "release", "blob_lens"),
+      cwd: path.join(root, "apps", "api_v1"),
+      script: path.join(root, "apps", "api_v1", "target", "release", "blob_lens"),
       interpreter: "none",
       instances: 1,
       exec_mode: "fork",
