@@ -163,14 +163,25 @@ jobs:
               # target/ is gitignored; copy the existing binary so PM2 can run it
               # from the new release path (PM2 always reloads with the new config).
               if [ -L "$CURRENT_DIR" ]; then
-                OLD_BIN="$(readlink -f "$CURRENT_DIR")/apps/api_v1/target/release/blob_lens"
+                PREV_ROOT="$(readlink -f "$CURRENT_DIR")"
                 NEW_BIN="$NEW_RELEASE/apps/api_v1/target/release/blob_lens"
                 mkdir -p "$(dirname "$NEW_BIN")"
-                if [ -f "$OLD_BIN" ]; then
+                # Try current path first, then legacy apps/api path
+                OLD_BIN=""
+                for candidate in \
+                  "$PREV_ROOT/apps/api_v1/target/release/blob_lens" \
+                  "$PREV_ROOT/apps/api/target/release/blob_lens"; do
+                  if [ -f "$candidate" ]; then
+                    OLD_BIN="$candidate"
+                    break
+                  fi
+                done
+                if [ -n "$OLD_BIN" ]; then
                   cp "$OLD_BIN" "$NEW_BIN"
-                  echo "Carried forward binary from $(readlink -f "$CURRENT_DIR")"
+                  chmod +x "$NEW_BIN"
+                  echo "Carried forward binary from $OLD_BIN"
                 else
-                  echo "WARNING: No binary found at $OLD_BIN — indexer will not start"
+                  echo "WARNING: No binary found in previous release — indexer will not start"
                 fi
               fi
             fi
