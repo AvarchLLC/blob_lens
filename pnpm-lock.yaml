@@ -10,6 +10,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@clickhouse/client':
+        specifier: ^1.0.0
+        version: 1.18.5
       '@radix-ui/react-select':
         specifier: ^2.2.6
         version: 2.2.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -249,6 +252,13 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@clickhouse/client-common@1.18.5':
+    resolution: {integrity: sha512-g9LwcS1dvkatKDsIjT1PwUHldsiYzwdKAB0nXfd9APLd+t4PrNJa+my+dXcqJdmcWyhWjKLP/2/ztBwgxp+sbQ==}
+
+  '@clickhouse/client@1.18.5':
+    resolution: {integrity: sha512-4FfoyMkFWhsdNMuXsoEL6l3c12svA63BBJBtDo9SrxRZ14RdmN6jLr/rF3f84BK8cFoxETZCSeKlsbk6NNYebw==}
+    engines: {node: '>=16'}
 
   '@dotenvx/dotenvx@1.65.0':
     resolution: {integrity: sha512-v4FA/Lw3pTEloLxBqTOaYDX6MNo0Jo7lGBsPZhwnJBqRJp0AzQg1ZZNxrFsh6HVC6QWeWrfIKLn0y2eyIXaVDg==}
@@ -3961,6 +3971,12 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@clickhouse/client-common@1.18.5': {}
+
+  '@clickhouse/client@1.18.5':
+    dependencies:
+      '@clickhouse/client-common': 1.18.5
 
   '@dotenvx/dotenvx@1.65.0':
     dependencies:
