@@ -20,11 +20,14 @@ import type {
   WhaleWallet,
 } from "@/types";
 import sql from "./db";
+import ch from "./clickhouse";
+
+// ── Postgres queries (api_v1 data) ──────────────────────────────────────────
 
 export async function getRWATokens(): Promise<RWAToken[]> {
   try {
     const rows = await sql<RWAToken[]>`
-      SELECT 
+      SELECT
           t.id::text, t.symbol, t.name, t.contract_addresses, t.decimals, t.coingecko_id,
           p.price_usd::float8, p.market_cap_usd::float8, p.volume_24h_usd::float8, p.timestamp::text as updated_at
       FROM rwa_tokens t
@@ -45,7 +48,7 @@ export async function getRWATokens(): Promise<RWAToken[]> {
 export async function getETHLiquidity(): Promise<ETHLiquiditySnapshot[]> {
   try {
     const rows = await sql<ETHLiquiditySnapshot[]>`
-      SELECT DISTINCT ON (category) 
+      SELECT DISTINCT ON (category)
           category, balance_eth::float8, balance_usd::float8, num_addresses, timestamp::text
       FROM eth_liquidity_snapshot
       ORDER BY category, timestamp DESC
@@ -60,8 +63,8 @@ export async function getETHLiquidity(): Promise<ETHLiquiditySnapshot[]> {
 export async function getWhales(limit = 100): Promise<WhaleWallet[]> {
   try {
     const rows = await sql<any[]>`
-      SELECT 
-          w.id::text, w.address, w.balance_eth::float8, w.balance_usd::float8, 
+      SELECT
+          w.id::text, w.address, w.balance_eth::float8, w.balance_usd::float8,
           w.label, w.category, w.is_verified, w.last_updated::text,
           (o.address IS NOT NULL) as is_sanctioned
       FROM whale_wallets w
@@ -121,7 +124,7 @@ export async function getSecurityMetrics(): Promise<SecurityMetric[]> {
 
 export async function getAIInsights(type?: string, limit = 10): Promise<AIInsight[]> {
   try {
-    const rows = type 
+    const rows = type
       ? await sql<AIInsight[]>`
           SELECT id::text, insight_type, title, body, confidence_score::float8, generated_at::text
           FROM ai_insights
@@ -142,434 +145,458 @@ export async function getAIInsights(type?: string, limit = 10): Promise<AIInsigh
   }
 }
 
+// ── ClickHouse queries (blob data from apps/indexer) ────────────────────────
+
 export async function getOverviewStats(): Promise<OverviewStats> {
-  const rows = await sql<OverviewStats[]>`
-    SELECT
-      COUNT(*)::bigint                    AS total_txs,
-      COALESCE(SUM(num_blobs), 0)::bigint AS total_blobs,
-      COUNT(DISTINCT rollup)::bigint      AS rollup_count,
-      MAX(created_at)                     AS last_indexed,
-      COALESCE(MAX(block_number), 0)      AS last_block,
-      COALESCE(
-        (SELECT AVG(utilization) * 100
-         FROM block_blob_stats
-         WHERE created_at > NOW() - INTERVAL '24 hours'),
-        0
-      )::float8                           AS avg_utilization_24h
-    FROM blob_transactions
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        count()                      AS total_txs,
+        sum(num_blobs)               AS total_blobs,
+        uniqExact(rollup)            AS rollup_count,
+        toString(max(block_timestamp)) AS last_indexed,
+        max(block_number)            AS last_block,
+        (
+          SELECT avg(utilization) * 100
+          FROM blob_lens.block_blob_stats FINAL
+          WHERE is_canonical = 1
+            AND block_timestamp > now() - toIntervalHour(24)
+        ) AS avg_utilization_24h
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1
+    `,
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<OverviewStats>();
   return rows[0];
 }
 
 export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
-  return sql<LeaderboardRow[]>`
-    WITH window_total AS (
-      SELECT COALESCE(SUM(num_blobs), 0)::float8 AS total_blobs_all
-      FROM blob_transactions
-      WHERE rollup IS NOT NULL
-        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    ),
-    -- Network-wide avg blob base fee for timing comparison
-    period_stats AS (
-      SELECT COALESCE(AVG(
-        CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
-             THEN blob_base_fee ELSE NULL END
-      ), 1)::float8 AS network_avg_fee
-      FROM blob_transactions
-      WHERE rollup IS NOT NULL
-        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    ),
-    base AS (
+  const result = await ch.query({
+    query: `
       SELECT
-        rollup,
-        COUNT(*)::bigint                                    AS tx_count,
-        COALESCE(SUM(num_blobs), 0)::bigint                 AS total_blobs,
-        COALESCE(AVG(num_blobs), 0)::float8                 AS avg_blobs_per_tx,
-        COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
-        MAX(created_at)                                     AS last_seen,
-        COALESCE(
-          SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18,
-          0
-        )::float8                                           AS da_cost_eth,
-        LEAST(100, COALESCE(AVG(num_blobs) / 6.0 * 100, 0))::float8 AS packing_score,
-        COALESCE(
-          SUM(num_blobs)::float8 / NULLIF((SELECT total_blobs_all FROM window_total), 0) * 100,
-          0
-        )::float8                                           AS network_share_pct,
-        -- Avg blob base fee in gwei — reflects which blocks they chose to submit in
-        COALESCE(
-          AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
-                   THEN blob_base_fee ELSE NULL END) / 1e9,
-          0
-        )::float8                                           AS cost_per_blob_gwei,
-        -- Beacon sidecar metrics (NULL until indexer collects them)
-        (AVG(fullness_ratio) * 100)::float8                 AS avg_fullness_pct,
-        COALESCE(SUM(CASE WHEN is_ghost_blob THEN 1 ELSE 0 END), 0)::bigint AS ghost_blob_count,
-        -- Cost-per-byte: bytes_used stored by beacon backfill
-        NULLIF(SUM(bytes_used), 0)::float8                  AS total_bytes_used,
-        CASE
-          WHEN NULLIF(SUM(bytes_used), 0) IS NOT NULL
-          THEN (
-            SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18
-          ) / (SUM(bytes_used)::float8 / 1024.0)
-          ELSE NULL
-        END::float8                                         AS cost_per_byte_eth
-      FROM blob_transactions
-      WHERE rollup IS NOT NULL
-        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-      GROUP BY rollup
-    ),
-    -- Per-rollup coordination score: avg co-occurrence weight with all peers
-    coordination AS (
-      WITH block_rollups AS (
-        SELECT block_number, ARRAY_AGG(DISTINCT rollup) AS rollups
-        FROM blob_transactions
-        WHERE rollup IS NOT NULL AND rollup != 'UNKNOWN'
-          AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-        GROUP BY block_number
-      ),
-      total_blocks AS (
-        SELECT COUNT(DISTINCT block_number)::float8 AS cnt
-        FROM blob_transactions
-        WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
-      ),
-      pairs AS (
+        b.rollup,
+        b.tx_count,
+        b.total_blobs,
+        b.avg_blobs_per_tx,
+        b.avg_fee,
+        toString(b.last_seen_ts) AS last_seen,
+        b.da_cost_eth,
+        b.packing_score,
+        b.total_blobs / greatest(wt.total_blobs_all, 1) * 100 AS network_share_pct,
+        b.cost_per_blob_gwei,
+        0.0  AS avg_fullness_pct,
+        0    AS ghost_blob_count,
+        NULL AS total_bytes_used,
+        NULL AS cost_per_byte_eth,
+        least(100, greatest(0,
+          (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
+        )) AS timing_score,
+        least(100, greatest(0,
+          0.70 * b.packing_score + 0.30 * least(100, greatest(0,
+            (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
+          ))
+        )) AS efficiency_score,
+        0.0 AS coordination_score
+      FROM (
         SELECT
-          br1.rollup AS rollup,
-          COUNT(*)::float8 AS co_count
-        FROM (SELECT block_number, unnest(rollups) AS rollup FROM block_rollups) br1
-        JOIN (SELECT block_number, unnest(rollups) AS rollup FROM block_rollups) br2
-          ON br1.block_number = br2.block_number AND br1.rollup != br2.rollup
-        GROUP BY br1.rollup
-      )
-      SELECT
-        rollup,
-        LEAST(100, (co_count / NULLIF((SELECT cnt FROM total_blocks), 0) * 100))::float8 AS coordination_score
-      FROM pairs
-    )
-    SELECT
-      b.*,
-      -- Timing score: 50 = network avg, 100 = cheapest, 0 = 2× avg cost
-      LEAST(100, GREATEST(0,
-        (1.0 - (b.cost_per_blob_gwei * 1e9)
-              / NULLIF((SELECT network_avg_fee FROM period_stats), 1)
-        ) * 50.0 + 50.0
-      ))::float8                                            AS timing_score,
-      -- Composite efficiency: 70% packing + 30% timing
-      LEAST(100, GREATEST(0,
-        0.70 * b.packing_score +
-        0.30 * LEAST(100, GREATEST(0,
-          (1.0 - (b.cost_per_blob_gwei * 1e9)
-                / NULLIF((SELECT network_avg_fee FROM period_stats), 1)
-          ) * 50.0 + 50.0
-        ))
-      ))::float8                                            AS efficiency_score,
-      c.coordination_score
-    FROM base b
-    LEFT JOIN coordination c ON c.rollup = b.rollup
-    ORDER BY total_blobs DESC
-  `;
+          rollup,
+          count()                                        AS tx_count,
+          sum(num_blobs)                                 AS total_blobs,
+          avg(num_blobs)                                 AS avg_blobs_per_tx,
+          toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+          max(block_timestamp)                           AS last_seen_ts,
+          sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
+          least(100, avg(num_blobs) / 6.0 * 100)        AS packing_score,
+          ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY (rollup)
+      ) b
+      CROSS JOIN (
+        SELECT sum(num_blobs) AS total_blobs_all
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+      ) wt
+      CROSS JOIN (
+        SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000) AS network_avg_fee
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+      ) na
+      ORDER BY total_blobs DESC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours },
+  });
+  return result.json<LeaderboardRow>();
 }
 
 export async function getForecastData(): Promise<ForecastData | null> {
-  const rows = await sql<ForecastData[]>`
-    WITH recent AS (
+  const result = await ch.query({
+    query: `
       SELECT
-        block_number,
-        excess_blob_gas,
-        blob_gas_used,
-        ROW_NUMBER() OVER (ORDER BY block_number DESC) AS rn
-      FROM block_blob_stats
-      ORDER BY block_number DESC
-      LIMIT 50
-    )
-    SELECT
-      COALESCE(
-        (SELECT blob_base_fee FROM block_blob_stats ORDER BY block_number DESC LIMIT 1),
-        0
-      )                                              AS current_fee_wei,
-      COALESCE(AVG(blob_gas_used), 0)::float8        AS avg_blob_gas_used,
-      COALESCE(
-        (SELECT excess_blob_gas FROM block_blob_stats ORDER BY block_number DESC LIMIT 1),
-        0
-      )                                              AS latest_excess,
-      COUNT(*)::int                                  AS sample_size,
-      -- Trend: latest-10 avg vs prior-10 avg excess (positive = fee pressure building)
-      COALESCE(
-        AVG(CASE WHEN rn <= 10 THEN excess_blob_gas::float8 END) -
-        AVG(CASE WHEN rn > 10 AND rn <= 20 THEN excess_blob_gas::float8 END),
-        0
-      )::float8                                      AS excess_trend
-    FROM recent
-  `;
+        maxIf(toFloat64(blob_base_fee), rn = 1)     AS current_fee_wei,
+        avg(blob_gas_used)                           AS avg_blob_gas_used,
+        maxIf(toFloat64(excess_blob_gas), rn = 1)   AS latest_excess,
+        count()                                      AS sample_size,
+        avgIf(toFloat64(excess_blob_gas), rn <= 10) -
+        avgIf(toFloat64(excess_blob_gas), rn > 10 AND rn <= 20) AS excess_trend
+      FROM (
+        SELECT
+          blob_base_fee,
+          blob_gas_used,
+          excess_blob_gas,
+          row_number() OVER (ORDER BY block_number DESC) AS rn
+        FROM blob_lens.block_blob_stats FINAL
+        WHERE is_canonical = 1
+        ORDER BY block_number DESC
+        LIMIT 50
+      )
+    `,
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<ForecastData>();
   return rows[0] ?? null;
 }
 
 export async function getUnknownSenders(): Promise<UnknownSender[]> {
-  return sql<UnknownSender[]>`
-    SELECT
-      from_address,
-      COUNT(*)::bigint                              AS tx_count,
-      COALESCE(SUM(num_blobs), 0)::bigint           AS total_blobs,
-      ROUND(AVG(num_blobs)::numeric, 2)::float      AS avg_blobs_per_tx
-    FROM blob_transactions
-    WHERE rollup = 'UNKNOWN'
-    GROUP BY from_address
-    ORDER BY total_blobs DESC
-    LIMIT 10
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        from_address,
+        count()               AS tx_count,
+        sum(num_blobs)        AS total_blobs,
+        round(avg(num_blobs), 2) AS avg_blobs_per_tx
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND rollup = 'UNKNOWN'
+      GROUP BY from_address
+      ORDER BY total_blobs DESC
+      LIMIT 10
+    `,
+    format: "JSONEachRow",
+  });
+  return result.json<UnknownSender>();
 }
 
 export async function getAllUnknownSenders(limit = 100): Promise<UnknownSender[]> {
-  return sql<UnknownSender[]>`
-    SELECT
-      from_address,
-      COUNT(*)::bigint                              AS tx_count,
-      COALESCE(SUM(num_blobs), 0)::bigint           AS total_blobs,
-      ROUND(AVG(num_blobs)::numeric, 2)::float      AS avg_blobs_per_tx
-    FROM blob_transactions
-    WHERE rollup = 'UNKNOWN'
-    GROUP BY from_address
-    ORDER BY total_blobs DESC
-    LIMIT ${limit}
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        from_address,
+        count()               AS tx_count,
+        sum(num_blobs)        AS total_blobs,
+        round(avg(num_blobs), 2) AS avg_blobs_per_tx
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND rollup = 'UNKNOWN'
+      GROUP BY from_address
+      ORDER BY total_blobs DESC
+      LIMIT {limit:UInt32}
+    `,
+    format: "JSONEachRow",
+    query_params: { limit },
+  });
+  return result.json<UnknownSender>();
 }
 
 export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
-  // Join blob_transactions with block_blob_stats to get:
-  //   - avg_fee from real blob_base_fee (not max bid)
-  //   - max_blobs_in_block from actual per-block blob count
-  //   - avg_utilization across blocks in that hour
-  return sql<MarketHour[]>`
-    SELECT
-      DATE_TRUNC('hour', bt.created_at)::text                             AS hour,
-      COUNT(*)::bigint                                                     AS tx_count,
-      COALESCE(SUM(bt.num_blobs), 0)::bigint                              AS blob_count,
-      COALESCE(AVG(CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee <= 1000000000000000000 THEN bbs.blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
-      COALESCE(MAX(bbs.blob_count), 0)::int                              AS max_blobs_in_block,
-      COALESCE(AVG(bbs.utilization) * 100, 0)::float8                    AS avg_utilization
-    FROM blob_transactions bt
-    LEFT JOIN block_blob_stats bbs ON bt.block_number = bbs.block_number
-    WHERE bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY DATE_TRUNC('hour', bt.created_at)
-    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        toString(toStartOfHour(bt.block_timestamp))                   AS hour,
+        count()                                                        AS tx_count,
+        sum(bt.num_blobs)                                              AS blob_count,
+        toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+        max(bbs.blob_count)                                            AS max_blobs_in_block,
+        avg(bbs.utilization) * 100                                     AS avg_utilization
+      FROM blob_lens.blob_transactions AS bt FINAL
+      LEFT JOIN (
+        SELECT block_number, blob_base_fee, blob_count, utilization
+        FROM blob_lens.block_blob_stats FINAL
+        WHERE is_canonical = 1
+      ) bbs ON bbs.block_number = bt.block_number
+      WHERE bt.is_canonical = 1
+        AND bt.block_timestamp > now() - toIntervalHour({hours:UInt32})
+      GROUP BY toStartOfHour(bt.block_timestamp)
+      ORDER BY toStartOfHour(bt.block_timestamp) ASC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours },
+  });
+  return result.json<MarketHour>();
 }
 
 export async function getPerRollupFeeActivity(
   rollup: string,
   hours = 24
 ): Promise<MarketHour[]> {
-  // Get hourly average fee for a specific rollup
-  return sql<MarketHour[]>`
-    SELECT
-      DATE_TRUNC('hour', bt.created_at)::text                             AS hour,
-      COUNT(*)::bigint                                                     AS tx_count,
-      COALESCE(SUM(bt.num_blobs), 0)::bigint                              AS blob_count,
-      COALESCE(AVG(CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee <= 1000000000000000000 THEN bbs.blob_base_fee ELSE NULL END), 0)::text AS avg_fee,
-      COALESCE(MAX(bbs.blob_count), 0)::int                              AS max_blobs_in_block,
-      COALESCE(AVG(bbs.utilization) * 100, 0)::float8                    AS avg_utilization
-    FROM blob_transactions bt
-    LEFT JOIN block_blob_stats bbs ON bt.block_number = bbs.block_number
-    WHERE bt.rollup = ${rollup}
-      AND bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY DATE_TRUNC('hour', bt.created_at)
-    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        toString(toStartOfHour(bt.block_timestamp))                   AS hour,
+        count()                                                        AS tx_count,
+        sum(bt.num_blobs)                                              AS blob_count,
+        toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+        max(bbs.blob_count)                                            AS max_blobs_in_block,
+        avg(bbs.utilization) * 100                                     AS avg_utilization
+      FROM blob_lens.blob_transactions AS bt FINAL
+      LEFT JOIN (
+        SELECT block_number, blob_base_fee, blob_count, utilization
+        FROM blob_lens.block_blob_stats FINAL
+        WHERE is_canonical = 1
+      ) bbs ON bbs.block_number = bt.block_number
+      WHERE bt.is_canonical = 1
+        AND bt.rollup = {rollup:String}
+        AND bt.block_timestamp > now() - toIntervalHour({hours:UInt32})
+      GROUP BY toStartOfHour(bt.block_timestamp)
+      ORDER BY toStartOfHour(bt.block_timestamp) ASC
+    `,
+    format: "JSONEachRow",
+    query_params: { rollup, hours },
+  });
+  return result.json<MarketHour>();
 }
 
 export async function getRollupTransactions(
   rollupId: string
 ): Promise<BlobTransaction[]> {
-  return sql<BlobTransaction[]>`
-    SELECT
-      tx_hash,
-      block_number,
-      num_blobs,
-      rollup,
-      max_fee_per_blob_gas,
-      CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
-           THEN blob_base_fee ELSE 0 END::text AS blob_base_fee,
-      created_at::text    AS created_at
-    FROM blob_transactions
-    WHERE rollup = ${rollupId}
-    ORDER BY created_at DESC
-    LIMIT 500
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        tx_hash,
+        block_number,
+        num_blobs,
+        rollup,
+        toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas,
+        toString(blob_base_fee)        AS blob_base_fee,
+        toString(block_timestamp)      AS created_at
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND rollup = {rollupId:String}
+      ORDER BY block_number DESC, tx_index DESC
+      LIMIT 500
+    `,
+    format: "JSONEachRow",
+    query_params: { rollupId },
+  });
+  return result.json<BlobTransaction>();
 }
 
 export async function getLatestBlobs(limit = 20): Promise<BlobTransaction[]> {
-  return sql<BlobTransaction[]>`
-    SELECT
-      tx_hash,
-      block_number,
-      num_blobs,
-      rollup,
-      max_fee_per_blob_gas,
-      CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000
-           THEN blob_base_fee ELSE 0 END::text AS blob_base_fee,
-      created_at::text    AS created_at
-    FROM blob_transactions
-    ORDER BY created_at DESC
-    LIMIT ${limit}
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        tx_hash,
+        block_number,
+        num_blobs,
+        rollup,
+        toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas,
+        toString(blob_base_fee)        AS blob_base_fee,
+        toString(block_timestamp)      AS created_at
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1
+      ORDER BY block_number DESC, tx_index DESC
+      LIMIT {limit:UInt32}
+    `,
+    format: "JSONEachRow",
+    query_params: { limit },
+  });
+  return result.json<BlobTransaction>();
 }
 
 export async function getRecentBlocks(limit = 20): Promise<BlockRow[]> {
-  const rows = await sql`
-    SELECT
-      bbs.block_number,
-      CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee <= 1000000000000000000
-           THEN bbs.blob_base_fee ELSE 0 END::text             AS blob_base_fee,
-      bbs.blob_gas_used,
-      bbs.blob_count,
-      ROUND((bbs.utilization * 100)::numeric, 1)::float8        AS utilization,
-      COUNT(bt.tx_hash)::int                                    AS tx_count,
-      ARRAY_REMOVE(ARRAY_AGG(DISTINCT bt.rollup), NULL)         AS rollups,
-      bbs.created_at::text                                      AS created_at
-    FROM block_blob_stats bbs
-    LEFT JOIN blob_transactions bt ON bt.block_number = bbs.block_number
-    WHERE bbs.blob_count > 0
-    GROUP BY bbs.block_number, bbs.blob_base_fee, bbs.blob_gas_used,
-             bbs.blob_count, bbs.utilization, bbs.created_at
-    ORDER BY bbs.block_number DESC
-    LIMIT ${limit}
-  `;
-  return rows as unknown as BlockRow[];
+  const result = await ch.query({
+    query: `
+      SELECT
+        bbs.block_number,
+        toString(bbs.blob_base_fee)                                    AS blob_base_fee,
+        bbs.blob_gas_used,
+        bbs.blob_count,
+        round(bbs.utilization * 100, 1)                                AS utilization,
+        countIf(bt.tx_hash != '')                                      AS tx_count,
+        arrayFilter(x -> x != '', groupUniqArray(bt.rollup))           AS rollups,
+        toString(bbs.block_timestamp)                                  AS created_at
+      FROM (
+        SELECT block_number, blob_base_fee, blob_gas_used, blob_count, utilization, block_timestamp
+        FROM blob_lens.block_blob_stats FINAL
+        WHERE is_canonical = 1 AND blob_count > 0
+        ORDER BY block_number DESC
+        LIMIT {limit:UInt32}
+      ) bbs
+      LEFT JOIN (
+        SELECT block_number, tx_hash, rollup
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1
+      ) bt ON bt.block_number = bbs.block_number
+      GROUP BY
+        bbs.block_number, bbs.blob_base_fee, bbs.blob_gas_used,
+        bbs.blob_count, bbs.utilization, bbs.block_timestamp
+      ORDER BY bbs.block_number DESC
+    `,
+    format: "JSONEachRow",
+    query_params: { limit },
+  });
+  return result.json<BlockRow>();
 }
 
 export async function getRollupSparklines(): Promise<SparklinePoint[]> {
-  return sql<SparklinePoint[]>`
-    SELECT
-      rollup,
-      DATE_TRUNC('hour', created_at)::text AS hour,
-      SUM(num_blobs)::bigint               AS blobs
-    FROM blob_transactions
-    WHERE created_at > NOW() - INTERVAL '24 hours'
-      AND rollup IS NOT NULL
-    GROUP BY rollup, DATE_TRUNC('hour', created_at)
-    ORDER BY rollup, DATE_TRUNC('hour', created_at) ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        rollup,
+        toString(toStartOfHour(block_timestamp)) AS hour,
+        sum(num_blobs)                           AS blobs
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND rollup != ''
+        AND block_timestamp > now() - toIntervalHour(24)
+      GROUP BY (rollup, toStartOfHour(block_timestamp))
+      ORDER BY rollup ASC, toStartOfHour(block_timestamp) ASC
+    `,
+    format: "JSONEachRow",
+  });
+  return result.json<SparklinePoint>();
 }
 
 export async function getDailyRollupBreakdown(
   days = 30,
   topRollups = 16
 ): Promise<DailyRollupBlob[]> {
-  return sql<DailyRollupBlob[]>`
-    WITH daily AS (
-      SELECT
-        DATE_TRUNC('day', created_at)::text             AS day,
-        rollup,
-        COALESCE(SUM(num_blobs), 0)::bigint             AS blobs
-      FROM blob_transactions
-      WHERE created_at > NOW() - INTERVAL '1 day' * ${days}
-        AND rollup IS NOT NULL
-        AND rollup <> 'UNKNOWN'
-      GROUP BY DATE_TRUNC('day', created_at), rollup
-    ),
-    top AS (
-      SELECT rollup
-      FROM daily
-      GROUP BY rollup
-      ORDER BY COALESCE(SUM(blobs), 0) DESC
-      LIMIT ${topRollups}
-    )
-    SELECT d.day, d.rollup, d.blobs
-    FROM daily d
-    JOIN top t ON t.rollup = d.rollup
-    ORDER BY d.day ASC, d.rollup ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT d.day, d.rollup, d.blobs
+      FROM (
+        SELECT
+          toString(toStartOfDay(block_timestamp)) AS day,
+          rollup,
+          sum(num_blobs)                          AS blobs
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          AND block_timestamp > now() - toIntervalDay({days:UInt32})
+        GROUP BY (toStartOfDay(block_timestamp), rollup)
+      ) d
+      INNER JOIN (
+        SELECT rollup
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          AND block_timestamp > now() - toIntervalDay({days:UInt32})
+        GROUP BY (rollup)
+        ORDER BY sum(num_blobs) DESC
+        LIMIT {topRollups:UInt32}
+      ) top ON top.rollup = d.rollup
+      ORDER BY d.day ASC, d.rollup ASC
+    `,
+    format: "JSONEachRow",
+    query_params: { days, topRollups },
+  });
+  return result.json<DailyRollupBlob>();
 }
 
 export async function getHourlyRollupFee(
   hours = 24,
   topN = 10
 ): Promise<HourlyRollupValue[]> {
-  return sql<HourlyRollupValue[]>`
-    WITH top_rollups AS (
-      SELECT rollup
-      FROM blob_transactions
-      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
-        AND rollup IS NOT NULL AND rollup != 'UNKNOWN'
-      GROUP BY rollup
-      ORDER BY SUM(num_blobs) DESC
-      LIMIT ${topN}
-    )
-    SELECT
-      bt.rollup,
-      DATE_TRUNC('hour', bt.created_at)::text AS hour,
-      COALESCE(AVG(
-        CASE WHEN bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000
-             THEN bbs.blob_base_fee ELSE NULL END
-      ), 0)::float8 AS value
-    FROM blob_transactions bt
-    JOIN top_rollups tr ON tr.rollup = bt.rollup
-    LEFT JOIN block_blob_stats bbs ON bbs.block_number = bt.block_number
-    WHERE bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY bt.rollup, DATE_TRUNC('hour', bt.created_at)
-    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC, bt.rollup ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        bt.rollup,
+        toString(toStartOfHour(bt.block_timestamp))             AS hour,
+        ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0) AS value
+      FROM blob_lens.blob_transactions AS bt FINAL
+      LEFT JOIN (
+        SELECT block_number, blob_base_fee
+        FROM blob_lens.block_blob_stats FINAL
+        WHERE is_canonical = 1
+      ) bbs ON bbs.block_number = bt.block_number
+      WHERE bt.is_canonical = 1
+        AND bt.rollup != '' AND bt.rollup != 'UNKNOWN'
+        AND bt.rollup IN (
+          SELECT rollup
+          FROM blob_lens.blob_transactions FINAL
+          WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          GROUP BY (rollup)
+          ORDER BY sum(num_blobs) DESC
+          LIMIT {topN:UInt32}
+        )
+        AND bt.block_timestamp > now() - toIntervalHour({hours:UInt32})
+      GROUP BY (bt.rollup, toStartOfHour(bt.block_timestamp))
+      ORDER BY toStartOfHour(bt.block_timestamp) ASC, bt.rollup ASC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours, topN },
+  });
+  return result.json<HourlyRollupValue>();
 }
 
 export async function getHourlyRollupUtilization(
   hours = 24,
   topN = 10
 ): Promise<HourlyRollupValue[]> {
-  return sql<HourlyRollupValue[]>`
-    WITH top_rollups AS (
-      SELECT rollup
-      FROM blob_transactions
-      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
-        AND rollup IS NOT NULL AND rollup != 'UNKNOWN'
-      GROUP BY rollup
-      ORDER BY SUM(num_blobs) DESC
-      LIMIT ${topN}
-    )
-    SELECT
-      bt.rollup,
-      DATE_TRUNC('hour', bt.created_at)::text AS hour,
-      (SUM(bt.num_blobs)::float8
-        / (COUNT(DISTINCT bt.block_number) * 9.0) * 100) AS value
-    FROM blob_transactions bt
-    JOIN top_rollups tr ON tr.rollup = bt.rollup
-    WHERE bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY bt.rollup, DATE_TRUNC('hour', bt.created_at)
-    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC, bt.rollup ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        rollup,
+        toString(toStartOfHour(block_timestamp))                AS hour,
+        sum(num_blobs) / (uniqExact(block_number) * 9.0) * 100 AS value
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1
+        AND rollup != '' AND rollup != 'UNKNOWN'
+        AND rollup IN (
+          SELECT rollup
+          FROM blob_lens.blob_transactions FINAL
+          WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          GROUP BY (rollup)
+          ORDER BY sum(num_blobs) DESC
+          LIMIT {topN:UInt32}
+        )
+        AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+      GROUP BY (rollup, toStartOfHour(block_timestamp))
+      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours, topN },
+  });
+  return result.json<HourlyRollupValue>();
 }
 
 export async function getHourlyRollupActivity(
   hours = 24,
   topN = 10
 ): Promise<HourlyRollupBlob[]> {
-  return sql<HourlyRollupBlob[]>`
-    WITH top_rollups AS (
-      SELECT rollup
-      FROM blob_transactions
-      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
-        AND rollup IS NOT NULL
-        AND rollup != 'UNKNOWN'
-      GROUP BY rollup
-      ORDER BY SUM(num_blobs) DESC
-      LIMIT ${topN}
-    )
-    SELECT
-      bt.rollup,
-      DATE_TRUNC('hour', bt.created_at)::text AS hour,
-      SUM(bt.num_blobs)::bigint               AS blobs
-    FROM blob_transactions bt
-    JOIN top_rollups tr ON tr.rollup = bt.rollup
-    WHERE bt.created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY bt.rollup, DATE_TRUNC('hour', bt.created_at)
-    ORDER BY DATE_TRUNC('hour', bt.created_at) ASC, bt.rollup ASC
-  `;
+  const result = await ch.query({
+    query: `
+      SELECT
+        rollup,
+        toString(toStartOfHour(block_timestamp)) AS hour,
+        sum(num_blobs)                           AS blobs
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1
+        AND rollup != '' AND rollup != 'UNKNOWN'
+        AND rollup IN (
+          SELECT rollup
+          FROM blob_lens.blob_transactions FINAL
+          WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          GROUP BY (rollup)
+          ORDER BY sum(num_blobs) DESC
+          LIMIT {topN:UInt32}
+        )
+        AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+      GROUP BY (rollup, toStartOfHour(block_timestamp))
+      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours, topN },
+  });
+  return result.json<HourlyRollupBlob>();
 }
 
 export interface RollupNetworkNode {
   name: string;
-  value: number; // blob count
-  efficiency: number; // 0-100
+  value: number;
+  efficiency: number;
   avgFeeGwei: number;
   txCount: number;
   costEth: number;
@@ -578,7 +605,7 @@ export interface RollupNetworkNode {
 export interface RollupNetworkEdge {
   source: string;
   target: string;
-  weight: number; // co-occurrence strength 0-100
+  weight: number;
 }
 
 export interface RollupNetworkGraph {
@@ -587,90 +614,67 @@ export interface RollupNetworkGraph {
 }
 
 export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGraph> {
-  // Get rollup metrics for nodes
-  const nodesData = await sql<RollupNetworkNode[]>`
-    SELECT
-      rollup::text                                        AS name,
-      COALESCE(SUM(num_blobs), 0)::bigint                AS value,
-      COALESCE(
-        LEAST(100, GREATEST(0,
-          0.70 * LEAST(100, COALESCE(AVG(num_blobs) / 6.0 * 100, 0)) +
-          0.30 * LEAST(100, GREATEST(0,
-            (1.0 - (COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 0) * 1e9)
-                  / NULLIF((SELECT COALESCE(AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END), 1) FROM blob_transactions WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}), 1)
-            ) * 50.0 + 50.0
-          ))
-        ))
-      )::float8                                           AS efficiency,
-      COALESCE(
-        AVG(CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE NULL END) / 1e9,
-        0
-      )::float8                                           AS avgFeeGwei,
-      COUNT(*)::int                                       AS txCount,
-      COALESCE(
-        SUM(num_blobs * CASE WHEN blob_base_fee > 0 AND blob_base_fee <= 1000000000000000000 THEN blob_base_fee ELSE 0 END) * 131072.0 / 1e18,
-        0
-      )::float8                                           AS costEth
-    FROM blob_transactions
-    WHERE rollup IS NOT NULL
-      AND rollup != 'UNKNOWN'
-      AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-    GROUP BY rollup
-    HAVING SUM(num_blobs) > 0
-    ORDER BY SUM(num_blobs) DESC
-  `;
+  const nodesResult = await ch.query({
+    query: `
+      SELECT
+        rollup                                                          AS name,
+        sum(num_blobs)                                                  AS value,
+        ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS avgFeeGwei,
+        count()                                                         AS txCount,
+        sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS costEth,
+        least(100, greatest(0,
+          0.70 * least(100, avg(num_blobs) / 6.0 * 100) + 0.30 * 50.0
+        ))                                                              AS efficiency
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+        AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+      GROUP BY (rollup)
+      HAVING sum(num_blobs) > 0
+      ORDER BY sum(num_blobs) DESC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours },
+  });
+  const nodes = await nodesResult.json<RollupNetworkNode>();
 
-  // Get edges: co-occurrence in same blocks (transaction flow)
-  const edgesData = await sql<Array<{ source: string; target: string; weight: number }>>`
-    WITH block_rollups AS (
+  const edgesResult = await ch.query({
+    query: `
       SELECT
-        block_number,
-        ARRAY_AGG(DISTINCT rollup) AS rollups
-      FROM blob_transactions
-      WHERE rollup IS NOT NULL
-        AND rollup != 'UNKNOWN'
-        AND created_at > NOW() - INTERVAL '1 hour' * ${hours}
-      GROUP BY block_number
-    ),
-    -- Unnest to get all rollup pairs in same block
-    rollup_pairs AS (
-      SELECT
-        br1.rollup AS source,
-        br2.rollup AS target,
-        COUNT(*) AS co_occurrence
+        a.rollup                                                    AS source,
+        b.rollup                                                    AS target,
+        least(100, count() / greatest(total.total_blocks, 1) * 100) AS weight
       FROM (
-        SELECT block_number, unnest(rollups) AS rollup FROM block_rollups
-      ) br1
+        SELECT block_number, rollup
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY (block_number, rollup)
+      ) a
       JOIN (
-        SELECT block_number, unnest(rollups) AS rollup FROM block_rollups
-      ) br2
-        ON br1.block_number = br2.block_number
-        AND br1.rollup < br2.rollup
-      GROUP BY br1.rollup, br2.rollup
-    )
-    SELECT
-      source,
-      target,
-      LEAST(100, (co_occurrence::float8 / (SELECT COUNT(DISTINCT block_number) FROM blob_transactions WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}) * 100))::float8 AS weight
-    FROM rollup_pairs
-    ORDER BY weight DESC
-  `;
+        SELECT block_number, rollup
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY (block_number, rollup)
+      ) b ON a.block_number = b.block_number AND a.rollup < b.rollup
+      CROSS JOIN (
+        SELECT uniqExact(block_number) AS total_blocks
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+      ) total
+      GROUP BY (a.rollup, b.rollup, total.total_blocks)
+      ORDER BY weight DESC
+    `,
+    format: "JSONEachRow",
+    query_params: { hours },
+  });
+  const edges = await edgesResult.json<RollupNetworkEdge>();
 
-  return {
-    nodes: nodesData,
-    edges: edgesData,
-  };
+  return { nodes, edges };
 }
 
-export async function getFullnessHistogram(days = 7): Promise<FullnessHistogramBucket[]> {
-  return sql<FullnessHistogramBucket[]>`
-    SELECT
-      (FLOOR(fullness_ratio * 10) * 10)::int AS bucket_start,
-      COUNT(*)::bigint                        AS blob_count
-    FROM blob_transactions
-    WHERE fullness_ratio IS NOT NULL
-      AND created_at > NOW() - INTERVAL '1 day' * ${days}
-    GROUP BY bucket_start
-    ORDER BY bucket_start ASC
-  `;
+export async function getFullnessHistogram(_days = 7): Promise<FullnessHistogramBucket[]> {
+  // fullness_ratio is not available in the ClickHouse schema (beacon sidecar data only)
+  return [];
 }
