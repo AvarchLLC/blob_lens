@@ -1,0 +1,36 @@
+[package]
+name = "blob-exex-node"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "blob-indexer"
+path = "src/main.rs"
+
+[dependencies]
+# Reth full node with ExEx support
+reth-ethereum       = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", features = ["full", "cli"] }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0" }
+
+# ClickHouse HTTP client
+clickhouse = { version = "0.13", features = ["lz4"] }
+
+# Async
+tokio        = { version = "1",     features = ["full"] }
+futures-util = "0.3"
+
+# Alloy types — pinned to match reth v2.2.0
+alloy-consensus = { version = "2.0.4", features = ["std"] }
+alloy-primitives = "1.5.6"
+
+# Serialization
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Logging
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+eyre    = "0.6"
+dotenvy = "0.15"

@@ -2,10 +2,9 @@
 # Run as root (or a user in the docker group):
 #   docker compose -f clickhouse-compose.yml up -d
 #
-# Data is persisted to /ethereum/data/clickhouse on the host.
-# The HTTP interface (8123) and native protocol (9000) are bound to
-# localhost only — Tailscale mesh keeps them accessible from your dev machine
-# via the ba-data hostname.
+# Data is persisted to /clickhouse on the host.
+# Do NOT use /workspace — that partition holds EIPsInsight and UI code.
+# The HTTP interface (8123) is bound to 0.0.0.0 — Tailscale mesh restricts access.
 
 services:
   clickhouse:
@@ -16,7 +15,7 @@ services:
       - "0.0.0.0:8123:8123"   # HTTP interface — used by the Rust clickhouse crate
       # Native TCP port 9000 intentionally not exposed (port already in use on host)
     volumes:
-      - /ethereum/data/clickhouse:/var/lib/clickhouse
+      - /clickhouse:/var/lib/clickhouse
     environment:
       # Default credentials — change CLICKHOUSE_PASSWORD before first start
       CLICKHOUSE_USER:     blob_lens

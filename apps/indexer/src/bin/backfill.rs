@@ -58,6 +58,26 @@ struct BlockStatRow {
 }
 
 // ---------------------------------------------------------------------------
+// ClickHouse log row
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct BlobTxLogRow {
+    block_number:    u64,
+    block_timestamp: u32,
+    tx_hash:         String,
+    log_index:       u32,
+    address:         String,
+    topic0:          String,
+    topic1:          String,
+    topic2:          String,
+    topic3:          String,
+    data:            String,
+    is_canonical:    u8,
+    version:         u64,
+}
+
+// ---------------------------------------------------------------------------
 // JSON-RPC response shapes
 // ---------------------------------------------------------------------------
 
@@ -86,6 +106,26 @@ struct RpcTx {
     max_fee_per_blob_gas: Option<String>,
     #[serde(rename = "blobVersionedHashes")]
     blob_versioned_hashes: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RpcLog {
+    #[serde(rename = "transactionHash")]
+    transaction_hash: String,
+    #[serde(rename = "logIndex")]
+    log_index: String,
+    address: String,
+    topics: Vec<String>,
+    data: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RpcReceipt {
+    #[serde(rename = "transactionHash")]
+    transaction_hash: String,
+    #[serde(rename = "transactionIndex")]
+    transaction_index: String,
+    logs: Vec<RpcLog>,
 }
 
 // ---------------------------------------------------------------------------
@@ -168,20 +208,32 @@ fn resolve_rollup(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// update_fraction is hardfork-dependent — see exex.rs for derivation
+fn blob_update_fraction(block_number: u64) -> u128 {
+    if block_number >= 24_833_256 {
+        11_684_671 // BPO2 / Fusaka  — TODO: verify exact activation block
+    } else if block_number >= 22_431_084 {
+        5_007_716  // Pectra EIP-7691
+    } else {
+        3_338_477  // Cancun / Dencun
+    }
+}
+
 fn fake_exponential(factor: u128, numerator: u128, denominator: u128) -> u128 {
     let mut output = 0u128;
-    let mut acc = factor.saturating_mul(denominator);
+    let mut numerator_accum = factor * denominator;
     let mut i = 1u128;
-    while acc > 0 {
-        output = output.saturating_add(acc);
-        acc = acc.saturating_mul(numerator) / denominator.saturating_mul(i);
+    while numerator_accum > 0 {
+        output += numerator_accum;
+        let Some(next) = numerator_accum.checked_mul(numerator) else { break };
+        numerator_accum = next / (denominator * i);
         i += 1;
     }
     output / denominator
 }
 
-fn calc_blob_base_fee(excess: u64) -> u128 {
-    fake_exponential(1, excess as u128, 3_338_477)
+fn calc_blob_base_fee(block_number: u64, excess: u64) -> u128 {
+    fake_exponential(1, excess as u128, blob_update_fraction(block_number))
 }
 
 fn hex_u64(s: &str) -> u64 {
@@ -249,6 +301,26 @@ async fn init_schema(client: &Client) -> eyre::Result<()> {
         ORDER BY source",
     ).execute().await?;
 
+    client.query(
+        "CREATE TABLE IF NOT EXISTS blob_lens.blob_tx_logs (
+            block_number    UInt64,
+            block_timestamp DateTime,
+            tx_hash         String,
+            log_index       UInt32,
+            address         LowCardinality(String),
+            topic0          String,
+            topic1          String,
+            topic2          String,
+            topic3          String,
+            data            String,
+            is_canonical    UInt8 DEFAULT 1,
+            version         UInt64
+        )
+        ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY (block_number, tx_hash, log_index)",
+    ).execute().await?;
+
     Ok(())
 }
 
@@ -297,6 +369,24 @@ async fn rpc_head(http: &reqwest::Client, rpc: &str) -> eyre::Result<u64> {
     Ok(hex_u64(resp["result"].as_str().unwrap_or("0x0")))
 }
 
+async fn rpc_block_receipts(
+    http: &reqwest::Client,
+    rpc: &str,
+    num: u64,
+) -> eyre::Result<Vec<RpcReceipt>> {
+    let resp: Value = http
+        .post(rpc)
+        .json(&json!({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "eth_getBlockReceipts",
+            "params": [format!("{:#x}", num)]
+        }))
+        .send().await?.json().await?;
+
+    if resp["result"].is_null() { return Ok(vec![]); }
+    Ok(serde_json::from_value(resp["result"].clone()).unwrap_or_default())
+}
+
 // ---------------------------------------------------------------------------
 
 #[tokio::main]
@@ -337,13 +427,14 @@ async fn main() -> eyre::Result<()> {
         let end = (cur + batch_size - 1).min(head);
         let mut blob_txs:    Vec<BlobTxRow>    = Vec::new();
         let mut block_stats: Vec<BlockStatRow> = Vec::new();
+        let mut tx_logs:     Vec<BlobTxLogRow> = Vec::new();
 
         for num in cur..=end {
             let Some(block) = rpc_block(&http, &rpc, num).await? else { continue };
 
             let excess    = block.excess_blob_gas.as_deref().map(hex_u64).unwrap_or(0);
             let gas_used  = block.blob_gas_used.as_deref().map(hex_u64).unwrap_or(0);
-            let base_fee  = calc_blob_base_fee(excess);
+            let base_fee  = calc_blob_base_fee(num, excess);
             let timestamp = hex_u64(&block.timestamp) as u32;
             let blob_count = (gas_used / 131_072) as u16;
             let utilization = if gas_used == 0 { 0.0 } else { gas_used as f64 / 786_432.0 };
@@ -355,12 +446,27 @@ async fn main() -> eyre::Result<()> {
                 blob_count, utilization, is_canonical: 1, version: num,
             });
 
-            for tx in block.transactions.iter().filter(|t| t.tx_type == "0x3") {
+            // Only fetch receipts for blocks that have blob txs
+            let blob_tx_list: Vec<&RpcTx> = block.transactions.iter()
+                .filter(|t| t.tx_type == "0x3")
+                .collect();
+
+            let receipts: std::collections::HashMap<String, RpcReceipt> = if blob_tx_list.is_empty() {
+                Default::default()
+            } else {
+                rpc_block_receipts(&http, &rpc, num).await?
+                    .into_iter()
+                    .map(|r| (r.transaction_hash.to_lowercase(), r))
+                    .collect()
+            };
+
+            for tx in blob_tx_list {
                 let hashes  = tx.blob_versioned_hashes.clone().unwrap_or_default();
                 let to      = tx.to.clone().unwrap_or_default();
                 let rollup  = resolve_rollup(&registry, &tx.from, &to);
                 let max_fee = tx.max_fee_per_blob_gas.as_deref().map(hex_u128).unwrap_or(0);
                 let tx_idx  = hex_u64(&tx.transaction_index) as u32;
+
                 blob_txs.push(BlobTxRow {
                     block_number: num, block_hash: block.hash.clone(),
                     block_timestamp: timestamp, tx_hash: tx.hash.clone(),
@@ -369,6 +475,26 @@ async fn main() -> eyre::Result<()> {
                     max_fee_per_blob_gas: max_fee, blob_base_fee: base_fee,
                     blob_hashes: hashes, is_canonical: 1, version: num,
                 });
+
+                if let Some(receipt) = receipts.get(&tx.hash.to_lowercase()) {
+                    for log in &receipt.logs {
+                        let log_idx = hex_u64(&log.log_index) as u32;
+                        tx_logs.push(BlobTxLogRow {
+                            block_number:    num,
+                            block_timestamp: timestamp,
+                            tx_hash:         tx.hash.clone(),
+                            log_index:       log_idx,
+                            address:         log.address.clone(),
+                            topic0:          log.topics.first().cloned().unwrap_or_default(),
+                            topic1:          log.topics.get(1).cloned().unwrap_or_default(),
+                            topic2:          log.topics.get(2).cloned().unwrap_or_default(),
+                            topic3:          log.topics.get(3).cloned().unwrap_or_default(),
+                            data:            log.data.clone(),
+                            is_canonical:    1,
+                            version:         num,
+                        });
+                    }
+                }
             }
         }
 
@@ -384,12 +510,19 @@ async fn main() -> eyre::Result<()> {
             for r in &blob_txs { ins.write(r).await?; }
             ins.end().await?;
         }
+        // Insert tx logs
+        if !tx_logs.is_empty() {
+            let mut ins = ch.insert("blob_lens.blob_tx_logs")?;
+            for r in &tx_logs { ins.write(r).await?; }
+            ins.end().await?;
+        }
 
         set_progress(&ch, end).await?;
         tracing::info!(
-            up_to = end,
-            pct   = format!("{:.1}%", (end - start) as f64 / (head - start).max(1) as f64 * 100.0),
-            blobs = blob_txs.len(),
+            up_to    = end,
+            pct      = format!("{:.1}%", (end - start) as f64 / (head - start).max(1) as f64 * 100.0),
+            blobs    = blob_txs.len(),
+            tx_logs  = tx_logs.len(),
             "batch done"
         );
 

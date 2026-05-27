@@ -3,6 +3,8 @@ apps/api_v1/target/
 apps/api_v1/Cargo.lock
 apps/indexer/target/
 apps/indexer/Cargo.lock
+apps/exex-node/target/
+apps/exex-node/Cargo.lock
 **/*.rs.bk
 *.pdb
 
