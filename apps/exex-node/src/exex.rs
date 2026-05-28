@@ -1,10 +1,12 @@
-use std::{collections::HashMap, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::HashMap, str::FromStr, time::{SystemTime, UNIX_EPOCH}};
 
-use alloy_consensus::{BlockHeader, EthereumTxEnvelope, TxEip4844};
+use alloy_consensus::{BlockHeader, EthereumTxEnvelope, TxEip4844, TxReceipt};
+use alloy_primitives::TxHash;
 use futures_util::StreamExt;
 use reth_ethereum::{
     exex::{ExExContext, ExExEvent, ExExNotification},
     node::api::{FullNodeComponents, NodeTypes},
+    provider::ReceiptProvider,
     EthPrimitives,
 };
 use reth_execution_types::Chain;
@@ -17,11 +19,154 @@ use crate::{
     rollup::{build_registry, resolve},
 };
 
+/// EIP-4844 activation on Ethereum mainnet (Dencun / Cancun fork)
+const DENCUN_BLOCK: u64 = 19_426_587;
+/// Blocks per batch during log backfill
+const LOG_BACKFILL_BATCH: u64 = 2_000;
+
+// ---------------------------------------------------------------------------
+// Log backfill — uses the ExEx's in-process provider to read historical
+// receipts directly from Reth's storage (no JSON-RPC round-trips).
+// ---------------------------------------------------------------------------
+
+#[derive(clickhouse::Row, serde::Deserialize)]
+struct BlobTxMeta {
+    tx_hash:         String,
+    block_number:    u64,
+    block_timestamp: u32,
+}
+
+async fn get_log_cursor(ch: &clickhouse::Client) -> eyre::Result<u64> {
+    #[derive(clickhouse::Row, serde::Deserialize)]
+    struct R { last_block: u64 }
+    let row: Option<R> = ch
+        .query("SELECT last_block FROM blob_lens.sync_progress FINAL WHERE source = 'log_backfill' LIMIT 1")
+        .fetch_optional()
+        .await?;
+    Ok(row.map(|r| r.last_block).unwrap_or(DENCUN_BLOCK - 1))
+}
+
+async fn set_log_cursor(ch: &clickhouse::Client, block: u64) -> eyre::Result<()> {
+    ch.query("INSERT INTO blob_lens.sync_progress (source, last_block) VALUES ('log_backfill', ?)")
+        .bind(block)
+        .execute()
+        .await?;
+    Ok(())
+}
+
+/// Backfill `blob_tx_logs` for all historical blob transactions by reading
+/// receipts from the live Reth node's storage via the ExEx provider.
+///
+/// Progress is tracked in `sync_progress` under `source = 'log_backfill'`.
+/// Safe to interrupt and resume. Runs before the live notification loop.
+pub async fn backfill_logs<Node>(ctx: &ExExContext<Node>, ch: &clickhouse::Client) -> eyre::Result<()>
+where
+    Node: FullNodeComponents<Types: NodeTypes<Primitives = EthPrimitives>>,
+    // Receipt type must expose .logs() — true for all Ethereum receipts
+    <Node::Provider as ReceiptProvider>::Receipt: TxReceipt<Log = alloy_primitives::Log>,
+{
+    let current_head = ctx.head.number;
+    let start        = get_log_cursor(ch).await?;
+
+    if start >= current_head {
+        tracing::info!(cursor = start, "log backfill already up to date");
+        return Ok(());
+    }
+
+    tracing::info!(
+        start,
+        head  = current_head,
+        blocks = current_head - start,
+        "log backfill starting (provider-based, no RPC)"
+    );
+
+    let provider = ctx.provider().clone();
+    let mut cur  = start;
+
+    while cur < current_head {
+        let batch_end = (cur + LOG_BACKFILL_BATCH).min(current_head);
+
+        // Fetch blob tx hashes + metadata for this block window from ClickHouse
+        let tx_meta: Vec<BlobTxMeta> = ch
+            .query(
+                "SELECT tx_hash, block_number, toUnixTimestamp(block_timestamp) AS block_timestamp \
+                 FROM blob_lens.blob_transactions FINAL \
+                 WHERE is_canonical = 1 AND block_number > ? AND block_number <= ? \
+                 ORDER BY block_number",
+            )
+            .bind(cur)
+            .bind(batch_end)
+            .fetch_all()
+            .await?;
+
+        if !tx_meta.is_empty() {
+            let version = now_ns();
+            let mut log_rows: Vec<BlobTxLogRow> = Vec::new();
+
+            // Provider reads are synchronous (MDBX mmap).
+            // block_in_place tells tokio "this thread may block for a bit".
+            tokio::task::block_in_place(|| {
+                for meta in &tx_meta {
+                    let Ok(hash) = TxHash::from_str(&meta.tx_hash) else { continue };
+                    let Ok(Some(receipt)) = provider.receipt_by_hash(hash) else { continue };
+
+                    for (log_idx, log) in receipt.logs().iter().enumerate() {
+                        let topics = log.data.topics();
+                        log_rows.push(BlobTxLogRow {
+                            block_number:    meta.block_number,
+                            block_timestamp: meta.block_timestamp,
+                            tx_hash:         meta.tx_hash.clone(),
+                            log_index:       log_idx as u32,
+                            address:         format!("{:#x}", log.address),
+                            topic0:          topics.first().map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            topic1:          topics.get(1).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            topic2:          topics.get(2).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            topic3:          topics.get(3).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            data:            format!("0x{}", alloy_primitives::hex::encode(&log.data.data)),
+                            is_canonical:    1,
+                            version,
+                        });
+                    }
+                }
+            });
+
+            insert_blob_tx_logs(ch, &log_rows).await?;
+
+            tracing::info!(
+                up_to    = batch_end,
+                pct      = format!("{:.1}%",
+                               (batch_end - start) as f64
+                               / (current_head - start).max(1) as f64
+                               * 100.0),
+                txs      = tx_meta.len(),
+                logs     = log_rows.len(),
+                "log backfill batch done"
+            );
+        }
+
+        set_log_cursor(ch, batch_end).await?;
+        cur = batch_end;
+    }
+
+    tracing::info!("log backfill complete");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Live ExEx notification loop
+// ---------------------------------------------------------------------------
+
 pub async fn run<Node>(mut ctx: ExExContext<Node>, ch: clickhouse::Client) -> eyre::Result<()>
 where
     Node: FullNodeComponents<Types: NodeTypes<Primitives = EthPrimitives>>,
+    <Node::Provider as ReceiptProvider>::Receipt: TxReceipt<Log = alloy_primitives::Log>,
 {
     let registry = build_registry();
+
+    // Backfill historical logs from the local Reth storage before live indexing
+    if let Err(e) = backfill_logs(&ctx, &ch).await {
+        tracing::warn!(err = %e, "log backfill failed — continuing with live indexing");
+    }
 
     while let Some(notification) = ctx.notifications.next().await {
         let notification = notification?;

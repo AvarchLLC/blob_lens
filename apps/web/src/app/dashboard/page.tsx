@@ -4,13 +4,14 @@ import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
 import { CongestionForecast } from "@/components/charts/CongestionForecast";
 import { CostHeatmap } from "@/components/charts/CostHeatmap";
-import { DACostCharts } from "@/components/charts/DACostCharts";
+import { EfficiencyComparisonTable } from "@/components/charts/EfficiencyComparisonTable";
 import { EfficiencyScatterplot } from "@/components/charts/EfficiencyScatterplot";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
 import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
 import { BlockFeed } from "@/components/shared/BlockFeed";
 import { EfficiencyLeaderboardMini } from "@/components/shared/EfficiencyLeaderboardMini";
+import { FeeActionCard } from "@/components/shared/FeeActionCard";
 import { LiveBlobFeed } from "@/components/shared/LiveBlobFeed";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { RollupBadge } from "@/components/shared/RollupBadge";
@@ -77,6 +78,8 @@ export default async function OverviewPage() {
 
   // Gap 2: Regime classification
   const latestMaxBlobsInBlock = market24h.length > 0 ? Math.max(...market24h.map((m) => m.max_blobs_in_block)) : 0;
+  const currentRegime = classifyRegime(latestMaxBlobsInBlock) as "undersaturated" | "healthy" | "congested" | "spike";
+  const networkAvgGwei = avgFeeWei24h / 1e9;
 
   return (
     <div className="animate-page-in space-y-0">
@@ -181,15 +184,65 @@ export default async function OverviewPage() {
       <div className="border-t border-border/20 mb-10" />
 
       {/* ═══════════════════════════════════════════════════════════════
-          §02.5 — DA COST ANALYSIS
+          §03 — FEE MARKET HEALTH
+          ═══════════════════════════════════════════════════════════════ */}
+      <section id="fee-market-health" className="scroll-mt-24 mb-10">
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Fee Market Health</span>
+            <h2 className="text-lg font-bold text-text-primary tracking-tight">Market Regime & Congestion</h2>
+            <p className="text-xs text-text-secondary opacity-70">Live classification of blob market state and short-term fee forecasting.</p>
+          </div>
+          <RegimeBadge maxBlobsInBlock={latestMaxBlobsInBlock} size="lg" />
+        </div>
+
+        {/* Action card — submit / wait / avoid synthesis */}
+        <div className="mb-6">
+          <FeeActionCard
+            regime={currentRegime}
+            currentFeeWei={latestFeeWei}
+            avgFeeWei24h={avgFeeWei24h}
+            forecast={forecast}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Regime Heatmap */}
+          <div className="xl:col-span-8 bg-surface border border-border rounded-xl p-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">24h Regime Classification</h3>
+            <div className="min-h-[280px]">
+              <RegimeHeatmap data={market24h} />
+            </div>
+          </div>
+
+          {/* Congestion Forecast */}
+          <div className="xl:col-span-4 bg-surface border border-border rounded-xl p-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">Congestion Forecast</h3>
+            {forecast && forecast.current_fee_wei > 0 ? (
+              <CongestionForecast data={forecast} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs min-h-[200px]">Insufficient data for forecast.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Divider ── */}
+      <div className="border-t border-border/20 mb-10" />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          §04 — DA COST ANALYSIS
           ═══════════════════════════════════════════════════════════════ */}
       <section id="da-cost-analysis" className="scroll-mt-24 mb-10">
         <div className="mb-6">
           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Deep Economics</span>
           <h2 className="text-lg font-bold text-text-primary tracking-tight">DA Cost Analysis</h2>
-          <p className="text-xs text-text-secondary opacity-70">Surgical breakdown of rollup data availability expenditures and packing efficiency.</p>
+          <p className="text-xs text-text-secondary opacity-70">Per-rollup data availability expenditures, packing efficiency, and cost vs. network average.</p>
         </div>
-        <DACostCharts leaderboard={leaderboard} ethUsd={ethUsd} />
+
+        <div className="bg-surface border border-border rounded-xl p-6">
+          <EfficiencyComparisonTable leaderboard={leaderboard} networkAvgGwei={networkAvgGwei} />
+        </div>
 
         {/* Top DA Performers */}
         {top3Efficient.length > 0 && (
@@ -242,35 +295,27 @@ export default async function OverviewPage() {
       <div className="border-t border-border/20 mb-10" />
 
       {/* ═══════════════════════════════════════════════════════════════
-          §02.6 — FEE MARKET HEALTH (GAP 2)
+          §05 — EFFICIENCY INTELLIGENCE
           ═══════════════════════════════════════════════════════════════ */}
-      <section id="fee-market-health" className="scroll-mt-24 mb-10">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Fee Market Health</span>
-            <h2 className="text-lg font-bold text-text-primary tracking-tight">Market Regime & Congestion</h2>
-            <p className="text-xs text-text-secondary opacity-70">Live classification of blob market state and short-term fee forecasting.</p>
-          </div>
-          <RegimeBadge maxBlobsInBlock={latestMaxBlobsInBlock} size="lg" />
+      <section id="efficiency-intelligence" className="scroll-mt-24 mb-10">
+        <div className="mb-6">
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Comparative Diagnostics</span>
+          <h2 className="text-lg font-bold text-text-primary tracking-tight">Efficiency Intelligence</h2>
+          <p className="text-xs text-text-secondary opacity-70">Cross-rollup cost vs. utilization analysis. Bubble size indicates volume.</p>
         </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Regime Heatmap */}
-          <div className="xl:col-span-8 bg-surface border border-border rounded-xl p-6">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">24h Regime Classification</h3>
-            <div className="min-h-[280px]">
-              <RegimeHeatmap data={market24h} />
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+          {/* Left: Scatter */}
+          <div className="xl:col-span-7">
+            <div className="bg-surface border border-border rounded-xl p-6 h-full min-h-[460px]">
+              <EfficiencyScatterplot data={leaderboard} />
             </div>
           </div>
 
-          {/* Congestion Forecast */}
-          <div className="xl:col-span-4 bg-surface border border-border rounded-xl p-6">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">Congestion Forecast</h3>
-            {forecast && forecast.current_fee_wei > 0 ? (
-              <CongestionForecast data={forecast} />
-            ) : (
-              <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs min-h-[200px]">Insufficient data for forecast.</div>
-            )}
+          {/* Right: Mini Leaderboard */}
+          <div className="xl:col-span-5">
+            <div className="bg-surface border border-border rounded-xl p-6 h-full">
+              <EfficiencyLeaderboardMini leaderboard={leaderboard} sparklines={sparklines} />
+            </div>
           </div>
         </div>
       </section>
@@ -279,7 +324,7 @@ export default async function OverviewPage() {
       <div className="border-t border-border/20 mb-10" />
 
       {/* ═══════════════════════════════════════════════════════════════
-          §03 — ROLLUP ECOSYSTEM MAP
+          §06 — ROLLUP ECOSYSTEM MAP
           ═══════════════════════════════════════════════════════════════ */}
       <section id="ecosystem-map" className="scroll-mt-24 mb-10">
         <div className="mb-6">
@@ -338,7 +383,7 @@ export default async function OverviewPage() {
       <div className="border-t border-border/20 mb-10" />
 
       {/* ═══════════════════════════════════════════════════════════════
-          §04 — MARKET STRUCTURE
+          §07 — MARKET STRUCTURE
           ═══════════════════════════════════════════════════════════════ */}
       <section id="market-structure" className="scroll-mt-24 mb-10">
         <div className="mb-6">
@@ -373,7 +418,7 @@ export default async function OverviewPage() {
       <div className="border-t border-border/20 mb-10" />
 
       {/* ═══════════════════════════════════════════════════════════════
-          §05 — 30D TRENDS
+          §08 — 30D TRENDS
           ═══════════════════════════════════════════════════════════════ */}
       <section id="30d-trends" className="scroll-mt-24 mb-10 space-y-6">
         {/* Main: Full-width stacked area */}
@@ -409,35 +454,6 @@ export default async function OverviewPage() {
               Utilization Trend
             </h3>
             <div className="flex-1"><BlobUtilizationChart data={market} /></div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Section Divider ── */}
-      <div className="border-t border-border/20 mb-10" />
-
-      {/* ═══════════════════════════════════════════════════════════════
-          §06 — EFFICIENCY INTELLIGENCE
-          ═══════════════════════════════════════════════════════════════ */}
-      <section id="efficiency-intelligence" className="scroll-mt-24 mb-10">
-        <div className="mb-6">
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Comparative Diagnostics</span>
-          <h2 className="text-lg font-bold text-text-primary tracking-tight">Efficiency Intelligence</h2>
-          <p className="text-xs text-text-secondary opacity-70">Cross-rollup cost vs. utilization analysis. Bubble size indicates volume.</p>
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
-          {/* Left: Scatter */}
-          <div className="xl:col-span-7">
-            <div className="bg-surface border border-border rounded-xl p-6 h-full min-h-[460px]">
-              <EfficiencyScatterplot data={leaderboard} />
-            </div>
-          </div>
-
-          {/* Right: Mini Leaderboard */}
-          <div className="xl:col-span-5">
-            <div className="bg-surface border border-border rounded-xl p-6 h-full">
-              <EfficiencyLeaderboardMini leaderboard={leaderboard} sparklines={sparklines} />
-            </div>
           </div>
         </div>
       </section>
