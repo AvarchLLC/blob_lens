@@ -185,7 +185,7 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
         b.packing_score,
         b.total_blobs / greatest(wt.total_blobs_all, 1) * 100 AS network_share_pct,
         b.cost_per_blob_gwei,
-        0.0  AS avg_fullness_pct,
+        NULL AS avg_fullness_pct,
         0    AS ghost_blob_count,
         NULL AS total_bytes_used,
         NULL AS cost_per_byte_eth,
@@ -310,10 +310,10 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
         sum(bt.num_blobs)                                              AS blob_count,
         toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
-        avg(bbs.utilization) * 100                                     AS avg_utilization
+        round(avg(bbs.blob_gas_used / if(bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM blob_lens.blob_transactions AS bt FINAL
       LEFT JOIN (
-        SELECT block_number, blob_base_fee, blob_count, utilization
+        SELECT block_number, blob_base_fee, blob_count, blob_gas_used
         FROM blob_lens.block_blob_stats FINAL
         WHERE is_canonical = 1
       ) bbs ON bbs.block_number = bt.block_number
@@ -340,10 +340,10 @@ export async function getPerRollupFeeActivity(
         sum(bt.num_blobs)                                              AS blob_count,
         toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
-        avg(bbs.utilization) * 100                                     AS avg_utilization
+        round(avg(bbs.blob_gas_used / if(bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM blob_lens.blob_transactions AS bt FINAL
       LEFT JOIN (
-        SELECT block_number, blob_base_fee, blob_count, utilization
+        SELECT block_number, blob_base_fee, blob_count, blob_gas_used
         FROM blob_lens.block_blob_stats FINAL
         WHERE is_canonical = 1
       ) bbs ON bbs.block_number = bt.block_number
