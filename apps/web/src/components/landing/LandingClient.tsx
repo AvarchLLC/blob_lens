@@ -5,13 +5,28 @@ import { motion } from "framer-motion";
 import { formatNumber } from "@/lib/utils";
 import { EcosystemMapPreview } from "./EcosystemMapPreview";
 import {
-  BarChart3, Github, ShieldCheck, Zap, ArrowRight,
-  Search, Activity, Trophy, Layers, CircleDot, TrendingUp,
+  BarChart3, Github, Zap, ArrowRight,
+  Search, Activity, Trophy, Layers, CircleDot, TrendingUp, TrendingDown,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { useEffect, useState } from "react";
+import type { LeaderboardRow, ForecastData, MarketHour } from "@/types";
 
 const fadeUp = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0 } };
+
+function classifyRegime(max: number): "undersaturated" | "healthy" | "congested" | "spike" {
+  if (max >= 6) return "spike";
+  if (max >= 4) return "congested";
+  if (max >= 3) return "healthy";
+  return "undersaturated";
+}
+
+const REGIME_CONF = {
+  undersaturated: { label: "Undersaturated", dot: "bg-blue-400", badge: "bg-blue-400/10 text-blue-400 border-blue-400/20" },
+  healthy:        { label: "Healthy",         dot: "bg-green-400",  badge: "bg-green-400/10 text-green-400 border-green-400/20" },
+  congested:      { label: "Congested",       dot: "bg-amber-400",  badge: "bg-amber-400/10 text-amber-400 border-amber-400/20" },
+  spike:          { label: "Fee Spike",       dot: "bg-red-400",    badge: "bg-red-400/10 text-red-400 border-red-400/20" },
+} as const;
 const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -32,10 +47,20 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
 
 interface Props {
   stats: { total_txs: number; total_blobs: number; rollup_count: number; avg_utilization_24h: number };
+  leaderboard: LeaderboardRow[];
+  forecast: ForecastData | null;
+  market: MarketHour[];
 }
 
-export function LandingClient({ stats }: Props) {
+export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
   const [scrolled, setScrolled] = useState(false);
+
+  const recentHour = market[market.length - 1];
+  const regime = recentHour ? classifyRegime(recentHour.max_blobs_in_block) : "undersaturated";
+  const currentFeeGwei = forecast ? forecast.current_fee_wei / 1e9 : 0;
+  const avgUtilization = recentHour?.avg_utilization ?? 0;
+  const rc = REGIME_CONF[regime];
+  const top3 = [...leaderboard].sort((a, b) => b.efficiency_score - a.efficiency_score).slice(0, 3);
 
   useEffect(() => {
     const el = document.querySelector("[data-landing-scroll]");
@@ -159,6 +184,24 @@ export function LandingClient({ stats }: Props) {
               </div>
             ))}
           </motion.div>
+
+          {/* Live Pulse Bar */}
+          <motion.div variants={fadeUp} className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border/30 bg-surface/50 backdrop-blur">
+              <span className={`h-2 w-2 rounded-full ${rc.dot} animate-pulse`} />
+              <span className="text-[11px] font-bold text-text-primary">{rc.label}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-text-secondary/60">
+              <Zap className="h-3 w-3 text-primary/60" />
+              <span className="font-mono">{currentFeeGwei > 0 ? `${currentFeeGwei.toFixed(2)} gwei` : "—"}</span>
+            </div>
+            {forecast && (
+              <div className={`flex items-center gap-1.5 text-[11px] font-medium ${forecast.excess_trend > 0 ? "text-orange-400" : "text-emerald-400"}`}>
+                {forecast.excess_trend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                <span>Pressure {forecast.excess_trend > 0 ? "rising" : "easing"}</span>
+              </div>
+            )}
+          </motion.div>
         </motion.div>
       </section>
 
@@ -211,50 +254,91 @@ export function LandingClient({ stats }: Props) {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              {
-                icon: Trophy, bg: "from-amber-500/20 to-orange-500/10",
-                glow: "from-amber-500/10 via-transparent to-transparent",
-                title: "DA Cost Efficiency Scoring",
-                desc: <>Every rollup scored on packing density, timing, and DA cost. Our <span className="text-primary font-semibold">Efficiency Score</span> reveals who overpays.</>,
-                bullets: ["Cost per byte actually used", "Blobfulness ratio diagnostics", "Timing vs. network average fee"],
-                link: "/leaderboard", linkText: "View Leaderboard",
-              },
-              {
-                icon: Activity, bg: "from-primary/20 to-accent/10",
-                glow: "from-primary/10 via-transparent to-transparent",
-                title: "Fee Market Health Layer",
-                desc: <>Four distinct market regimes classified in real-time with <span className="text-primary font-semibold">Congestion Forecasts</span> for operators.</>,
-                bullets: ["4–12 slot congestion prediction", "Live market regime classification", "Excess blob gas tracking"],
-                link: "/market", linkText: "Monitor Fee Market",
-              },
-            ].map((f, i) => (
-              <motion.div key={i} variants={fadeUp}
-                className="relative rounded-2xl border border-border/50 bg-surface/50 backdrop-blur p-8 md:p-10 overflow-hidden group hover:border-primary/25 transition-all duration-500">
-                {/* Gradient glow on hover */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${f.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                {/* Top accent line */}
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
-
-                <div className="relative">
-                  <div className={`inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br ${f.bg} mb-6 group-hover:scale-110 transition-transform`}>
-                    <f.icon className="h-5 w-5 text-text-primary" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-3 tracking-tight">{f.title}</h3>
-                  <p className="text-sm text-text-secondary/80 leading-relaxed mb-6">{f.desc}</p>
-                  <ul className="space-y-2.5 mb-6">
-                    {f.bullets.map((t) => (
-                      <li key={t} className="flex items-center gap-2 text-xs text-text-secondary/70">
-                        <ShieldCheck className="h-3 w-3 text-primary shrink-0" /> {t}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href={f.link} className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:gap-3 transition-all">
-                    {f.linkText} <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
+            {/* Card 1 — DA Cost Efficiency Scoring */}
+            <motion.div variants={fadeUp}
+              className="relative rounded-2xl border border-border/50 bg-surface/50 backdrop-blur p-8 md:p-10 overflow-hidden group hover:border-primary/25 transition-all duration-500">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+              <div className="relative">
+                <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 mb-6 group-hover:scale-110 transition-transform">
+                  <Trophy className="h-5 w-5 text-text-primary" />
                 </div>
-              </motion.div>
-            ))}
+                <h3 className="text-xl font-bold mb-3 tracking-tight">DA Cost Efficiency Scoring</h3>
+                <p className="text-sm text-text-secondary/80 leading-relaxed mb-6">
+                  Every rollup scored on packing density, timing, and DA cost. Our{" "}
+                  <span className="text-primary font-semibold">Efficiency Score</span> reveals who overpays.
+                </p>
+                {top3.length > 0 ? (
+                  <div className="space-y-3 mb-6">
+                    {top3.map((row) => (
+                      <div key={row.rollup} className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-text-primary/80 w-24 shrink-0 truncate">{row.rollup}</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-background/60 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                            style={{ width: `${Math.max(4, Math.round(row.efficiency_score))}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono text-text-secondary/60 w-8 text-right shrink-0">{Math.round(row.efficiency_score)}</span>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-text-secondary/30 pt-1">Score = 70% packing + 30% timing · 24h window</p>
+                  </div>
+                ) : (
+                  <div className="h-20 flex items-center justify-center mb-6">
+                    <span className="text-xs text-text-secondary/30">No data in window</span>
+                  </div>
+                )}
+                <Link href="/leaderboard" className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:gap-3 transition-all">
+                  View Leaderboard <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </motion.div>
+
+            {/* Card 2 — Fee Market Health Layer */}
+            <motion.div variants={fadeUp}
+              className="relative rounded-2xl border border-border/50 bg-surface/50 backdrop-blur p-8 md:p-10 overflow-hidden group hover:border-primary/25 transition-all duration-500">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+              <div className="relative">
+                <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 mb-6 group-hover:scale-110 transition-transform">
+                  <Activity className="h-5 w-5 text-text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 tracking-tight">Fee Market Health Layer</h3>
+                <p className="text-sm text-text-secondary/80 leading-relaxed mb-6">
+                  Four distinct market regimes classified in real-time with{" "}
+                  <span className="text-primary font-semibold">Congestion Forecasts</span> for operators.
+                </p>
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/15">
+                    <span className="text-xs text-text-secondary/60">Regime</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${rc.badge}`}>{rc.label}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/15">
+                    <span className="text-xs text-text-secondary/60">Base Fee</span>
+                    <span className="text-xs font-mono text-text-primary">
+                      {currentFeeGwei > 0 ? `${currentFeeGwei.toFixed(2)} gwei` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/15">
+                    <span className="text-xs text-text-secondary/60">Pressure</span>
+                    {forecast ? (
+                      <span className={`text-xs font-bold flex items-center gap-1 ${forecast.excess_trend > 0 ? "text-orange-400" : "text-emerald-400"}`}>
+                        {forecast.excess_trend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {forecast.excess_trend > 0 ? "Rising" : "Easing"}
+                      </span>
+                    ) : <span className="text-xs text-text-secondary/30">—</span>}
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-xs text-text-secondary/60">Utilization</span>
+                    <span className="text-xs font-mono text-text-primary">{avgUtilization.toFixed(1)}%</span>
+                  </div>
+                </div>
+                <Link href="/market" className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:gap-3 transition-all">
+                  Monitor Fee Market <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </motion.div>
           </div>
         </div>
       </motion.section>
