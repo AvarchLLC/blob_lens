@@ -6,15 +6,28 @@
 export const watermarkGraphic = [
   {
     type: 'image',
-    id: 'logo',
+    id: 'wm-logo',
     left: 'center',
     top: 'middle',
     z: -10,
     style: {
       image: '/brand/bloblogo.png',
-      width: 120,
-      height: 120,
-      opacity: 0.1
+      width: 48,
+      height: 48,
+      opacity: 0.07,
+    }
+  },
+  {
+    type: 'text',
+    id: 'wm-text',
+    left: 'center',
+    top: '58%',
+    z: -10,
+    style: {
+      text: 'BlobLens',
+      font: 'bold 13px system-ui, sans-serif',
+      fill: 'rgba(0, 167, 181, 0.09)',
+      textAlign: 'center',
     }
   }
 ];

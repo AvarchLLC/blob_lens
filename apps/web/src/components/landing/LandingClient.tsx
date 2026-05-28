@@ -1,18 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatNumber } from "@/lib/utils";
 import { EcosystemMapPreview } from "./EcosystemMapPreview";
 import {
-  BarChart3, Github, Zap, ArrowRight,
+  BarChart3, Zap, ArrowRight,
   Search, Activity, Trophy, Layers, CircleDot, TrendingUp, TrendingDown,
+  FlaskConical, ChevronDown, ChevronUp, Cpu, DollarSign,
 } from "lucide-react";
+
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+    </svg>
+  );
+}
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { useEffect, useState } from "react";
 import type { LeaderboardRow, ForecastData, MarketHour } from "@/types";
 
 const fadeUp = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0 } };
+const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 function classifyRegime(max: number): "undersaturated" | "healthy" | "congested" | "spike" {
   if (max >= 6) return "spike";
@@ -22,12 +33,11 @@ function classifyRegime(max: number): "undersaturated" | "healthy" | "congested"
 }
 
 const REGIME_CONF = {
-  undersaturated: { label: "Undersaturated", dot: "bg-blue-400", badge: "bg-blue-400/10 text-blue-400 border-blue-400/20" },
-  healthy:        { label: "Healthy",         dot: "bg-green-400",  badge: "bg-green-400/10 text-green-400 border-green-400/20" },
-  congested:      { label: "Congested",       dot: "bg-amber-400",  badge: "bg-amber-400/10 text-amber-400 border-amber-400/20" },
-  spike:          { label: "Fee Spike",       dot: "bg-red-400",    badge: "bg-red-400/10 text-red-400 border-red-400/20" },
+  undersaturated: { label: "Undersaturated", dot: "bg-blue-400",  badge: "bg-blue-400/10 text-blue-400 border-blue-400/20" },
+  healthy:        { label: "Healthy",         dot: "bg-green-400", badge: "bg-green-400/10 text-green-400 border-green-400/20" },
+  congested:      { label: "Congested",       dot: "bg-amber-400", badge: "bg-amber-400/10 text-amber-400 border-amber-400/20" },
+  spike:          { label: "Fee Spike",       dot: "bg-red-400",   badge: "bg-red-400/10 text-red-400 border-red-400/20" },
 } as const;
-const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
   const [count, setCount] = useState(0);
@@ -45,6 +55,94 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
   return <>{formatNumber(count)}{suffix}</>;
 }
 
+const BPO_UPGRADES = [
+  {
+    name: "Dencun",
+    eip: "EIP-4844",
+    date: "Mar 13, 2024",
+    block: "19,426,587",
+    target: 3,
+    max: 6,
+    tagline: "Birth of the blob market",
+    color: "from-blue-500/20 to-blue-600/5",
+    border: "border-blue-500/20",
+    badge: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    dot: "bg-blue-400",
+    status: "live",
+  },
+  {
+    name: "Pectra",
+    eip: "EIP-7691",
+    date: "Apr 2025",
+    block: "22,431,084",
+    target: 6,
+    max: 9,
+    tagline: "2× blob throughput",
+    color: "from-primary/20 to-primary/5",
+    border: "border-primary/20",
+    badge: "bg-primary/10 text-primary border-primary/20",
+    dot: "bg-primary",
+    status: "live",
+  },
+  {
+    name: "Fusaka",
+    eip: "BPO2",
+    date: "2025",
+    block: "24,833,256",
+    target: 12,
+    max: 18,
+    tagline: "4× throughput from Dencun",
+    color: "from-violet-500/20 to-violet-600/5",
+    border: "border-violet-500/20",
+    badge: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+    dot: "bg-violet-400",
+    status: "live",
+  },
+];
+
+const USER_TYPES = [
+  {
+    icon: Layers,
+    title: "Rollup Teams",
+    description: "Track your DA cost efficiency vs competitors. Know exactly when to submit blobs, how well you pack, and what your cost per byte looks like over time.",
+    href: "/leaderboard",
+    cta: "View Leaderboard",
+    gradient: "from-amber-500/15 to-orange-600/5",
+    iconColor: "text-amber-400",
+    iconBg: "bg-amber-500/10",
+  },
+  {
+    icon: FlaskConical,
+    title: "Protocol Researchers",
+    description: "Study market regimes, BPO upgrade impact, and 90-day utilization patterns. Understand how Dencun → Pectra → Fusaka reshaped the DA landscape.",
+    href: "/research",
+    cta: "Open Research",
+    gradient: "from-primary/15 to-accent/5",
+    iconColor: "text-primary",
+    iconBg: "bg-primary/10",
+  },
+  {
+    icon: Zap,
+    title: "MEV Strategists",
+    description: "Monitor congestion in real time. Identify healthy windows for submission, track fee pressure trends, and act before congestion spikes.",
+    href: "/market",
+    cta: "Monitor Market",
+    gradient: "from-orange-500/15 to-red-600/5",
+    iconColor: "text-orange-400",
+    iconBg: "bg-orange-500/10",
+  },
+  {
+    icon: DollarSign,
+    title: "Protocol Economists",
+    description: "Model fee market dynamics across all blob parameter upgrades. Compare target fill rates, excess blob gas trends, and structural shifts epoch by epoch.",
+    href: "/research?tab=bpo",
+    cta: "BPO Analytics",
+    gradient: "from-violet-500/15 to-purple-600/5",
+    iconColor: "text-violet-400",
+    iconBg: "bg-violet-500/10",
+  },
+];
+
 interface Props {
   stats: { total_txs: number; total_blobs: number; rollup_count: number; avg_utilization_24h: number };
   leaderboard: LeaderboardRow[];
@@ -54,6 +152,7 @@ interface Props {
 
 export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
   const [scrolled, setScrolled] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
 
   const recentHour = market[market.length - 1];
   const regime = recentHour ? classifyRegime(recentHour.max_blobs_in_block) : "undersaturated";
@@ -81,36 +180,63 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
       </div>
 
       {/* ══ Navbar ══ */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled ? "bg-background/80 backdrop-blur-xl border-b border-border/40 shadow-lg shadow-black/5" : "bg-transparent border-b border-transparent"}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
+        scrolled
+          ? "bg-background/85 backdrop-blur-2xl shadow-[0_1px_0_rgba(0,167,181,0.12),0_4px_24px_rgba(0,0,0,0.08)]"
+          : "bg-transparent"
+      }`}>
+        {/* Gradient accent line at bottom when scrolled */}
+        {scrolled && (
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+        )}
+
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <motion.div initial={{ rotate: -180, scale: 0 }} animate={{ rotate: 0, scale: 1 }}
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group shrink-0">
+            <motion.div
+              initial={{ rotate: -180, scale: 0 }} animate={{ rotate: 0, scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25">
-              <img src="/brand/bloblogo.png" alt="" className="h-5 w-5 brightness-200" />
+              className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/35 group-hover:scale-105 transition-all duration-300"
+            >
+              <Image src="/brand/bloblogo.png" alt="" width={20} height={20} className="brightness-200" />
             </motion.div>
-            <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-              className="text-lg font-bold tracking-tight">
-              Blob<span className="text-primary">Lens</span>
-            </motion.span>
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+              <p className="text-[15px] font-bold tracking-tight leading-none">
+                Blob<span className="text-primary">Lens</span>
+              </p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-text-secondary/30 leading-none mt-0.5">
+                DA Intelligence
+              </p>
+            </motion.div>
           </Link>
 
+          {/* Nav links */}
           <div className="flex items-center gap-1">
-            {["Dashboard", "Leaderboard", "Market"].map((item, i) => (
-              <motion.div key={item} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.05 }}>
-                <Link href={`/${item.toLowerCase()}`}
-                  className="px-3.5 py-2 text-[13px] font-medium text-text-secondary hover:text-primary hover:bg-primary/5 rounded-lg transition-all hidden md:block">
-                  {item}
+            {[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: "Research",  href: "/research" },
+              { label: "Market",    href: "/market" },
+              { label: "Leaderboard", href: "/leaderboard" },
+            ].map((item, i) => (
+              <motion.div key={item.label} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.05 }}>
+                <Link href={item.href}
+                  className="relative px-3.5 py-2 text-[13px] font-medium text-text-secondary/70 hover:text-primary transition-colors hidden lg:block group">
+                  {item.label}
+                  {/* Underline slide-in on hover */}
+                  <span className="absolute bottom-1 left-3.5 right-3.5 h-px bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left rounded-full" />
                 </Link>
               </motion.div>
             ))}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
               className="flex items-center gap-2 ml-2">
               <div className="h-5 w-px bg-border/40 hidden md:block" />
               <ThemeToggle />
               <Link href="/dashboard"
-                className="group px-4 py-2 bg-gradient-to-r from-primary to-accent text-white text-[11px] font-bold uppercase tracking-widest rounded-lg transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-px">
-                Launch App
+                className="group relative overflow-hidden px-5 py-2 bg-gradient-to-r from-primary to-accent text-white text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-px active:translate-y-0">
+                {/* Shimmer overlay */}
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                <span className="relative">Launch App</span>
               </Link>
             </motion.div>
           </div>
@@ -118,7 +244,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
       </nav>
 
       {/* ══ Hero ══ */}
-      <section className="relative pt-36 pb-28 overflow-hidden">
+      <section className="relative pt-36 pb-24 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: "radial-gradient(circle, var(--text-secondary) 1px, transparent 1px)",
           backgroundSize: "28px 28px",
@@ -133,26 +259,60 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary">Live on Ethereum Mainnet</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary">Live · Ethereum Mainnet · Dencun → Pectra → Fusaka</span>
           </motion.div>
 
           <motion.h1 variants={fadeUp}
             className="text-[3.5rem] md:text-[5rem] font-bold tracking-[-0.04em] mb-6 leading-[1.02]">
-            <span className="block">Protocol Intelligence</span>
-            <span className="block">for the{" "}
+            <span className="block">Data Availability</span>
+            <span className="block">Intelligence for{" "}
               <span className="relative inline-block">
                 <span className="relative z-10 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-[shimmer_3s_ease-in-out_infinite]">
-                  Blob
+                  Ethereum
                 </span>
               </span>
-              {" "}Era
             </span>
           </motion.h1>
 
-          <motion.p variants={fadeUp}
-            className="text-lg md:text-xl text-text-secondary/70 max-w-xl mx-auto mb-12 leading-relaxed font-light">
-            Real-time EIP-4844 analytics for researchers, rollup teams, and DA cost optimizers.
-          </motion.p>
+          {/* Subtitle with read more toggle */}
+          <motion.div variants={fadeUp} className="max-w-2xl mx-auto mb-12">
+            <p className="text-lg md:text-xl text-text-secondary/70 leading-relaxed font-light">
+              Analytics for the blob economy — from EIP-4844 through every BPO network upgrade.
+              {!aboutExpanded && (
+                <button
+                  onClick={() => setAboutExpanded(true)}
+                  className="ml-2 inline-flex items-center gap-1 text-primary font-semibold text-base hover:gap-2 transition-all"
+                >
+                  Read more <ChevronDown className="h-4 w-4" />
+                </button>
+              )}
+            </p>
+            <AnimatePresence>
+              {aboutExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginTop: 16 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <p className="text-base text-text-secondary/60 leading-relaxed text-left bg-surface/40 border border-border/30 rounded-xl px-6 py-5 backdrop-blur-sm">
+                    BlobLens is an open-source protocol analytics platform covering Ethereum&apos;s entire data availability layer.
+                    We track every Type-3 transaction from the Dencun launch (March 2024) through the Pectra EIP-7691 expansion and the
+                    Fusaka BPO2 upgrade — providing real-time fee market health monitoring, rollup efficiency scoring, and per-epoch DA cost
+                    analysis. Built for rollup teams, protocol researchers, MEV strategists, and anyone who needs clarity on
+                    where the DA market is heading next.
+                  </p>
+                  <button
+                    onClick={() => setAboutExpanded(false)}
+                    className="mt-3 inline-flex items-center gap-1 text-sm text-text-secondary/40 hover:text-primary transition-colors"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" /> Show less
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
           <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-24">
             <Link href="/dashboard"
@@ -162,7 +322,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
             </Link>
             <a href="https://github.com/AvarchLLC/blob_lens" target="_blank" rel="noopener noreferrer"
               className="w-full sm:w-auto px-8 py-4 bg-surface/60 backdrop-blur border border-border/50 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-elevated hover:border-primary/20 transition-all">
-              <Github className="h-4 w-4" /> View Source
+              <GithubIcon className="h-4 w-4" /> View Source
             </a>
           </motion.div>
 
@@ -201,28 +361,65 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
                 <span>Pressure {forecast.excess_trend > 0 ? "rising" : "easing"}</span>
               </div>
             )}
+            <div className="flex items-center gap-1.5 text-[11px] text-text-secondary/60">
+              <span className="font-mono">{avgUtilization.toFixed(1)}% utilization</span>
+            </div>
           </motion.div>
         </motion.div>
       </section>
 
-      {/* ══ Problem ══ */}
-      <motion.section className="py-24 border-y border-border/20 relative"
+      {/* ══ Who is this for? ══ */}
+      <motion.section className="py-24 border-y border-border/20"
+        initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div variants={fadeUp} className="text-center mb-14">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary mb-3 block">Who Is This For</span>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+              Built for everyone who cares<br />about <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">data availability.</span>
+            </h2>
+            <p className="text-text-secondary/60 max-w-lg mx-auto text-sm leading-relaxed">
+              Whether you&apos;re optimizing costs, studying market structure, or timing submissions — BlobLens has a view for you.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {USER_TYPES.map((u) => (
+              <motion.div key={u.title} variants={fadeUp}
+                className={`relative rounded-2xl border border-border/40 bg-gradient-to-br ${u.gradient} p-6 group hover:border-primary/25 transition-all duration-300 hover:-translate-y-1 flex flex-col`}>
+                <div className={`h-10 w-10 rounded-xl ${u.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <u.icon className={`h-5 w-5 ${u.iconColor}`} />
+                </div>
+                <h3 className="font-bold text-sm text-text-primary mb-2">{u.title}</h3>
+                <p className="text-xs text-text-secondary/70 leading-relaxed mb-5 flex-1">{u.description}</p>
+                <Link href={u.href}
+                  className={`inline-flex items-center gap-1.5 text-xs font-bold ${u.iconColor} hover:gap-3 transition-all`}>
+                  {u.cta} <ArrowRight className="h-3 w-3" />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.section>
+
+      {/* ══ Problem / DA Layer ══ */}
+      <motion.section className="py-24 relative"
         initial="hidden" whileInView="show" viewport={{ once: true, margin: "-100px" }} variants={stagger}>
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div variants={fadeUp}>
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary mb-3 block">The Problem</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary mb-3 block">The DA Layer is Evolving</span>
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-6 leading-tight">
-                Ethereum&apos;s blob market<br />is <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">opaque.</span>
+                The blob market was<br />just the <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">beginning.</span>
               </h2>
               <p className="text-text-secondary/80 leading-relaxed mb-8">
-                EIP-4844 created a new DA layer, but block explorers don&apos;t speak &quot;blob.&quot; They can&apos;t tell you who wastes space, who times the market, or when congestion spikes.
+                EIP-4844 created Ethereum&apos;s first dedicated DA layer. Each BPO upgrade since has expanded capacity,
+                changed fee dynamics, and shifted how rollups compete for space. Standard block explorers can&apos;t track any of it.
               </p>
               <div className="space-y-3">
                 {[
-                  { icon: Zap, text: "Rollup teams need to optimize DA cost per byte", color: "from-amber-400 to-orange-500" },
-                  { icon: Activity, text: "Researchers need health-checks on market regimes", color: "from-primary to-accent" },
-                  { icon: Search, text: "MEV searchers monitor congestion for timing edge", color: "from-violet-400 to-purple-500" },
+                  { icon: DollarSign, text: "Rollup teams need DA cost-per-byte, not just gas prices", color: "from-amber-400 to-orange-500" },
+                  { icon: Activity,   text: "Researchers need market regime health checks across epochs", color: "from-primary to-accent" },
+                  { icon: Search,     text: "Strategists monitor congestion for timing advantage", color: "from-violet-400 to-purple-500" },
                 ].map((item, i) => (
                   <motion.div key={i} variants={fadeUp} className="flex items-center gap-3 group">
                     <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shrink-0 shadow-lg opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all`}>
@@ -244,13 +441,90 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
         </div>
       </motion.section>
 
+      {/* ══ BPO Upgrade Timeline ══ */}
+      <motion.section className="py-24 border-y border-border/20"
+        initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div variants={fadeUp} className="text-center mb-14">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary mb-3 block">BPO Upgrade Timeline</span>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+              Three upgrades. One platform.<br />
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Full DA coverage.</span>
+            </h2>
+            <p className="text-text-secondary/60 max-w-lg mx-auto text-sm">
+              BlobLens tracks the fee market, utilization, and rollup behavior across every BPO epoch — so you can see what changed, and why.
+            </p>
+          </motion.div>
+
+          {/* Timeline connector */}
+          <div className="relative">
+            <div className="hidden lg:block absolute top-[2.8rem] left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px bg-gradient-to-r from-blue-500/30 via-primary/30 to-violet-500/30" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {BPO_UPGRADES.map((u, i) => (
+                <motion.div key={u.name} variants={fadeUp}
+                  className={`relative rounded-2xl border ${u.border} bg-gradient-to-br ${u.color} p-7 group hover:shadow-xl transition-all duration-300`}>
+
+                  {/* Timeline dot */}
+                  <div className="hidden lg:flex items-center justify-center absolute -top-[1.1rem] left-1/2 -translate-x-1/2">
+                    <span className={`h-4 w-4 rounded-full ${u.dot} ring-4 ring-background shadow-lg`} />
+                  </div>
+
+                  <div className="flex items-start justify-between mb-5">
+                    <div>
+                      <h3 className="text-xl font-bold text-text-primary">{u.name}</h3>
+                      <p className="text-xs text-text-secondary/50 mt-0.5">{u.date} · Block {u.block}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${u.badge}`}>
+                      {u.eip}
+                    </span>
+                  </div>
+
+                  <p className="text-sm font-semibold text-text-primary/80 mb-5">{u.tagline}</p>
+
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-secondary/50">Target blobs / block</span>
+                      <span className="font-mono font-bold text-text-primary">{u.target}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-secondary/50">Max blobs / block</span>
+                      <span className="font-mono font-bold text-text-primary">{u.max}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-secondary/50">Max throughput / block</span>
+                      <span className="font-mono font-bold text-text-primary">{(u.max * 128).toLocaleString()} KB</span>
+                    </div>
+                  </div>
+
+                  {i === 2 && (
+                    <div className="mt-4 pt-4 border-t border-border/20">
+                      <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Active since ~Nov 2025</span>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          <motion.div variants={fadeUp} className="mt-10 text-center">
+            <Link href="/research?tab=bpo"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-surface/60 backdrop-blur border border-border/50 rounded-xl font-bold text-sm hover:bg-surface-elevated hover:border-primary/20 transition-all group">
+              <Cpu className="h-4 w-4 text-primary" />
+              Explore BPO analytics in depth
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </motion.div>
+        </div>
+      </motion.section>
+
       {/* ══ Features ══ */}
       <motion.section className="py-28" initial="hidden" whileInView="show" viewport={{ once: true, margin: "-100px" }} variants={stagger}>
         <div className="max-w-6xl mx-auto px-6">
           <motion.div variants={fadeUp} className="text-center mb-16">
             <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary mb-3 block">Capabilities</span>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Two Gaps. One Platform.</h2>
-            <p className="text-text-secondary/60 max-w-lg mx-auto">Closing the critical observability gaps in EIP-4844.</p>
+            <p className="text-text-secondary/60 max-w-lg mx-auto">Closing the critical observability gaps across the full DA layer.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -266,7 +540,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
                 <h3 className="text-xl font-bold mb-3 tracking-tight">DA Cost Efficiency Scoring</h3>
                 <p className="text-sm text-text-secondary/80 leading-relaxed mb-6">
                   Every rollup scored on packing density, timing, and DA cost. Our{" "}
-                  <span className="text-primary font-semibold">Efficiency Score</span> reveals who overpays.
+                  <span className="text-primary font-semibold">Efficiency Score</span> reveals who overpays, across every BPO epoch.
                 </p>
                 {top3.length > 0 ? (
                   <div className="space-y-3 mb-6">
@@ -307,7 +581,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
                 <h3 className="text-xl font-bold mb-3 tracking-tight">Fee Market Health Layer</h3>
                 <p className="text-sm text-text-secondary/80 leading-relaxed mb-6">
                   Four distinct market regimes classified in real-time with{" "}
-                  <span className="text-primary font-semibold">Congestion Forecasts</span> for operators.
+                  <span className="text-primary font-semibold">Congestion Forecasts</span> and BPO-aware utilization metrics.
                 </p>
                 <div className="space-y-2 mb-6">
                   <div className="flex items-center justify-between py-1.5 border-b border-border/15">
@@ -373,17 +647,19 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
           style={{ background: "radial-gradient(ellipse at 50% 50%, var(--primary) 0%, transparent 65%)", opacity: 0.04 }} />
         <div className="max-w-3xl mx-auto px-6 text-center relative z-10">
           <motion.h2 variants={fadeUp} className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
-            Ready to see through<br />the <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">blobs</span>?
+            Ready to see through<br />the <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">DA layer</span>?
           </motion.h2>
-          <motion.p variants={fadeUp} className="text-text-secondary/50 mb-10">Join researchers and rollup teams using BlobLens.</motion.p>
+          <motion.p variants={fadeUp} className="text-text-secondary/50 mb-10">
+            Join researchers and rollup teams using BlobLens across every BPO epoch.
+          </motion.p>
           <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/dashboard"
               className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5">
               Enter Dashboard <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/leaderboard"
+            <Link href="/research?tab=bpo"
               className="w-full sm:w-auto px-10 py-4 bg-surface/60 backdrop-blur border border-border/50 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-surface-elevated transition-all">
-              <BarChart3 className="h-4 w-4" /> Rollup Rankings
+              <BarChart3 className="h-4 w-4" /> BPO Analytics
             </Link>
           </motion.div>
         </div>
@@ -401,13 +677,19 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
                 <span className="font-bold">Blob<span className="text-primary">Lens</span></span>
               </Link>
               <p className="text-sm text-text-secondary/50 leading-relaxed max-w-sm">
-                Open-source protocol intelligence for Ethereum&apos;s data availability layer. Built by Avarch LLC.
+                Open-source DA intelligence for Ethereum. Tracking EIP-4844 through every BPO upgrade. Built by Avarch LLC.
               </p>
             </div>
             <div>
               <h5 className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-primary/80 mb-5">Product</h5>
               <ul className="space-y-3">
-                {[{ href: "/dashboard", l: "Overview" }, { href: "/leaderboard", l: "Leaderboard" }, { href: "/market", l: "Market Health" }, { href: "/research", l: "Deep Research" }].map((x) => (
+                {[
+                  { href: "/dashboard",        l: "Overview" },
+                  { href: "/leaderboard",       l: "Leaderboard" },
+                  { href: "/market",            l: "Market Health" },
+                  { href: "/research",          l: "Blob Research" },
+                  { href: "/research?tab=bpo",  l: "BPO Analytics" },
+                ].map((x) => (
                   <li key={x.href}><Link href={x.href} className="text-sm text-text-secondary/50 hover:text-primary transition-colors">{x.l}</Link></li>
                 ))}
               </ul>
@@ -415,7 +697,11 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
             <div>
               <h5 className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-primary/80 mb-5">Resources</h5>
               <ul className="space-y-3">
-                {[{ href: "https://github.com/AvarchLLC/blob_lens", l: "GitHub" }, { href: "https://eipsinsight.com", l: "EIPsInsight" }, { href: "https://giveth.io", l: "Support Us" }].map((x) => (
+                {[
+                  { href: "https://github.com/AvarchLLC/blob_lens", l: "GitHub" },
+                  { href: "https://eipsinsight.com",                l: "EIPsInsight" },
+                  { href: "https://giveth.io",                      l: "Support Us" },
+                ].map((x) => (
                   <li key={x.href}><a href={x.href} target="_blank" rel="noopener noreferrer" className="text-sm text-text-secondary/50 hover:text-primary transition-colors">{x.l}</a></li>
                 ))}
               </ul>
@@ -425,7 +711,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
             <p className="text-[11px] text-text-secondary/30">© 2026 Avarch LLC · MIT License</p>
             <a href="https://github.com/AvarchLLC/blob_lens" target="_blank" rel="noopener noreferrer"
               className="text-text-secondary/30 hover:text-primary transition-colors mt-3 md:mt-0">
-              <Github className="h-4 w-4" />
+              <GithubIcon className="h-4 w-4" />
             </a>
           </div>
         </div>

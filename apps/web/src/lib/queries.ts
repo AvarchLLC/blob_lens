@@ -678,3 +678,83 @@ export async function getFullnessHistogram(_days = 7): Promise<FullnessHistogram
   // fullness_ratio is not available in the ClickHouse schema (beacon sidecar data only)
   return [];
 }
+
+export interface BpoEpochStat {
+  epoch: string;
+  target_blobs: number;
+  max_blobs: number;
+  total_blocks_with_blobs: number;
+  total_blobs: number;
+  avg_blobs_per_block: number;
+  avg_fee_gwei: number;
+  start_block: number;
+  end_block: number;
+}
+
+export interface HistoricalDailyStat {
+  day: string;
+  total_blobs: number;
+  avg_fee_gwei: number;
+  avg_blobs_per_block: number;
+  blocks_with_blobs: number;
+}
+
+export async function getHistoricalDailyStats(): Promise<HistoricalDailyStat[]> {
+  const result = await ch.query({
+    query: `
+      SELECT
+        toString(toDate(block_timestamp))                                                    AS day,
+        sum(blob_count)                                                                      AS total_blobs,
+        round(avgIf(toFloat64(blob_base_fee), blob_base_fee > 0
+              AND blob_base_fee < 1000000000000000000) / 1e9, 8)                            AS avg_fee_gwei,
+        round(avg(blob_count), 3)                                                           AS avg_blobs_per_block,
+        count()                                                                             AS blocks_with_blobs
+      FROM blob_lens.block_blob_stats FINAL
+      WHERE is_canonical = 1
+        AND blob_count > 0
+      GROUP BY toDate(block_timestamp)
+      ORDER BY toDate(block_timestamp) ASC
+    `,
+    format: "JSONEachRow",
+  });
+  return result.json<HistoricalDailyStat>();
+}
+
+export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
+  const result = await ch.query({
+    query: `
+      SELECT
+        epoch,
+        target_blobs,
+        max_blobs,
+        count()                       AS total_blocks_with_blobs,
+        sum(blobs_in_block)           AS total_blobs,
+        round(avg(blobs_in_block), 2) AS avg_blobs_per_block,
+        round(avg(fee_gwei), 6)       AS avg_fee_gwei,
+        min(block_number)             AS start_block,
+        max(block_number)             AS end_block
+      FROM (
+        SELECT
+          block_number,
+          sum(num_blobs) AS blobs_in_block,
+          avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000) / 1e9 AS fee_gwei,
+          multiIf(block_number < 22431084, 'Dencun',
+                   block_number < 24833256, 'Pectra',
+                   'Fusaka') AS epoch,
+          multiIf(block_number < 22431084, 3,
+                   block_number < 24833256, 6,
+                   12) AS target_blobs,
+          multiIf(block_number < 22431084, 6,
+                   block_number < 24833256, 9,
+                   18) AS max_blobs
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1
+        GROUP BY block_number, epoch, target_blobs, max_blobs
+      ) sub
+      GROUP BY epoch, target_blobs, max_blobs
+      ORDER BY start_block ASC
+    `,
+    format: "JSONEachRow",
+  });
+  return result.json<BpoEpochStat>();
+}

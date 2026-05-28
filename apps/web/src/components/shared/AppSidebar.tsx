@@ -200,34 +200,46 @@ export function AppSidebar() {
         <>
             {/* ── Brand Header ── */}
             <div className={cn(
-                "h-16 flex items-center shrink-0 border-b border-border/50",
-                expanded ? "px-5" : "justify-center px-0"
+                "h-16 flex items-center shrink-0 border-b border-border/50 relative overflow-hidden",
+                expanded ? "px-4" : "justify-center px-0"
             )}>
-                <Link href="/" className="flex items-center gap-3 group">
+                {/* subtle gradient backdrop */}
+                {expanded && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
+                )}
+                <Link href="/" className="relative flex items-center gap-3 group w-full min-w-0">
+                    {/* Logo icon */}
                     <div className={cn(
-                        "flex items-center justify-center rounded-xl transition-all duration-300",
-                        expanded ? "h-9 w-9" : "h-9 w-9",
-                        "bg-primary/10 shadow-[0_0_0_1px_rgba(0,167,181,0.08),0_0_12px_rgba(0,167,181,0.1)]",
-                        "group-hover:shadow-[0_0_0_1px_rgba(0,167,181,0.15),0_0_20px_rgba(0,167,181,0.18)]"
+                        "flex items-center justify-center rounded-xl shrink-0 transition-all duration-300",
+                        "h-9 w-9",
+                        "bg-gradient-to-br from-primary/20 to-accent/10",
+                        "shadow-[0_0_0_1px_rgba(0,167,181,0.12),0_2px_8px_rgba(0,167,181,0.12)]",
+                        "group-hover:shadow-[0_0_0_1px_rgba(0,167,181,0.2),0_4px_16px_rgba(0,167,181,0.2)]",
+                        "group-hover:from-primary/25 group-hover:to-accent/15"
                     )}>
                         <Image
                             src="/brand/bloblogo.png"
                             alt="BlobLens"
-                            width={24}
-                            height={24}
+                            width={22}
+                            height={22}
                             priority
-                            className="rounded-lg"
+                            className="rounded-md"
                         />
                     </div>
                     {expanded && (
-                        <motion.span
-                            initial={{ opacity: 0, x: -4 }}
+                        <motion.div
+                            initial={{ opacity: 0, x: -6 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -4 }}
-                            className="font-display text-lg tracking-tight text-text-primary"
+                            exit={{ opacity: 0, x: -6 }}
+                            className="min-w-0"
                         >
-                            BlobLens
-                        </motion.span>
+                            <p className="text-[15px] font-bold tracking-tight text-text-primary leading-none">
+                                Blob<span className="text-primary">Lens</span>
+                            </p>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-text-secondary/30 mt-0.5 leading-none">
+                                DA Intelligence
+                            </p>
+                        </motion.div>
                     )}
                 </Link>
             </div>
