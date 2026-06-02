@@ -1,6 +1,6 @@
 use std::{collections::HashMap, str::FromStr, time::{SystemTime, UNIX_EPOCH}};
 
-use alloy_consensus::{BlockHeader, EthereumTxEnvelope, TxEip4844, TxReceipt};
+use alloy_consensus::{BlockHeader, EthereumTxEnvelope, TxEip4844, TxReceipt, Transaction};
 use alloy_primitives::TxHash;
 use futures_util::StreamExt;
 use reth_ethereum::{
@@ -18,7 +18,9 @@ use reth_ethereum::provider::TransactionVariant;
 use crate::{
     clickhouse_client::{
         insert_blob_tx_logs, insert_blob_txs, insert_block_stats,
+        insert_eth_blocks, insert_eth_txs, insert_eth_receipts, insert_eth_logs,
         BlobTxLogRow, BlobTxRow, BlockStatRow,
+        EthBlockRow, EthTxRow, EthReceiptRow, EthLogRow,
     },
     rollup::{build_registry, resolve},
 };
@@ -395,12 +397,21 @@ async fn process_chain(
     ch: &clickhouse::Client,
     is_canonical: bool,
 ) -> eyre::Result<()> {
-    let version   = now_ns();
-    let canonical = is_canonical as u8;
+    let version    = now_ns();
+    let canonical  = is_canonical as u8;
+    let is_deleted = if is_canonical { 0u8 } else { 1u8 };
+    let now        = now_ns() as u32;  // second-resolution timestamp for inserted_at
 
+    // blob_lens.* (legacy, keeps frontend working)
     let mut blob_txs:    Vec<BlobTxRow>    = Vec::new();
     let mut block_stats: Vec<BlockStatRow> = Vec::new();
     let mut tx_logs:     Vec<BlobTxLogRow> = Vec::new();
+
+    // ethereum.* (new general schema)
+    let mut eth_blocks:   Vec<EthBlockRow>   = Vec::new();
+    let mut eth_txs:      Vec<EthTxRow>      = Vec::new();
+    let mut eth_receipts: Vec<EthReceiptRow> = Vec::new();
+    let mut eth_logs:     Vec<EthLogRow>     = Vec::new();
 
     for (block, receipts) in chain.blocks_and_receipts() {
         let block_number    = block.number();
@@ -411,7 +422,11 @@ async fn process_chain(
         let block_timestamp = block.timestamp() as u32;
         let blob_count      = (blob_gas_used / 131_072) as u16;
         let utilization     = if blob_gas_used == 0 { 0.0 } else { blob_gas_used as f64 / 786_432.0 };
+        let base_fee_u64    = block.base_fee_per_gas().map(|f| f as u64);
+        let tx_count        = block.body().transactions().count() as u32;
+        let block_nonce     = block.nonce().map(|n| u64::from_be_bytes(*n)).unwrap_or(0);
 
+        // ── blob_lens.block_blob_stats ──────────────────────────────────────
         block_stats.push(BlockStatRow {
             block_number,
             block_hash: block_hash.clone(),
@@ -425,74 +440,200 @@ async fn process_chain(
             version,
         });
 
-        let mut blob_tx_index = 0u32;
+        // ── ethereum.blocks ─────────────────────────────────────────────────
+        eth_blocks.push(EthBlockRow {
+            number:            block_number,
+            hash:              block_hash.clone(),
+            parent_hash:       format!("{:#x}", block.parent_hash()),
+            is_deleted,
+            timestamp:         block_timestamp,
+            gas_used:          block.gas_used(),
+            gas_limit:         block.gas_limit(),
+            base_fee_per_gas:  base_fee_u64,
+            state_root:        format!("{:#x}", block.state_root()),
+            receipts_root:     format!("{:#x}", block.receipts_root()),
+            transactions_root: format!("{:#x}", block.transactions_root()),
+            miner:             format!("{:#x}", block.beneficiary()),
+            difficulty:        block.difficulty().saturating_to::<u64>(),
+            nonce:             block_nonce,
+            transaction_count: tx_count,
+            extra_data:        format!("0x{}", alloy_primitives::hex::encode(block.extra_data())),
+            blob_gas_used:     block.blob_gas_used(),
+            excess_blob_gas:   block.excess_blob_gas(),
+            inserted_at:       now,
+        });
+
+        // ── Per-transaction: blob_lens.* + ethereum.transactions/receipts/logs
+        let mut blob_tx_index  = 0u32;
+        let mut prev_cum_gas   = 0u64;
+
         for (tx_pos, (sender, tx)) in block.transactions_with_sender().enumerate() {
-            let EthereumTxEnvelope::Eip4844(signed) = tx else { continue };
-            let inner: &TxEip4844 = signed.tx();
+            let from_addr  = format!("{:#x}", sender);
+            let tx_hash    = format!("{:#x}", tx.tx_hash());
+            let tx_type    = tx.tx_type() as u8;
+            let to_addr    = tx.to().map(|a| format!("{:#x}", a));
+            let value_hex  = format!("{:#x}", tx.value());
+            let gas_lim    = tx.gas_limit();
+            let tx_nonce   = tx.nonce();
+            let input_hex  = format!("0x{}", alloy_primitives::hex::encode(tx.input()));
+            let gas_price  = tx.gas_price().map(|p| p as u128);
+            let max_fee    = if gas_price.is_none() { Some(tx.max_fee_per_gas() as u128) } else { None };
+            let max_prio   = tx.max_priority_fee_per_gas().map(|p| p as u128);
+            let max_blob   = tx.max_fee_per_blob_gas().map(|p| p as u128);
+            let blob_hashes_eth: Vec<String> = tx.blob_versioned_hashes()
+                .map(|s| s.iter().map(|h| format!("{:#x}", h)).collect())
+                .unwrap_or_default();
 
-            let from_addr = format!("{:#x}", sender);
-            let to_addr   = format!("{:#x}", inner.to);
-            let rollup    = resolve(registry, &from_addr, &to_addr);
-            let tx_hash   = format!("{:#x}", signed.hash());
-
-            let blob_hashes: Vec<String> = inner
-                .blob_versioned_hashes
-                .iter()
-                .map(|h| format!("{:#x}", h))
-                .collect();
-
-            blob_txs.push(BlobTxRow {
+            // ── ethereum.transactions ─────────────────────────────────────
+            eth_txs.push(EthTxRow {
                 block_number,
-                block_hash:           block_hash.clone(),
+                block_hash:            block_hash.clone(),
                 block_timestamp,
-                tx_hash:              tx_hash.clone(),
-                tx_index:             blob_tx_index,
-                from_address:         from_addr,
-                to_address:           to_addr,
-                rollup,
-                num_blobs:            inner.blob_versioned_hashes.len() as u8,
-                max_fee_per_blob_gas: inner.max_fee_per_blob_gas,
-                blob_base_fee,
-                blob_hashes,
-                is_canonical:         canonical,
-                version,
+                tx_index:              tx_pos as u32,
+                tx_hash:               tx_hash.clone(),
+                is_deleted,
+                tx_type,
+                from_address:          from_addr.clone(),
+                to_address:            to_addr.clone(),
+                value:                 value_hex,
+                gas_limit:             gas_lim,
+                gas_price,
+                max_fee_per_gas:       max_fee,
+                max_priority_fee:      max_prio,
+                nonce:                 tx_nonce,
+                input:                 input_hex,
+                max_fee_per_blob_gas:  max_blob,
+                blob_versioned_hashes: blob_hashes_eth,
+                inserted_at:           now,
             });
-            blob_tx_index += 1;
 
+            // ── ethereum.receipts + effective gas price ────────────────────
             if let Some(receipt) = receipts.get(tx_pos) {
+                let cum_gas  = receipt.cumulative_gas_used;
+                let gas_used = cum_gas.saturating_sub(prev_cum_gas);
+                prev_cum_gas = cum_gas;
+
+                let effective_gas_price = if let Some(gp) = tx.gas_price() {
+                    gp as u64
+                } else {
+                    let base = base_fee_u64.unwrap_or(0);
+                    let prio = tx.max_priority_fee_per_gas().unwrap_or(0) as u64;
+                    let cap  = tx.max_fee_per_gas() as u64;
+                    cap.min(base + prio)
+                };
+
+                // blob gas per tx = num_blobs * GAS_PER_BLOB
+                let tx_blob_gas = tx.blob_versioned_hashes()
+                    .map(|s| s.len() as u64 * 131_072)
+                    .filter(|&g| g > 0);
+
+                eth_receipts.push(EthReceiptRow {
+                    block_number,
+                    block_hash:          block_hash.clone(),
+                    block_timestamp,
+                    tx_hash:             tx_hash.clone(),
+                    tx_index:            tx_pos as u32,
+                    is_deleted,
+                    success:             receipt.status() as u8,
+                    gas_used,
+                    cumulative_gas_used: cum_gas,
+                    effective_gas_price,
+                    blob_gas_used:       tx_blob_gas,
+                    blob_gas_price:      tx_blob_gas.map(|_| blob_base_fee as u64),
+                    inserted_at:         now,
+                });
+
+                // ── ethereum.logs ─────────────────────────────────────────
                 for (log_idx, log) in receipt.logs.iter().enumerate() {
                     let topics = log.data.topics();
-                    tx_logs.push(BlobTxLogRow {
+                    eth_logs.push(EthLogRow {
                         block_number,
+                        block_hash:      block_hash.clone(),
                         block_timestamp,
-                        tx_hash:      tx_hash.clone(),
-                        log_index:    log_idx as u32,
-                        address:      format!("{:#x}", log.address),
-                        topic0:       topics.first().map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                        topic1:       topics.get(1).map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                        topic2:       topics.get(2).map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                        topic3:       topics.get(3).map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                        data:         format!("0x{}", alloy_primitives::hex::encode(&log.data.data)),
-                        is_canonical: canonical,
-                        version,
+                        tx_hash:         tx_hash.clone(),
+                        tx_index:        tx_pos as u32,
+                        log_index:       log_idx as u32,
+                        is_deleted,
+                        address:         format!("{:#x}", log.address),
+                        topic0:          topics.first().map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                        topic1:          topics.get(1).map(|t| format!("{:#x}", t)),
+                        topic2:          topics.get(2).map(|t| format!("{:#x}", t)),
+                        topic3:          topics.get(3).map(|t| format!("{:#x}", t)),
+                        data:            format!("0x{}", alloy_primitives::hex::encode(&log.data.data)),
+                        inserted_at:     now,
                     });
+                }
+            }
+
+            // ── blob_lens.* (only for Type-3 blob txs) ───────────────────
+            if let EthereumTxEnvelope::Eip4844(signed) = tx {
+                let inner: &TxEip4844 = signed.tx();
+                let to_str = format!("{:#x}", inner.to);
+                let rollup = resolve(registry, &from_addr, &to_str);
+
+                let blob_hashes_bl: Vec<String> = inner
+                    .blob_versioned_hashes.iter()
+                    .map(|h| format!("{:#x}", h))
+                    .collect();
+
+                blob_txs.push(BlobTxRow {
+                    block_number,
+                    block_hash:           block_hash.clone(),
+                    block_timestamp,
+                    tx_hash:              tx_hash.clone(),
+                    tx_index:             blob_tx_index,
+                    from_address:         from_addr.clone(),
+                    to_address:           to_str,
+                    rollup,
+                    num_blobs:            inner.blob_versioned_hashes.len() as u8,
+                    max_fee_per_blob_gas: inner.max_fee_per_blob_gas,
+                    blob_base_fee,
+                    blob_hashes:          blob_hashes_bl,
+                    is_canonical:         canonical,
+                    version,
+                });
+                blob_tx_index += 1;
+
+                if let Some(receipt) = receipts.get(tx_pos) {
+                    for (log_idx, log) in receipt.logs.iter().enumerate() {
+                        let topics = log.data.topics();
+                        tx_logs.push(BlobTxLogRow {
+                            block_number,
+                            block_timestamp,
+                            tx_hash:      tx_hash.clone(),
+                            log_index:    log_idx as u32,
+                            address:      format!("{:#x}", log.address),
+                            topic0:       topics.first().map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            topic1:       topics.get(1).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            topic2:       topics.get(2).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            topic3:       topics.get(3).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                            data:         format!("0x{}", alloy_primitives::hex::encode(&log.data.data)),
+                            is_canonical: canonical,
+                            version,
+                        });
+                    }
                 }
             }
         }
     }
 
-    let blob_count_log = blob_txs.len();
-    let log_count      = tx_logs.len();
+    // ── Flush to ClickHouse ─────────────────────────────────────────────────
     insert_block_stats(ch, &block_stats).await?;
     insert_blob_txs(ch, &blob_txs).await?;
     insert_blob_tx_logs(ch, &tx_logs).await?;
 
-    if blob_count_log > 0 {
+    insert_eth_blocks(ch, &eth_blocks).await?;
+    insert_eth_txs(ch, &eth_txs).await?;
+    insert_eth_receipts(ch, &eth_receipts).await?;
+    insert_eth_logs(ch, &eth_logs).await?;
+
+    if !eth_txs.is_empty() {
         tracing::info!(
-            blocks      = block_stats.len(),
-            blob_txs    = blob_count_log,
-            tx_logs     = log_count,
-            canonical   = is_canonical,
+            blocks    = eth_blocks.len(),
+            txs       = eth_txs.len(),
+            blob_txs  = blob_txs.len(),
+            logs      = eth_logs.len(),
+            canonical = is_canonical,
             "indexed"
         );
     }
