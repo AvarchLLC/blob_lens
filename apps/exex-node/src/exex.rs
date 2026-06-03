@@ -55,9 +55,12 @@ async fn set_blob_cursor(ch: &clickhouse::Client, block: u64) -> eyre::Result<()
     Ok(())
 }
 
-/// Backfill `blob_transactions`, `block_blob_stats`, and `blob_tx_logs` for all
-/// historical blob blocks by reading directly from Reth's storage via the ExEx
-/// provider. No JSON-RPC required — reads MDBX in-process.
+/// Backfill all historical data from Dencun to current head.
+/// Writes to BOTH blob_lens.* (legacy blob tables) and ethereum.* (general schema).
+/// Reads directly from Reth's MDBX storage — no JSON-RPC.
+///
+/// For every block: writes ethereum.blocks + ethereum.transactions + ethereum.receipts + ethereum.logs.
+/// For blob blocks only: also writes blob_lens.blob_transactions + block_blob_stats + blob_tx_logs.
 ///
 /// Progress is tracked in `sync_progress` under `source = 'blob_backfill'`.
 /// Safe to interrupt and resume.
@@ -90,107 +93,233 @@ where
     while cur <= current_head {
         let batch_end = (cur + BLOB_BACKFILL_BATCH - 1).min(current_head);
 
+        // blob_lens.* (legacy)
         let mut blob_txs:    Vec<BlobTxRow>    = Vec::new();
         let mut block_stats: Vec<BlockStatRow> = Vec::new();
         let mut tx_logs:     Vec<BlobTxLogRow> = Vec::new();
-        let version = now_ns();
+        // ethereum.* (general)
+        let mut eth_blocks:   Vec<EthBlockRow>   = Vec::new();
+        let mut eth_txs:      Vec<EthTxRow>      = Vec::new();
+        let mut eth_receipts: Vec<EthReceiptRow> = Vec::new();
+        let mut eth_logs:     Vec<EthLogRow>     = Vec::new();
 
-        // Provider reads are synchronous MDBX mmap operations.
+        let version = now_ns();
+        let now_sec = version as u32;
+
         tokio::task::block_in_place(|| -> eyre::Result<()> {
             for block_num in cur..=batch_end {
-                // Read sealed header first — cheap, gives us hash + blob gas fields.
                 let Ok(Some(sealed_hdr)) = provider.sealed_header(block_num) else { continue };
 
                 let excess_blob_gas = sealed_hdr.excess_blob_gas().unwrap_or(0);
                 let blob_gas_used   = sealed_hdr.blob_gas_used().unwrap_or(0);
-
-                // Skip blocks with no blob activity.
-                if blob_gas_used == 0 { continue; }
-
                 let blob_base_fee   = calc_blob_base_fee(block_num, excess_blob_gas);
                 let block_hash      = format!("{:#x}", *sealed_hdr.hash_ref());
                 let block_timestamp = sealed_hdr.timestamp() as u32;
                 let blob_count      = (blob_gas_used / 131_072) as u16;
-                let utilization     = blob_gas_used as f64 / 786_432.0;
+                let utilization     = if blob_gas_used == 0 { 0.0 } else { blob_gas_used as f64 / 786_432.0 };
+                let base_fee_u64    = sealed_hdr.base_fee_per_gas().map(|f| f as u64);
+                let block_nonce     = sealed_hdr.nonce().map(|n| u64::from_be_bytes(*n)).unwrap_or(0);
 
-                block_stats.push(BlockStatRow {
-                    block_number: block_num,
-                    block_hash: block_hash.clone(),
-                    block_timestamp,
-                    blob_base_fee,
-                    blob_gas_used,
-                    excess_blob_gas,
-                    blob_count,
-                    utilization,
-                    is_canonical: 1,
-                    version,
-                });
-
-                // Read full block body with recovered senders.
+                // Read full block (all blocks, not just blob blocks — needed for ethereum.transactions)
                 let Ok(Some(block)) = provider.recovered_block(
                     BlockHashOrNumber::Number(block_num),
                     TransactionVariant::WithHash,
                 ) else { continue };
 
-                // Receipts for log extraction.
                 let receipts = provider
                     .receipts_by_block(BlockHashOrNumber::Number(block_num))
                     .unwrap_or_default()
                     .unwrap_or_default();
 
-                let mut blob_tx_index = 0u32;
-                // transactions_with_sender() yields (&Address, &Tx) — enumerate gives the
-                // absolute tx position in the block, which matches receipt index.
-                for (tx_pos, (sender, tx)) in block.transactions_with_sender().enumerate() {
-                    let EthereumTxEnvelope::Eip4844(signed) = tx else { continue };
-                    let inner: &TxEip4844 = signed.tx();
+                let tx_count = block.transactions_with_sender().count() as u32;
 
-                    let from_addr = format!("{:#x}", sender);
-                    let to_addr   = format!("{:#x}", inner.to);
-                    let rollup    = resolve(registry, &from_addr, &to_addr);
-                    let tx_hash   = format!("{:#x}", signed.hash());
+                // ── ethereum.blocks (every block) ──────────────────────────
+                eth_blocks.push(EthBlockRow {
+                    number:            block_num,
+                    hash:              block_hash.clone(),
+                    parent_hash:       format!("{:#x}", sealed_hdr.parent_hash()),
+                    is_deleted:        0,
+                    timestamp:         block_timestamp,
+                    gas_used:          sealed_hdr.gas_used(),
+                    gas_limit:         sealed_hdr.gas_limit(),
+                    base_fee_per_gas:  base_fee_u64,
+                    state_root:        format!("{:#x}", sealed_hdr.state_root()),
+                    receipts_root:     format!("{:#x}", sealed_hdr.receipts_root()),
+                    transactions_root: format!("{:#x}", sealed_hdr.transactions_root()),
+                    miner:             format!("{:#x}", sealed_hdr.beneficiary()),
+                    difficulty:        sealed_hdr.difficulty().saturating_to::<u64>(),
+                    nonce:             block_nonce,
+                    transaction_count: tx_count,
+                    extra_data:        format!("0x{}", alloy_primitives::hex::encode(sealed_hdr.extra_data())),
+                    blob_gas_used:     sealed_hdr.blob_gas_used(),
+                    excess_blob_gas:   sealed_hdr.excess_blob_gas(),
+                    blob_count,
+                    blob_base_fee,
+                    utilization,
+                    inserted_at:       now_sec,
+                });
 
-                    let blob_hashes: Vec<String> = inner
-                        .blob_versioned_hashes
-                        .iter()
-                        .map(|h| format!("{:#x}", h))
-                        .collect();
-
-                    blob_txs.push(BlobTxRow {
-                        block_number:         block_num,
-                        block_hash:           block_hash.clone(),
+                // ── blob_lens.block_blob_stats (blob blocks only) ──────────
+                if blob_gas_used > 0 {
+                    block_stats.push(BlockStatRow {
+                        block_number: block_num,
+                        block_hash: block_hash.clone(),
                         block_timestamp,
-                        tx_hash:              tx_hash.clone(),
-                        tx_index:             blob_tx_index,
-                        from_address:         from_addr,
-                        to_address:           to_addr,
-                        rollup,
-                        num_blobs:            inner.blob_versioned_hashes.len() as u8,
-                        max_fee_per_blob_gas: inner.max_fee_per_blob_gas,
                         blob_base_fee,
-                        blob_hashes,
-                        is_canonical:         1,
+                        blob_gas_used,
+                        excess_blob_gas,
+                        blob_count,
+                        utilization,
+                        is_canonical: 1,
                         version,
                     });
-                    blob_tx_index += 1;
+                }
+
+                let mut blob_tx_index  = 0u32;
+                let mut prev_cum_gas   = 0u64;
+
+                for (tx_pos, (sender, tx)) in block.transactions_with_sender().enumerate() {
+                    let from_addr  = format!("{:#x}", sender);
+                    let tx_hash    = format!("{:#x}", tx.tx_hash());
+                    let tx_type    = tx.tx_type() as u8;
+                    let to_opt     = tx.to().map(|a| format!("{:#x}", a));
+                    let value_hex  = format!("{:#x}", tx.value());
+                    let gas_lim    = tx.gas_limit();
+                    let tx_nonce   = tx.nonce();
+                    let input_hex  = format!("0x{}", alloy_primitives::hex::encode(tx.input()));
+                    let gas_price  = tx.gas_price().map(|p| p as u128);
+                    let max_fee    = if gas_price.is_none() { Some(tx.max_fee_per_gas() as u128) } else { None };
+                    let max_prio   = tx.max_priority_fee_per_gas().map(|p| p as u128);
+                    let max_blob   = tx.max_fee_per_blob_gas().map(|p| p as u128);
+                    let blob_hashes_eth: Vec<String> = tx.blob_versioned_hashes()
+                        .map(|s| s.iter().map(|h| format!("{:#x}", h)).collect())
+                        .unwrap_or_default();
+                    let num_blobs  = blob_hashes_eth.len() as u8;
+                    let to_str_eth = to_opt.clone().unwrap_or_default();
+                    let rollup     = resolve(registry, &from_addr, &to_str_eth);
+
+                    // ── ethereum.transactions (all tx types) ───────────────
+                    eth_txs.push(EthTxRow {
+                        block_number:          block_num,
+                        block_hash:            block_hash.clone(),
+                        block_timestamp,
+                        tx_index:              tx_pos as u32,
+                        tx_hash:               tx_hash.clone(),
+                        is_deleted:            0,
+                        tx_type,
+                        from_address:          from_addr.clone(),
+                        to_address:            to_opt.clone(),
+                        value:                 value_hex,
+                        gas_limit:             gas_lim,
+                        gas_price,
+                        max_fee_per_gas:       max_fee,
+                        max_priority_fee:      max_prio,
+                        nonce:                 tx_nonce,
+                        input:                 input_hex,
+                        max_fee_per_blob_gas:  max_blob,
+                        blob_versioned_hashes: blob_hashes_eth.clone(),
+                        rollup:                rollup.clone(),
+                        blob_base_fee:         if tx_type == 3 { blob_base_fee } else { 0 },
+                        num_blobs,
+                        inserted_at:           now_sec,
+                    });
 
                     if let Some(receipt) = receipts.get(tx_pos) {
+                        let cum_gas  = receipt.cumulative_gas_used;
+                        let gas_used = cum_gas.saturating_sub(prev_cum_gas);
+                        prev_cum_gas = cum_gas;
+                        let eff_price = if let Some(gp) = tx.gas_price() {
+                            gp as u64
+                        } else {
+                            let base = base_fee_u64.unwrap_or(0);
+                            let prio = tx.max_priority_fee_per_gas().unwrap_or(0) as u64;
+                            (tx.max_fee_per_gas() as u64).min(base + prio)
+                        };
+
+                        // ── ethereum.receipts ─────────────────────────────
+                        eth_receipts.push(EthReceiptRow {
+                            block_number:        block_num,
+                            block_hash:          block_hash.clone(),
+                            block_timestamp,
+                            tx_hash:             tx_hash.clone(),
+                            tx_index:            tx_pos as u32,
+                            is_deleted:          0,
+                            success:             receipt.status() as u8,
+                            gas_used,
+                            cumulative_gas_used: cum_gas,
+                            effective_gas_price: eff_price,
+                            blob_gas_used:       tx.blob_versioned_hashes().map(|s| s.len() as u64 * 131_072).filter(|&g| g > 0),
+                            blob_gas_price:      tx.blob_versioned_hashes().filter(|s| !s.is_empty()).map(|_| blob_base_fee as u64),
+                            inserted_at:         now_sec,
+                        });
+
+                        // ── ethereum.logs (all tx types) ──────────────────
                         for (log_idx, log) in receipt.logs().iter().enumerate() {
                             let topics = log.data.topics();
-                            tx_logs.push(BlobTxLogRow {
+                            eth_logs.push(EthLogRow {
                                 block_number:    block_num,
+                                block_hash:      block_hash.clone(),
                                 block_timestamp,
                                 tx_hash:         tx_hash.clone(),
+                                tx_index:        tx_pos as u32,
                                 log_index:       log_idx as u32,
+                                is_deleted:      0,
                                 address:         format!("{:#x}", log.address),
                                 topic0:          topics.first().map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                                topic1:          topics.get(1).map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                                topic2:          topics.get(2).map(|t| format!("{:#x}", t)).unwrap_or_default(),
-                                topic3:          topics.get(3).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                                topic1:          topics.get(1).map(|t| format!("{:#x}", t)),
+                                topic2:          topics.get(2).map(|t| format!("{:#x}", t)),
+                                topic3:          topics.get(3).map(|t| format!("{:#x}", t)),
                                 data:            format!("0x{}", alloy_primitives::hex::encode(&log.data.data)),
-                                is_canonical:    1,
+                                inserted_at:     now_sec,
+                            });
+                        }
+
+                        // ── blob_lens.blob_tx_logs (blob txs only) ────────
+                        if tx_type == 3 {
+                            for (log_idx, log) in receipt.logs().iter().enumerate() {
+                                let topics = log.data.topics();
+                                tx_logs.push(BlobTxLogRow {
+                                    block_number:    block_num,
+                                    block_timestamp,
+                                    tx_hash:         tx_hash.clone(),
+                                    log_index:       log_idx as u32,
+                                    address:         format!("{:#x}", log.address),
+                                    topic0:          topics.first().map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                                    topic1:          topics.get(1).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                                    topic2:          topics.get(2).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                                    topic3:          topics.get(3).map(|t| format!("{:#x}", t)).unwrap_or_default(),
+                                    data:            format!("0x{}", alloy_primitives::hex::encode(&log.data.data)),
+                                    is_canonical:    1,
+                                    version,
+                                });
+                            }
+                        }
+                    }
+
+                    // ── blob_lens.blob_transactions (blob txs only) ────────
+                    if tx_type == 3 {
+                        if let EthereumTxEnvelope::Eip4844(signed) = tx {
+                            let inner: &TxEip4844 = signed.tx();
+                            let to_bl = format!("{:#x}", inner.to);
+                            let blob_hashes_bl: Vec<String> = inner.blob_versioned_hashes
+                                .iter().map(|h| format!("{:#x}", h)).collect();
+                            blob_txs.push(BlobTxRow {
+                                block_number:         block_num,
+                                block_hash:           block_hash.clone(),
+                                block_timestamp,
+                                tx_hash:              tx_hash.clone(),
+                                tx_index:             blob_tx_index,
+                                from_address:         from_addr.clone(),
+                                to_address:           to_bl.clone(),
+                                rollup:               resolve(registry, &from_addr, &to_bl),
+                                num_blobs:            inner.blob_versioned_hashes.len() as u8,
+                                max_fee_per_blob_gas: inner.max_fee_per_blob_gas,
+                                blob_base_fee,
+                                blob_hashes:          blob_hashes_bl,
+                                is_canonical:         1,
                                 version,
                             });
+                            blob_tx_index += 1;
                         }
                     }
                 }
@@ -198,26 +327,29 @@ where
             Ok(())
         })?;
 
+        // Flush to ClickHouse
         insert_block_stats(ch, &block_stats).await?;
         insert_blob_txs(ch, &blob_txs).await?;
         insert_blob_tx_logs(ch, &tx_logs).await?;
+        insert_eth_blocks(ch, &eth_blocks).await?;
+        insert_eth_txs(ch, &eth_txs).await?;
+        insert_eth_receipts(ch, &eth_receipts).await?;
+        insert_eth_logs(ch, &eth_logs).await?;
         set_blob_cursor(ch, batch_end).await?;
 
         tracing::info!(
-            up_to   = batch_end,
-            pct     = format!("{:.1}%",
-                          (batch_end - start) as f64
-                          / (current_head - start).max(1) as f64
-                          * 100.0),
-            blobs   = blob_txs.len(),
-            tx_logs = tx_logs.len(),
-            "blob backfill batch done"
+            up_to    = batch_end,
+            pct      = format!("{:.1}%", (batch_end - start) as f64 / (current_head - start).max(1) as f64 * 100.0),
+            eth_txs  = eth_txs.len(),
+            blobs    = blob_txs.len(),
+            eth_logs = eth_logs.len(),
+            "backfill batch done"
         );
 
         cur = batch_end + 1;
     }
 
-    tracing::info!("blob backfill complete");
+    tracing::info!("backfill complete");
     Ok(())
 }
 
@@ -460,6 +592,9 @@ async fn process_chain(
             extra_data:        format!("0x{}", alloy_primitives::hex::encode(block.extra_data())),
             blob_gas_used:     block.blob_gas_used(),
             excess_blob_gas:   block.excess_blob_gas(),
+            blob_count,
+            blob_base_fee,
+            utilization,
             inserted_at:       now,
         });
 
@@ -484,6 +619,10 @@ async fn process_chain(
                 .map(|s| s.iter().map(|h| format!("{:#x}", h)).collect())
                 .unwrap_or_default();
 
+            let to_str    = to_addr.clone().unwrap_or_default();
+            let tx_rollup = resolve(registry, &from_addr, &to_str);
+            let tx_num_blobs = blob_hashes_eth.len() as u8;
+
             // ── ethereum.transactions ─────────────────────────────────────
             eth_txs.push(EthTxRow {
                 block_number,
@@ -504,6 +643,9 @@ async fn process_chain(
                 input:                 input_hex,
                 max_fee_per_blob_gas:  max_blob,
                 blob_versioned_hashes: blob_hashes_eth,
+                rollup:                tx_rollup,
+                blob_base_fee:         if tx_type == 3 { blob_base_fee } else { 0 },
+                num_blobs:             tx_num_blobs,
                 inserted_at:           now,
             });
 

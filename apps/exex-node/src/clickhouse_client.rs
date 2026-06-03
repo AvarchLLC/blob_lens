@@ -73,6 +73,10 @@ pub struct EthBlockRow {
     pub extra_data:        String,
     pub blob_gas_used:     Option<u64>,
     pub excess_blob_gas:   Option<u64>,
+    // blob analytics convenience fields (mirrors block_blob_stats)
+    pub blob_count:        u16,
+    pub blob_base_fee:     u128,
+    pub utilization:       f64,
     pub inserted_at:       u32,
 }
 
@@ -96,6 +100,10 @@ pub struct EthTxRow {
     pub input:                  String,          // hex calldata
     pub max_fee_per_blob_gas:   Option<u128>,
     pub blob_versioned_hashes:  Vec<String>,
+    // blob analytics convenience fields (only meaningful for tx_type=3)
+    pub rollup:                 String,
+    pub blob_base_fee:          u128,
+    pub num_blobs:              u8,
     pub inserted_at:            u32,
 }
 
@@ -233,6 +241,9 @@ pub async fn init_schema(client: &Client) -> eyre::Result<()> {
             extra_data          String          CODEC(ZSTD(3)),
             blob_gas_used       Nullable(UInt64) CODEC(ZSTD(1)),
             excess_blob_gas     Nullable(UInt64) CODEC(ZSTD(1)),
+            blob_count          UInt16           CODEC(ZSTD(1)),
+            blob_base_fee       UInt128          CODEC(ZSTD(1)),
+            utilization         Float64          CODEC(ZSTD(1)),
             inserted_at         DateTime        DEFAULT now()
         )
         ENGINE = ReplacingMergeTree(inserted_at)
@@ -261,6 +272,9 @@ pub async fn init_schema(client: &Client) -> eyre::Result<()> {
             input                   String          CODEC(ZSTD(3)),
             max_fee_per_blob_gas    Nullable(UInt128) CODEC(ZSTD(1)),
             blob_versioned_hashes   Array(String)   CODEC(ZSTD(3)),
+            rollup                  LowCardinality(String) DEFAULT '',
+            blob_base_fee           UInt128          CODEC(ZSTD(1)),
+            num_blobs               UInt8            DEFAULT 0,
             inserted_at             DateTime        DEFAULT now()
         )
         ENGINE = ReplacingMergeTree(inserted_at)
