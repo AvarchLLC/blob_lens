@@ -126,12 +126,15 @@ where
                     TransactionVariant::WithHash,
                 ) else { continue };
 
-                let receipts = provider
-                    .receipts_by_block(BlockHashOrNumber::Number(block_num))
-                    .unwrap_or_default()
-                    .unwrap_or_default();
+                // receipts_by_block silently returns empty for historical blocks stored in
+                // Reth's static files. Use receipt_by_hash per tx instead — same approach
+                // as backfill_logs which is proven to work for all historical data.
+                let receipts_per_tx: Vec<Option<_>> = block
+                    .transactions_with_sender()
+                    .map(|(_, tx)| provider.receipt_by_hash(*tx.tx_hash()).ok().flatten())
+                    .collect();
 
-                let tx_count = block.transactions_with_sender().count() as u32;
+                let tx_count = receipts_per_tx.len() as u32;
 
                 // ── ethereum.blocks (every block) ──────────────────────────
                 eth_blocks.push(EthBlockRow {
@@ -224,7 +227,7 @@ where
                         inserted_at:           now_sec,
                     });
 
-                    if let Some(receipt) = receipts.get(tx_pos) {
+                    if let Some(receipt) = receipts_per_tx.get(tx_pos).and_then(|r| r.as_ref()) {
                         let cum_gas  = receipt.cumulative_gas_used;
                         let gas_used = cum_gas.saturating_sub(prev_cum_gas);
                         prev_cum_gas = cum_gas;
