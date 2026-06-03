@@ -314,6 +314,119 @@ pub async fn init_schema(client: &Client) -> eyre::Result<()> {
         SETTINGS index_granularity = 8192",
     ).execute().await?;
 
+    // ── Bloom filter skip indexes ────────────────────────────────────────────
+    for stmt in [
+        "ALTER TABLE ethereum.blocks     ADD INDEX IF NOT EXISTS idx_block_hash   hash         TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.transactions ADD INDEX IF NOT EXISTS idx_tx_hash     tx_hash      TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.transactions ADD INDEX IF NOT EXISTS idx_from_addr   from_address TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.transactions ADD INDEX IF NOT EXISTS idx_to_addr     to_address   TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.logs        ADD INDEX IF NOT EXISTS idx_log_address  address      TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.logs        ADD INDEX IF NOT EXISTS idx_log_topic0   topic0       TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.logs        ADD INDEX IF NOT EXISTS idx_log_topic1   topic1       TYPE bloom_filter(0.01) GRANULARITY 4",
+        "ALTER TABLE ethereum.logs        ADD INDEX IF NOT EXISTS idx_log_tx_hash  tx_hash      TYPE bloom_filter(0.01) GRANULARITY 4",
+    ] {
+        client.query(stmt).execute().await?;
+    }
+
+    // ── ERC-20 transfers ─────────────────────────────────────────────────────
+    // Materialized view that auto-populates from ethereum.logs on every insert.
+    // topic0 = keccak256("Transfer(address,address,uint256)") = 0xddf252ad...
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.erc20_transfers (
+            block_number    UInt64          CODEC(Delta(8), ZSTD(1)),
+            block_timestamp DateTime        CODEC(Delta(4), ZSTD(1)),
+            tx_hash         String          CODEC(ZSTD(3)),
+            log_index       UInt32          CODEC(Delta(4), ZSTD(1)),
+            token_address   String          CODEC(ZSTD(3)),
+            from_address    String          CODEC(ZSTD(3)),
+            to_address      String          CODEC(ZSTD(3)),
+            amount_raw      String          CODEC(ZSTD(3))
+        )
+        ENGINE = ReplacingMergeTree()
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY (token_address, block_number, log_index)
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
+    client.query(
+        "CREATE MATERIALIZED VIEW IF NOT EXISTS ethereum.mv_erc20_transfers
+        TO ethereum.erc20_transfers
+        AS SELECT
+            block_number,
+            block_timestamp,
+            tx_hash,
+            log_index,
+            address                AS token_address,
+            substring(topic1, 27)  AS from_address,
+            substring(topic2, 27)  AS to_address,
+            data                   AS amount_raw
+        FROM ethereum.logs
+        WHERE topic0 = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+          AND is_deleted = 0",
+    ).execute().await?;
+
+    // ── Per-block gas stats ──────────────────────────────────────────────────
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.block_gas_stats (
+            block_number        UInt64      CODEC(Delta(8), ZSTD(1)),
+            block_timestamp     DateTime    CODEC(Delta(4), ZSTD(1)),
+            tx_count            UInt32,
+            total_gas_used      UInt64      CODEC(Delta(8), ZSTD(1)),
+            avg_gas_price       UInt64,
+            max_gas_price       UInt64,
+            min_gas_price       UInt64,
+            base_fee_per_gas    Nullable(UInt64)
+        )
+        ENGINE = ReplacingMergeTree()
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY block_number
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
+    client.query(
+        "CREATE MATERIALIZED VIEW IF NOT EXISTS ethereum.mv_block_gas_stats
+        TO ethereum.block_gas_stats
+        AS SELECT
+            block_number,
+            block_timestamp,
+            count()                              AS tx_count,
+            sum(gas_used)                        AS total_gas_used,
+            toUInt64(avg(effective_gas_price))   AS avg_gas_price,
+            max(effective_gas_price)             AS max_gas_price,
+            min(effective_gas_price)             AS min_gas_price,
+            toNullable(toUInt64(0))              AS base_fee_per_gas
+        FROM ethereum.receipts
+        WHERE is_deleted = 0
+        GROUP BY block_number, block_timestamp",
+    ).execute().await?;
+
+    // ── Contract event index ─────────────────────────────────────────────────
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.contract_events (
+            address     String,
+            topic0      String,
+            event_count UInt64,
+            last_seen   DateTime
+        )
+        ENGINE = ReplacingMergeTree(last_seen)
+        ORDER BY (address, topic0)
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
+    client.query(
+        "CREATE MATERIALIZED VIEW IF NOT EXISTS ethereum.mv_contract_events
+        TO ethereum.contract_events
+        AS SELECT
+            address,
+            topic0,
+            count()              AS event_count,
+            max(block_timestamp) AS last_seen
+        FROM ethereum.logs
+        WHERE topic0 != ''
+          AND is_deleted = 0
+        GROUP BY address, topic0",
+    ).execute().await?;
+
     Ok(())
 }
 
