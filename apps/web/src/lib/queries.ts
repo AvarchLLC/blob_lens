@@ -158,12 +158,13 @@ export async function getOverviewStats(): Promise<OverviewStats> {
         max(block_number)            AS last_block,
         (
           SELECT avg(utilization) * 100
-          FROM blob_lens.block_blob_stats FINAL
-          WHERE is_canonical = 1
-            AND block_timestamp > now() - toIntervalHour(24)
+          FROM ethereum.blocks FINAL
+          WHERE is_deleted = 0
+            AND blob_count > 0
+            AND timestamp > now() - toIntervalHour(24)
         ) AS avg_utilization_24h
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3
     `,
     format: "JSONEachRow",
   });
@@ -209,21 +210,21 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
           least(100, avg(num_blobs) / 6.0 * 100)        AS packing_score,
           ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != ''
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
         GROUP BY (rollup)
       ) b
       CROSS JOIN (
         SELECT sum(num_blobs) AS total_blobs_all
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != ''
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       ) wt
       CROSS JOIN (
         SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000) AS network_avg_fee
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != ''
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       ) na
       ORDER BY total_blobs DESC
@@ -250,9 +251,9 @@ export async function getForecastData(): Promise<ForecastData | null> {
           blob_gas_used,
           excess_blob_gas,
           row_number() OVER (ORDER BY block_number DESC) AS rn
-        FROM blob_lens.block_blob_stats FINAL
-        WHERE is_canonical = 1
-        ORDER BY block_number DESC
+        FROM ethereum.blocks FINAL
+        WHERE is_deleted = 0 AND blob_count > 0
+        ORDER BY number DESC
         LIMIT 50
       )
     `,
@@ -270,8 +271,8 @@ export async function getUnknownSenders(): Promise<UnknownSender[]> {
         count()               AS tx_count,
         sum(num_blobs)        AS total_blobs,
         round(avg(num_blobs), 2) AS avg_blobs_per_tx
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1 AND rollup = 'UNKNOWN'
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3 AND rollup = 'UNKNOWN'
       GROUP BY from_address
       ORDER BY total_blobs DESC
       LIMIT 10
@@ -289,8 +290,8 @@ export async function getAllUnknownSenders(limit = 100): Promise<UnknownSender[]
         count()               AS tx_count,
         sum(num_blobs)        AS total_blobs,
         round(avg(num_blobs), 2) AS avg_blobs_per_tx
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1 AND rollup = 'UNKNOWN'
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3 AND rollup = 'UNKNOWN'
       GROUP BY from_address
       ORDER BY total_blobs DESC
       LIMIT {limit:UInt32}
@@ -311,13 +312,13 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
         toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
         round(avg(bbs.blob_gas_used / if(bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
-      FROM blob_lens.blob_transactions AS bt FINAL
+      FROM ethereum.transactions AS bt FINAL
       LEFT JOIN (
-        SELECT block_number, blob_base_fee, blob_count, blob_gas_used
-        FROM blob_lens.block_blob_stats FINAL
-        WHERE is_canonical = 1
+        SELECT number AS block_number, blob_base_fee, blob_count, ifNull(blob_gas_used, 0) AS blob_gas_used
+        FROM ethereum.blocks FINAL
+        WHERE is_deleted = 0
       ) bbs ON bbs.block_number = bt.block_number
-      WHERE bt.is_canonical = 1
+      WHERE bt.is_deleted = 0 AND bt.tx_type = 3
         AND bt.block_timestamp > now() - toIntervalHour({hours:UInt32})
       GROUP BY toStartOfHour(bt.block_timestamp)
       ORDER BY toStartOfHour(bt.block_timestamp) ASC
@@ -341,13 +342,13 @@ export async function getPerRollupFeeActivity(
         toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
         round(avg(bbs.blob_gas_used / if(bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
-      FROM blob_lens.blob_transactions AS bt FINAL
+      FROM ethereum.transactions AS bt FINAL
       LEFT JOIN (
-        SELECT block_number, blob_base_fee, blob_count, blob_gas_used
-        FROM blob_lens.block_blob_stats FINAL
-        WHERE is_canonical = 1
+        SELECT number AS block_number, blob_base_fee, blob_count, ifNull(blob_gas_used, 0) AS blob_gas_used
+        FROM ethereum.blocks FINAL
+        WHERE is_deleted = 0
       ) bbs ON bbs.block_number = bt.block_number
-      WHERE bt.is_canonical = 1
+      WHERE bt.is_deleted = 0 AND bt.tx_type = 3
         AND bt.rollup = {rollup:String}
         AND bt.block_timestamp > now() - toIntervalHour({hours:UInt32})
       GROUP BY toStartOfHour(bt.block_timestamp)
@@ -372,8 +373,8 @@ export async function getRollupTransactions(
         toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas,
         toString(blob_base_fee)        AS blob_base_fee,
         toString(block_timestamp)      AS created_at
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1 AND rollup = {rollupId:String}
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3 AND rollup = {rollupId:String}
       ORDER BY block_number DESC, tx_index DESC
       LIMIT 500
     `,
@@ -394,8 +395,8 @@ export async function getLatestBlobs(limit = 20): Promise<BlobTransaction[]> {
         toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas,
         toString(blob_base_fee)        AS blob_base_fee,
         toString(block_timestamp)      AS created_at
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3
       ORDER BY block_number DESC, tx_index DESC
       LIMIT {limit:UInt32}
     `,
@@ -418,16 +419,17 @@ export async function getRecentBlocks(limit = 20): Promise<BlockRow[]> {
         arrayFilter(x -> x != '', groupUniqArray(bt.rollup))           AS rollups,
         toString(bbs.block_timestamp)                                  AS created_at
       FROM (
-        SELECT block_number, blob_base_fee, blob_gas_used, blob_count, utilization, block_timestamp
-        FROM blob_lens.block_blob_stats FINAL
-        WHERE is_canonical = 1 AND blob_count > 0
-        ORDER BY block_number DESC
+        SELECT number AS block_number, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used,
+               blob_count, utilization, timestamp AS block_timestamp
+        FROM ethereum.blocks FINAL
+        WHERE is_deleted = 0 AND blob_count > 0
+        ORDER BY number DESC
         LIMIT {limit:UInt32}
       ) bbs
       LEFT JOIN (
         SELECT block_number, tx_hash, rollup
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3
       ) bt ON bt.block_number = bbs.block_number
       GROUP BY
         bbs.block_number, bbs.blob_base_fee, bbs.blob_gas_used,
@@ -447,8 +449,8 @@ export async function getRollupSparklines(): Promise<SparklinePoint[]> {
         rollup,
         toString(toStartOfHour(block_timestamp)) AS hour,
         sum(num_blobs)                           AS blobs
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1 AND rollup != ''
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
         AND block_timestamp > now() - toIntervalHour(24)
       GROUP BY (rollup, toStartOfHour(block_timestamp))
       ORDER BY rollup ASC, toStartOfHour(block_timestamp) ASC
@@ -470,15 +472,15 @@ export async function getDailyRollupBreakdown(
           toString(toStartOfDay(block_timestamp)) AS day,
           rollup,
           sum(num_blobs)                          AS blobs
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
           AND block_timestamp > now() - toIntervalDay({days:UInt32})
         GROUP BY (toStartOfDay(block_timestamp), rollup)
       ) d
       INNER JOIN (
         SELECT rollup
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
           AND block_timestamp > now() - toIntervalDay({days:UInt32})
         GROUP BY (rollup)
         ORDER BY sum(num_blobs) DESC
@@ -499,27 +501,22 @@ export async function getHourlyRollupFee(
   const result = await ch.query({
     query: `
       SELECT
-        bt.rollup,
-        toString(toStartOfHour(bt.block_timestamp))             AS hour,
-        ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0) AS value
-      FROM blob_lens.blob_transactions AS bt FINAL
-      LEFT JOIN (
-        SELECT block_number, blob_base_fee
-        FROM blob_lens.block_blob_stats FINAL
-        WHERE is_canonical = 1
-      ) bbs ON bbs.block_number = bt.block_number
-      WHERE bt.is_canonical = 1
-        AND bt.rollup != '' AND bt.rollup != 'UNKNOWN'
-        AND bt.rollup IN (
+        rollup,
+        toString(toStartOfHour(block_timestamp))                AS hour,
+        ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee > 0 AND blob_base_fee < 1000000000000000000), 0.0) AS value
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3
+        AND rollup != '' AND rollup != 'UNKNOWN'
+        AND rollup IN (
           SELECT rollup
-          FROM blob_lens.blob_transactions FINAL
-          WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          FROM ethereum.transactions FINAL
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
             AND block_timestamp > now() - toIntervalHour({hours:UInt32})
           GROUP BY (rollup)
           ORDER BY sum(num_blobs) DESC
           LIMIT {topN:UInt32}
         )
-        AND bt.block_timestamp > now() - toIntervalHour({hours:UInt32})
+        AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       GROUP BY (bt.rollup, toStartOfHour(bt.block_timestamp))
       ORDER BY toStartOfHour(bt.block_timestamp) ASC, bt.rollup ASC
     `,
@@ -539,13 +536,13 @@ export async function getHourlyRollupUtilization(
         rollup,
         toString(toStartOfHour(block_timestamp))                AS hour,
         sum(num_blobs) / (uniqExact(block_number) * 9.0) * 100 AS value
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3
         AND rollup != '' AND rollup != 'UNKNOWN'
         AND rollup IN (
           SELECT rollup
-          FROM blob_lens.blob_transactions FINAL
-          WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          FROM ethereum.transactions FINAL
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
             AND block_timestamp > now() - toIntervalHour({hours:UInt32})
           GROUP BY (rollup)
           ORDER BY sum(num_blobs) DESC
@@ -571,13 +568,13 @@ export async function getHourlyRollupActivity(
         rollup,
         toString(toStartOfHour(block_timestamp)) AS hour,
         sum(num_blobs)                           AS blobs
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3
         AND rollup != '' AND rollup != 'UNKNOWN'
         AND rollup IN (
           SELECT rollup
-          FROM blob_lens.blob_transactions FINAL
-          WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+          FROM ethereum.transactions FINAL
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
             AND block_timestamp > now() - toIntervalHour({hours:UInt32})
           GROUP BY (rollup)
           ORDER BY sum(num_blobs) DESC
@@ -625,8 +622,8 @@ export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGr
         least(100, greatest(0,
           0.70 * least(100, avg(num_blobs) / 6.0 * 100) + 0.30 * 50.0
         ))                                                              AS efficiency
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+      FROM ethereum.transactions FINAL
+      WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       GROUP BY (rollup)
       HAVING sum(num_blobs) > 0
@@ -645,22 +642,22 @@ export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGr
         least(100, count() / greatest(total.total_blocks, 1) * 100) AS weight
       FROM (
         SELECT block_number, rollup
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
         GROUP BY (block_number, rollup)
       ) a
       JOIN (
         SELECT block_number, rollup
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
         GROUP BY (block_number, rollup)
       ) b ON a.block_number = b.block_number AND a.rollup < b.rollup
       CROSS JOIN (
         SELECT uniqExact(block_number) AS total_blocks
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       ) total
       GROUP BY (a.rollup, b.rollup, total.total_blocks)
@@ -703,17 +700,17 @@ export async function getHistoricalDailyStats(): Promise<HistoricalDailyStat[]> 
   const result = await ch.query({
     query: `
       SELECT
-        toString(toDate(block_timestamp))                                                    AS day,
+        toString(toDate(timestamp))                                                          AS day,
         sum(blob_count)                                                                      AS total_blobs,
         round(avgIf(toFloat64(blob_base_fee), blob_base_fee > 0
               AND blob_base_fee < 1000000000000000000) / 1e9, 8)                            AS avg_fee_gwei,
         round(avg(blob_count), 3)                                                           AS avg_blobs_per_block,
         count()                                                                             AS blocks_with_blobs
-      FROM blob_lens.block_blob_stats FINAL
-      WHERE is_canonical = 1
+      FROM ethereum.blocks FINAL
+      WHERE is_deleted = 0
         AND blob_count > 0
-      GROUP BY toDate(block_timestamp)
-      ORDER BY toDate(block_timestamp) ASC
+      GROUP BY toDate(timestamp)
+      ORDER BY toDate(timestamp) ASC
     `,
     format: "JSONEachRow",
   });
@@ -747,8 +744,8 @@ export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
           multiIf(block_number < 22431084, 6,
                    block_number < 24833256, 9,
                    18) AS max_blobs
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1
+        FROM ethereum.transactions FINAL
+        WHERE is_deleted = 0 AND tx_type = 3
         GROUP BY block_number, epoch, target_blobs, max_blobs
       ) sub
       GROUP BY epoch, target_blobs, max_blobs
