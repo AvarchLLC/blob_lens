@@ -22,14 +22,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing_subscriber::EnvFilter;
 
-use blob_indexer::clickhouse_client::{
-    EthBlockRow, EthLogRow, EthReceiptRow, EthTxRow,
-    insert_eth_blocks, insert_eth_logs, insert_eth_receipts, insert_eth_txs,
-};
-
 const DENCUN_BLOCK: u64 = 19_426_587;
 
-// ── blob_lens row types (local, not re-exported from lib) ────────────────────
+// ── blob_lens row types ──────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Row, Serialize, Deserialize)]
 struct BlobTxRow {
@@ -77,6 +72,129 @@ struct BlobTxLogRow {
     data:            String,
     is_canonical:    u8,
     version:         u64,
+}
+
+// ── ethereum.* row types ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthBlockRow {
+    number:            u64,
+    hash:              String,
+    parent_hash:       String,
+    is_deleted:        u8,
+    timestamp:         u32,
+    gas_used:          u64,
+    gas_limit:         u64,
+    base_fee_per_gas:  Option<u64>,
+    state_root:        String,
+    receipts_root:     String,
+    transactions_root: String,
+    miner:             String,
+    difficulty:        u64,
+    nonce:             u64,
+    transaction_count: u32,
+    extra_data:        String,
+    blob_gas_used:     Option<u64>,
+    excess_blob_gas:   Option<u64>,
+    blob_count:        u16,
+    blob_base_fee:     u128,
+    utilization:       f64,
+    inserted_at:       u32,
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthTxRow {
+    block_number:          u64,
+    block_hash:            String,
+    block_timestamp:       u32,
+    tx_index:              u32,
+    tx_hash:               String,
+    is_deleted:            u8,
+    tx_type:               u8,
+    from_address:          String,
+    to_address:            Option<String>,
+    value:                 String,
+    gas_limit:             u64,
+    gas_price:             Option<u128>,
+    max_fee_per_gas:       Option<u128>,
+    max_priority_fee:      Option<u128>,
+    nonce:                 u64,
+    input:                 String,
+    max_fee_per_blob_gas:  Option<u128>,
+    blob_versioned_hashes: Vec<String>,
+    rollup:                String,
+    blob_base_fee:         u128,
+    num_blobs:             u8,
+    inserted_at:           u32,
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthReceiptRow {
+    block_number:        u64,
+    block_hash:          String,
+    block_timestamp:     u32,
+    tx_hash:             String,
+    tx_index:            u32,
+    is_deleted:          u8,
+    success:             u8,
+    gas_used:            u64,
+    cumulative_gas_used: u64,
+    effective_gas_price: u64,
+    blob_gas_used:       Option<u64>,
+    blob_gas_price:      Option<u64>,
+    inserted_at:         u32,
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthLogRow {
+    block_number:    u64,
+    block_hash:      String,
+    block_timestamp: u32,
+    tx_hash:         String,
+    tx_index:        u32,
+    log_index:       u32,
+    is_deleted:      u8,
+    address:         String,
+    topic0:          String,
+    topic1:          Option<String>,
+    topic2:          Option<String>,
+    topic3:          Option<String>,
+    data:            String,
+    inserted_at:     u32,
+}
+
+// ── ethereum insert helpers ───────────────────────────────────────────────────
+
+async fn insert_eth_blocks(ch: &Client, rows: &[EthBlockRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.blocks")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+async fn insert_eth_txs(ch: &Client, rows: &[EthTxRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.transactions")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+async fn insert_eth_receipts(ch: &Client, rows: &[EthReceiptRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.receipts")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+async fn insert_eth_logs(ch: &Client, rows: &[EthLogRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.logs")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
 }
 
 // ── RPC response shapes ──────────────────────────────────────────────────────
