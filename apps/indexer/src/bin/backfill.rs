@@ -197,6 +197,27 @@ async fn insert_eth_logs(ch: &Client, rows: &[EthLogRow]) -> eyre::Result<()> {
     Ok(())
 }
 
+// ── Block index status tracker ────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct BlockIndexStatusRow {
+    block_number:    u64,
+    block_hash:      String,
+    block_timestamp: u32,
+    status:          String,  // "indexed" | "failed" | "skipped"
+    error_msg:       String,
+    indexed_at:      u32,
+    version:         u64,
+}
+
+async fn insert_block_status(ch: &Client, rows: &[BlockIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.block_index_status")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
 // ── RPC response shapes ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -451,6 +472,22 @@ async fn init_schema(client: &Client) -> eyre::Result<()> {
 
     // ethereum tables — already created on ba-data with full schema + indexes + MVs
     client.query("CREATE DATABASE IF NOT EXISTS ethereum").execute().await?;
+
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.block_index_status (
+            block_number    UInt64   CODEC(Delta(8), ZSTD(1)),
+            block_hash      String   CODEC(ZSTD(3)),
+            block_timestamp DateTime CODEC(Delta(4), ZSTD(1)),
+            status          LowCardinality(String),
+            error_msg       String   DEFAULT '',
+            indexed_at      DateTime DEFAULT now(),
+            version         UInt64
+        ) ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY block_number
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
     Ok(())
 }
 
@@ -552,13 +589,40 @@ async fn main() -> eyre::Result<()> {
         let mut block_stats: Vec<BlockStatRow> = Vec::new();
         let mut tx_logs:     Vec<BlobTxLogRow> = Vec::new();
 
-        let mut eth_blocks:   Vec<EthBlockRow>   = Vec::new();
-        let mut eth_txs:      Vec<EthTxRow>      = Vec::new();
-        let mut eth_receipts: Vec<EthReceiptRow> = Vec::new();
-        let mut eth_logs:     Vec<EthLogRow>     = Vec::new();
+        let mut eth_blocks:   Vec<EthBlockRow>          = Vec::new();
+        let mut eth_txs:      Vec<EthTxRow>             = Vec::new();
+        let mut eth_receipts: Vec<EthReceiptRow>        = Vec::new();
+        let mut eth_logs:     Vec<EthLogRow>            = Vec::new();
+        let mut status_rows:  Vec<BlockIndexStatusRow>  = Vec::new();
+
+        let now_sec = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as u32;
 
         for num in cur..=end {
-            let Some(block) = rpc_block(&http, &rpc, num).await? else { continue };
+            let block = match rpc_block(&http, &rpc, num).await {
+                Ok(Some(b)) => b,
+                Ok(None) => {
+                    status_rows.push(BlockIndexStatusRow {
+                        block_number: num, block_hash: String::new(),
+                        block_timestamp: 0, status: "skipped".into(),
+                        error_msg: "block not found".into(),
+                        indexed_at: now_sec, version: now_sec as u64,
+                    });
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(block = num, err = %e, "failed to fetch block");
+                    status_rows.push(BlockIndexStatusRow {
+                        block_number: num, block_hash: String::new(),
+                        block_timestamp: 0, status: "failed".into(),
+                        error_msg: e.to_string(),
+                        indexed_at: now_sec, version: now_sec as u64,
+                    });
+                    continue;
+                }
+            };
 
             let excess    = block.excess_blob_gas.as_deref().map(hex_u64).unwrap_or(0);
             let gas_used  = block.blob_gas_used.as_deref().map(hex_u64).unwrap_or(0);
@@ -721,6 +785,17 @@ async fn main() -> eyre::Result<()> {
                     }
                 }
             }
+
+            // Mark block as successfully indexed
+            status_rows.push(BlockIndexStatusRow {
+                block_number: num,
+                block_hash: block.hash.clone(),
+                block_timestamp: hex_u64(&block.timestamp) as u32,
+                status: "indexed".into(),
+                error_msg: String::new(),
+                indexed_at: now_sec,
+                version: now_sec as u64,
+            });
         }
 
         // ── blob_lens inserts ─────────────────────────────────────────────────
@@ -745,6 +820,7 @@ async fn main() -> eyre::Result<()> {
         insert_eth_txs(&ch, &eth_txs).await?;
         insert_eth_receipts(&ch, &eth_receipts).await?;
         insert_eth_logs(&ch, &eth_logs).await?;
+        insert_block_status(&ch, &status_rows).await?;
 
         set_progress(&ch, end).await?;
         tracing::info!(

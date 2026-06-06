@@ -1,6 +1,27 @@
 use clickhouse::{Client, Row};
 use serde::{Deserialize, Serialize};
 
+// ── Block index status tracker ───────────────────────────────────────────────
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+pub struct BlockIndexStatusRow {
+    pub block_number:    u64,
+    pub block_hash:      String,
+    pub block_timestamp: u32,
+    pub status:          String,  // "indexed" | "failed" | "skipped"
+    pub error_msg:       String,
+    pub indexed_at:      u32,     // unix timestamp
+    pub version:         u64,
+}
+
+pub async fn insert_block_status(client: &Client, rows: &[BlockIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = client.insert("ethereum.block_index_status")?;
+    for row in rows { ins.write(row).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
 // ── blob_lens.* row types ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Row, Serialize, Deserialize)]
