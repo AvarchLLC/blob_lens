@@ -736,7 +736,7 @@ async fn main() -> eyre::Result<()> {
                 blob_count,
                 blob_base_fee: base_fee,
                 utilization,
-                inserted_at: timestamp,
+                inserted_at: now_sec,
             });
 
             // Fetch receipts for ALL blocks (needed for ethereum.receipts + logs)
@@ -790,7 +790,7 @@ async fn main() -> eyre::Result<()> {
                     rollup: rollup.clone(),
                     blob_base_fee: if is_blob_tx { base_fee } else { 0 },
                     num_blobs: hashes.len() as u8,
-                    inserted_at: timestamp,
+                    inserted_at: now_sec,
                 });
 
                 // blob_lens.blob_transactions — type 3 only
@@ -826,7 +826,7 @@ async fn main() -> eyre::Result<()> {
                         effective_gas_price: hex_u64(&receipt.effective_gas_price),
                         blob_gas_used: receipt.blob_gas_used.as_deref().map(hex_u64),
                         blob_gas_price: receipt.blob_gas_price.as_deref().map(hex_u64),
-                        inserted_at: timestamp,
+                        inserted_at: now_sec,
                     });
 
                     for log in &receipt.logs {
@@ -848,7 +848,7 @@ async fn main() -> eyre::Result<()> {
                             topic2: log.topics.get(2).cloned(),
                             topic3: log.topics.get(3).cloned(),
                             data: log.data.clone(),
-                            inserted_at: timestamp,
+                            inserted_at: now_sec,
                         });
 
                         // ethereum.log_index_status
