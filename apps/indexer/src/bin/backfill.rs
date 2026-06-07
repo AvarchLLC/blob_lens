@@ -218,6 +218,46 @@ async fn insert_block_status(ch: &Client, rows: &[BlockIndexStatusRow]) -> eyre:
     Ok(())
 }
 
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct TxIndexStatusRow {
+    block_number:    u64,
+    tx_hash:         String,
+    tx_index:        u32,
+    block_timestamp: u32,
+    status:          String,
+    error_msg:       String,
+    indexed_at:      u32,
+    version:         u64,
+}
+
+async fn insert_tx_status(ch: &Client, rows: &[TxIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.tx_index_status")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct LogIndexStatusRow {
+    block_number:    u64,
+    tx_hash:         String,
+    log_index:       u32,
+    block_timestamp: u32,
+    status:          String,
+    error_msg:       String,
+    indexed_at:      u32,
+    version:         u64,
+}
+
+async fn insert_log_status(ch: &Client, rows: &[LogIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.log_index_status")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
 // ── RPC response shapes ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -488,6 +528,38 @@ async fn init_schema(client: &Client) -> eyre::Result<()> {
         SETTINGS index_granularity = 8192",
     ).execute().await?;
 
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.tx_index_status (
+            block_number    UInt64   CODEC(Delta(8), ZSTD(1)),
+            tx_hash         String   CODEC(ZSTD(3)),
+            tx_index        UInt32   CODEC(Delta(4), ZSTD(1)),
+            block_timestamp DateTime CODEC(Delta(4), ZSTD(1)),
+            status          LowCardinality(String),
+            error_msg       String   DEFAULT '',
+            indexed_at      DateTime DEFAULT now(),
+            version         UInt64
+        ) ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY (block_number, tx_index)
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.log_index_status (
+            block_number    UInt64   CODEC(Delta(8), ZSTD(1)),
+            tx_hash         String   CODEC(ZSTD(3)),
+            log_index       UInt32   CODEC(Delta(4), ZSTD(1)),
+            block_timestamp DateTime CODEC(Delta(4), ZSTD(1)),
+            status          LowCardinality(String),
+            error_msg       String   DEFAULT '',
+            indexed_at      DateTime DEFAULT now(),
+            version         UInt64
+        ) ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY (block_number, log_index)
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
     Ok(())
 }
 
@@ -594,6 +666,8 @@ async fn main() -> eyre::Result<()> {
         let mut eth_receipts: Vec<EthReceiptRow>        = Vec::new();
         let mut eth_logs:     Vec<EthLogRow>            = Vec::new();
         let mut status_rows:  Vec<BlockIndexStatusRow>  = Vec::new();
+        let mut tx_status:    Vec<TxIndexStatusRow>     = Vec::new();
+        let mut log_status:   Vec<LogIndexStatusRow>    = Vec::new();
 
         let now_sec = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -681,6 +755,18 @@ async fn main() -> eyre::Result<()> {
                 let max_fee = tx.max_fee_per_blob_gas.as_deref().map(hex_u128);
                 let is_blob_tx = tx_type == 3;
 
+                // ethereum.tx_index_status
+                tx_status.push(TxIndexStatusRow {
+                    block_number: num,
+                    tx_hash: tx.hash.clone(),
+                    tx_index: tx_idx,
+                    block_timestamp: timestamp,
+                    status: "indexed".into(),
+                    error_msg: String::new(),
+                    indexed_at: now_sec,
+                    version: now_sec as u64,
+                });
+
                 // ethereum.transactions — ALL tx types
                 eth_txs.push(EthTxRow {
                     block_number: num,
@@ -765,6 +851,18 @@ async fn main() -> eyre::Result<()> {
                             inserted_at: timestamp,
                         });
 
+                        // ethereum.log_index_status
+                        log_status.push(LogIndexStatusRow {
+                            block_number: num,
+                            tx_hash: log.transaction_hash.clone(),
+                            log_index: log_idx,
+                            block_timestamp: timestamp,
+                            status: "indexed".into(),
+                            error_msg: String::new(),
+                            indexed_at: now_sec,
+                            version: now_sec as u64,
+                        });
+
                         // blob_lens.blob_tx_logs — only for blob txs
                         if is_blob_tx {
                             tx_logs.push(BlobTxLogRow {
@@ -821,6 +919,8 @@ async fn main() -> eyre::Result<()> {
         insert_eth_receipts(&ch, &eth_receipts).await?;
         insert_eth_logs(&ch, &eth_logs).await?;
         insert_block_status(&ch, &status_rows).await?;
+        insert_tx_status(&ch, &tx_status).await?;
+        insert_log_status(&ch, &log_status).await?;
 
         set_progress(&ch, end).await?;
         tracing::info!(

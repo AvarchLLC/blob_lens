@@ -22,6 +22,46 @@ pub async fn insert_block_status(client: &Client, rows: &[BlockIndexStatusRow]) 
     Ok(())
 }
 
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+pub struct TxIndexStatusRow {
+    pub block_number:    u64,
+    pub tx_hash:         String,
+    pub tx_index:        u32,
+    pub block_timestamp: u32,
+    pub status:          String,  // "indexed" | "failed" | "skipped"
+    pub error_msg:       String,
+    pub indexed_at:      u32,
+    pub version:         u64,
+}
+
+pub async fn insert_tx_status(client: &Client, rows: &[TxIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = client.insert("ethereum.tx_index_status")?;
+    for row in rows { ins.write(row).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+pub struct LogIndexStatusRow {
+    pub block_number:    u64,
+    pub tx_hash:         String,
+    pub log_index:       u32,
+    pub block_timestamp: u32,
+    pub status:          String,  // "indexed" | "failed" | "skipped"
+    pub error_msg:       String,
+    pub indexed_at:      u32,
+    pub version:         u64,
+}
+
+pub async fn insert_log_status(client: &Client, rows: &[LogIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = client.insert("ethereum.log_index_status")?;
+    for row in rows { ins.write(row).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
 // ── blob_lens.* row types ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Row, Serialize, Deserialize)]
