@@ -58,3 +58,6 @@ sha2 = "0.10"
 
 # Pin home to avoid edition 2024 requirement
 home = "<0.5.12"
+
+# ClickHouse (wallet API)
+clickhouse = { version = "0.13", features = ["lz4"] }

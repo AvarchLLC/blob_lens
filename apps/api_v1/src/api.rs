@@ -155,8 +155,6 @@ pub struct AIInsightQuery {
 
 #[derive(Deserialize, Debug)]
 pub struct L1CostQuery {
-...
-
     pub days: Option<i64>,
 }
 
