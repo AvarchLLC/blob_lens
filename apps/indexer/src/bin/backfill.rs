@@ -1,9 +1,13 @@
-/// Backfill binary — walks Dencun activation → current head using Reth's
-/// JSON-RPC and writes blob transactions to ClickHouse.
+/// Backfill binary — walks Dencun activation → current head via JSON-RPC and
+/// writes to both blob_lens.* and ethereum.* tables in ClickHouse.
 ///
-/// Progress is persisted in `blob_lens.sync_progress` so the process can be
-/// interrupted and resumed safely.  Re-running from scratch is also safe
-/// because ReplacingMergeTree deduplicates on (block_number, tx_hash).
+/// Tables written:
+///   blob_lens.blob_transactions, blob_lens.block_blob_stats, blob_lens.blob_tx_logs
+///   ethereum.blocks, ethereum.transactions, ethereum.receipts, ethereum.logs
+///   (ethereum.erc20_transfers / block_gas_stats / contract_events auto-populate via MVs)
+///
+/// Progress tracked in blob_lens.sync_progress (source='backfill').
+/// Safe to interrupt and resume. ReplacingMergeTree handles duplicate re-inserts.
 ///
 /// Environment variables:
 ///   RETH_RPC              JSON-RPC endpoint  (default: http://localhost:8545)
@@ -11,19 +15,16 @@
 ///   CLICKHOUSE_DB         database name       (default: blob_lens)
 ///   CLICKHOUSE_USER       optional
 ///   CLICKHOUSE_PASSWORD   optional
-///   START_BLOCK           override start block (default: 19_426_587 = Dencun)
-///   BATCH_SIZE            blocks per RPC batch (default: 100)
+///   START_BLOCK           override start block (default: Dencun = 19_426_587)
+///   BATCH_SIZE            blocks per batch    (default: 50)
 use clickhouse::{Client, Row};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing_subscriber::EnvFilter;
 
-/// EIP-4844 activation on Ethereum mainnet (Dencun / Cancun fork)
 const DENCUN_BLOCK: u64 = 19_426_587;
 
-// ---------------------------------------------------------------------------
-// ClickHouse row types
-// ---------------------------------------------------------------------------
+// ── blob_lens row types ──────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Row, Serialize, Deserialize)]
 struct BlobTxRow {
@@ -57,10 +58,6 @@ struct BlockStatRow {
     version:         u64,
 }
 
-// ---------------------------------------------------------------------------
-// ClickHouse log row
-// ---------------------------------------------------------------------------
-
 #[derive(Debug, Clone, Row, Serialize, Deserialize)]
 struct BlobTxLogRow {
     block_number:    u64,
@@ -77,15 +74,216 @@ struct BlobTxLogRow {
     version:         u64,
 }
 
-// ---------------------------------------------------------------------------
-// JSON-RPC response shapes
-// ---------------------------------------------------------------------------
+// ── ethereum.* row types ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthBlockRow {
+    number:            u64,
+    hash:              String,
+    parent_hash:       String,
+    is_deleted:        u8,
+    timestamp:         u32,
+    gas_used:          u64,
+    gas_limit:         u64,
+    base_fee_per_gas:  Option<u64>,
+    state_root:        String,
+    receipts_root:     String,
+    transactions_root: String,
+    miner:             String,
+    difficulty:        u64,
+    nonce:             u64,
+    transaction_count: u32,
+    extra_data:        String,
+    blob_gas_used:     Option<u64>,
+    excess_blob_gas:   Option<u64>,
+    blob_count:        u16,
+    blob_base_fee:     u128,
+    utilization:       f64,
+    inserted_at:       u32,
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthTxRow {
+    block_number:          u64,
+    block_hash:            String,
+    block_timestamp:       u32,
+    tx_index:              u32,
+    tx_hash:               String,
+    is_deleted:            u8,
+    tx_type:               u8,
+    from_address:          String,
+    to_address:            Option<String>,
+    value:                 String,
+    gas_limit:             u64,
+    gas_price:             Option<u128>,
+    max_fee_per_gas:       Option<u128>,
+    max_priority_fee:      Option<u128>,
+    nonce:                 u64,
+    input:                 String,
+    max_fee_per_blob_gas:  Option<u128>,
+    blob_versioned_hashes: Vec<String>,
+    rollup:                String,
+    blob_base_fee:         u128,
+    num_blobs:             u8,
+    inserted_at:           u32,
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthReceiptRow {
+    block_number:        u64,
+    block_hash:          String,
+    block_timestamp:     u32,
+    tx_hash:             String,
+    tx_index:            u32,
+    is_deleted:          u8,
+    success:             u8,
+    gas_used:            u64,
+    cumulative_gas_used: u64,
+    effective_gas_price: u64,
+    blob_gas_used:       Option<u64>,
+    blob_gas_price:      Option<u64>,
+    inserted_at:         u32,
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct EthLogRow {
+    block_number:    u64,
+    block_hash:      String,
+    block_timestamp: u32,
+    tx_hash:         String,
+    tx_index:        u32,
+    log_index:       u32,
+    is_deleted:      u8,
+    address:         String,
+    topic0:          String,
+    topic1:          Option<String>,
+    topic2:          Option<String>,
+    topic3:          Option<String>,
+    data:            String,
+    inserted_at:     u32,
+}
+
+// ── ethereum insert helpers ───────────────────────────────────────────────────
+
+async fn insert_eth_blocks(ch: &Client, rows: &[EthBlockRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.blocks")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+async fn insert_eth_txs(ch: &Client, rows: &[EthTxRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.transactions")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+async fn insert_eth_receipts(ch: &Client, rows: &[EthReceiptRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.receipts")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+async fn insert_eth_logs(ch: &Client, rows: &[EthLogRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.logs")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+// ── Block index status tracker ────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct BlockIndexStatusRow {
+    block_number:    u64,
+    block_hash:      String,
+    block_timestamp: u32,
+    status:          String,  // "indexed" | "failed" | "skipped"
+    error_msg:       String,
+    indexed_at:      u32,
+    version:         u64,
+}
+
+async fn insert_block_status(ch: &Client, rows: &[BlockIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.block_index_status")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct TxIndexStatusRow {
+    block_number:    u64,
+    tx_hash:         String,
+    tx_index:        u32,
+    block_timestamp: u32,
+    status:          String,
+    error_msg:       String,
+    indexed_at:      u32,
+    version:         u64,
+}
+
+async fn insert_tx_status(ch: &Client, rows: &[TxIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.tx_index_status")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Row, Serialize, Deserialize)]
+struct LogIndexStatusRow {
+    block_number:    u64,
+    tx_hash:         String,
+    log_index:       u32,
+    block_timestamp: u32,
+    status:          String,
+    error_msg:       String,
+    indexed_at:      u32,
+    version:         u64,
+}
+
+async fn insert_log_status(ch: &Client, rows: &[LogIndexStatusRow]) -> eyre::Result<()> {
+    if rows.is_empty() { return Ok(()); }
+    let mut ins = ch.insert("ethereum.log_index_status")?;
+    for r in rows { ins.write(r).await?; }
+    ins.end().await?;
+    Ok(())
+}
+
+// ── RPC response shapes ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
 struct RpcBlock {
     number:    String,
     hash:      String,
+    #[serde(rename = "parentHash")]
+    parent_hash: String,
     timestamp: String,
+    #[serde(rename = "gasUsed")]
+    gas_used: String,
+    #[serde(rename = "gasLimit")]
+    gas_limit: String,
+    #[serde(rename = "baseFeePerGas")]
+    base_fee_per_gas: Option<String>,
+    #[serde(rename = "stateRoot")]
+    state_root: String,
+    #[serde(rename = "receiptsRoot")]
+    receipts_root: String,
+    #[serde(rename = "transactionsRoot")]
+    transactions_root: String,
+    miner: String,
+    difficulty: String,
+    nonce: String,
+    #[serde(rename = "extraData")]
+    extra_data: String,
     #[serde(rename = "excessBlobGas")]
     excess_blob_gas: Option<String>,
     #[serde(rename = "blobGasUsed")]
@@ -102,6 +300,16 @@ struct RpcTx {
     transaction_index: String,
     #[serde(rename = "type")]
     tx_type: String,
+    value: String,
+    gas: String,
+    #[serde(rename = "gasPrice")]
+    gas_price: Option<String>,
+    #[serde(rename = "maxFeePerGas")]
+    max_fee_per_gas: Option<String>,
+    #[serde(rename = "maxPriorityFeePerGas")]
+    max_priority_fee_per_gas: Option<String>,
+    nonce: String,
+    input: String,
     #[serde(rename = "maxFeePerBlobGas")]
     max_fee_per_blob_gas: Option<String>,
     #[serde(rename = "blobVersionedHashes")]
@@ -112,6 +320,8 @@ struct RpcTx {
 struct RpcLog {
     #[serde(rename = "transactionHash")]
     transaction_hash: String,
+    #[serde(rename = "transactionIndex")]
+    transaction_index: String,
     #[serde(rename = "logIndex")]
     log_index: String,
     address: String,
@@ -125,12 +335,21 @@ struct RpcReceipt {
     transaction_hash: String,
     #[serde(rename = "transactionIndex")]
     transaction_index: String,
+    status: Option<String>,
+    #[serde(rename = "gasUsed")]
+    gas_used: String,
+    #[serde(rename = "cumulativeGasUsed")]
+    cumulative_gas_used: String,
+    #[serde(rename = "effectiveGasPrice")]
+    effective_gas_price: String,
+    #[serde(rename = "blobGasUsed")]
+    blob_gas_used: Option<String>,
+    #[serde(rename = "blobGasPrice")]
+    blob_gas_price: Option<String>,
     logs: Vec<RpcLog>,
 }
 
-// ---------------------------------------------------------------------------
-// Rollup registry — from/to address → rollup name
-// ---------------------------------------------------------------------------
+// ── Rollup registry ──────────────────────────────────────────────────────────
 
 fn build_registry() -> std::collections::HashMap<String, &'static str> {
     let mut m = std::collections::HashMap::new();
@@ -178,7 +397,6 @@ fn build_registry() -> std::collections::HashMap<String, &'static str> {
     add("0x65115c6d23274e0a29a63b69130efe901aa52e7a", "Hemi");
     add("0xae4d46bd9117cb017c5185844699c51107cb28a9", "Metis");
     add("0xa4ed58737fc5c4861c33410c29ecb1e2af29d960", "Boba");
-    add("0xd19d4b5d358258f05be33b186d6e83e942f0bfb7", "Linea");
     add("0xff000000000000000000000000000000000000fe", "Kroma");
     add("0xff0000000000000000000000000000000000169",  "Manta Pacific");
     add("0xff00000000000000000000000000000000033139", "ApeChain");
@@ -204,18 +422,15 @@ fn resolve_rollup(
         .unwrap_or_else(|| "UNKNOWN".to_string())
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-/// update_fraction is hardfork-dependent — see exex.rs for derivation
 fn blob_update_fraction(block_number: u64) -> u128 {
     if block_number >= 24_833_256 {
-        11_684_671 // BPO2 / Fusaka  — TODO: verify exact activation block
+        11_684_671
     } else if block_number >= 22_431_084 {
-        5_007_716  // Pectra EIP-7691
+        5_007_716
     } else {
-        3_338_477  // Cancun / Dencun
+        3_338_477
     }
 }
 
@@ -244,13 +459,11 @@ fn hex_u128(s: &str) -> u128 {
     u128::from_str_radix(s.trim_start_matches("0x"), 16).unwrap_or(0)
 }
 
-// ---------------------------------------------------------------------------
-// ClickHouse schema init
-// ---------------------------------------------------------------------------
+// ── Schema init ──────────────────────────────────────────────────────────────
 
 async fn init_schema(client: &Client) -> eyre::Result<()> {
+    // blob_lens tables (idempotent — tables already exist on ba-data)
     client.query("CREATE DATABASE IF NOT EXISTS blob_lens").execute().await?;
-
     client.query(
         "CREATE TABLE IF NOT EXISTS blob_lens.blob_transactions (
             block_number         UInt64,
@@ -267,62 +480,90 @@ async fn init_schema(client: &Client) -> eyre::Result<()> {
             blob_hashes          Array(String),
             is_canonical         UInt8 DEFAULT 1,
             version              UInt64
-        )
-        ENGINE = ReplacingMergeTree(version)
+        ) ENGINE = ReplacingMergeTree(version)
         PARTITION BY toYYYYMM(block_timestamp)
         ORDER BY (block_number, tx_hash)",
     ).execute().await?;
-
     client.query(
         "CREATE TABLE IF NOT EXISTS blob_lens.block_blob_stats (
-            block_number    UInt64,
-            block_hash      String,
-            block_timestamp DateTime,
-            blob_base_fee   UInt128,
-            blob_gas_used   UInt64,
-            excess_blob_gas UInt64,
-            blob_count      UInt16,
-            utilization     Float64,
-            is_canonical    UInt8 DEFAULT 1,
-            version         UInt64
-        )
-        ENGINE = ReplacingMergeTree(version)
+            block_number    UInt64,  block_hash      String,  block_timestamp DateTime,
+            blob_base_fee   UInt128, blob_gas_used   UInt64,  excess_blob_gas UInt64,
+            blob_count      UInt16,  utilization     Float64,
+            is_canonical    UInt8 DEFAULT 1,         version UInt64
+        ) ENGINE = ReplacingMergeTree(version)
         PARTITION BY toYYYYMM(block_timestamp)
         ORDER BY block_number",
     ).execute().await?;
-
     client.query(
         "CREATE TABLE IF NOT EXISTS blob_lens.sync_progress (
-            source     LowCardinality(String),
-            last_block UInt64,
-            updated_at DateTime DEFAULT now()
-        )
-        ENGINE = ReplacingMergeTree(updated_at)
-        ORDER BY source",
+            source LowCardinality(String), last_block UInt64, updated_at DateTime DEFAULT now()
+        ) ENGINE = ReplacingMergeTree(updated_at) ORDER BY source",
     ).execute().await?;
-
     client.query(
         "CREATE TABLE IF NOT EXISTS blob_lens.blob_tx_logs (
-            block_number    UInt64,
-            block_timestamp DateTime,
-            tx_hash         String,
-            log_index       UInt32,
-            address         LowCardinality(String),
-            topic0          String,
-            topic1          String,
-            topic2          String,
-            topic3          String,
-            data            String,
-            is_canonical    UInt8 DEFAULT 1,
-            version         UInt64
-        )
-        ENGINE = ReplacingMergeTree(version)
+            block_number UInt64, block_timestamp DateTime, tx_hash String,
+            log_index UInt32, address LowCardinality(String),
+            topic0 String, topic1 String, topic2 String, topic3 String,
+            data String, is_canonical UInt8 DEFAULT 1, version UInt64
+        ) ENGINE = ReplacingMergeTree(version)
         PARTITION BY toYYYYMM(block_timestamp)
         ORDER BY (block_number, tx_hash, log_index)",
     ).execute().await?;
 
+    // ethereum tables — already created on ba-data with full schema + indexes + MVs
+    client.query("CREATE DATABASE IF NOT EXISTS ethereum").execute().await?;
+
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.block_index_status (
+            block_number    UInt64   CODEC(Delta(8), ZSTD(1)),
+            block_hash      String   CODEC(ZSTD(3)),
+            block_timestamp DateTime CODEC(Delta(4), ZSTD(1)),
+            status          LowCardinality(String),
+            error_msg       String   DEFAULT '',
+            indexed_at      DateTime DEFAULT now(),
+            version         UInt64
+        ) ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY block_number
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.tx_index_status (
+            block_number    UInt64   CODEC(Delta(8), ZSTD(1)),
+            tx_hash         String   CODEC(ZSTD(3)),
+            tx_index        UInt32   CODEC(Delta(4), ZSTD(1)),
+            block_timestamp DateTime CODEC(Delta(4), ZSTD(1)),
+            status          LowCardinality(String),
+            error_msg       String   DEFAULT '',
+            indexed_at      DateTime DEFAULT now(),
+            version         UInt64
+        ) ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY (block_number, tx_index)
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
+    client.query(
+        "CREATE TABLE IF NOT EXISTS ethereum.log_index_status (
+            block_number    UInt64   CODEC(Delta(8), ZSTD(1)),
+            tx_hash         String   CODEC(ZSTD(3)),
+            log_index       UInt32   CODEC(Delta(4), ZSTD(1)),
+            block_timestamp DateTime CODEC(Delta(4), ZSTD(1)),
+            status          LowCardinality(String),
+            error_msg       String   DEFAULT '',
+            indexed_at      DateTime DEFAULT now(),
+            version         UInt64
+        ) ENGINE = ReplacingMergeTree(version)
+        PARTITION BY toYYYYMM(block_timestamp)
+        ORDER BY (block_number, log_index)
+        SETTINGS index_granularity = 8192",
+    ).execute().await?;
+
     Ok(())
 }
+
+// ── Progress tracking ────────────────────────────────────────────────────────
 
 async fn get_progress(client: &Client) -> eyre::Result<Option<u64>> {
     #[derive(Row, Deserialize)]
@@ -343,20 +584,14 @@ async fn set_progress(client: &Client, block: u64) -> eyre::Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// RPC helpers
-// ---------------------------------------------------------------------------
+// ── RPC helpers ──────────────────────────────────────────────────────────────
 
 async fn rpc_block(http: &reqwest::Client, rpc: &str, num: u64) -> eyre::Result<Option<RpcBlock>> {
     let resp: Value = http
         .post(rpc)
-        .json(&json!({
-            "jsonrpc": "2.0", "id": 1,
-            "method": "eth_getBlockByNumber",
-            "params": [format!("{:#x}", num), true]
-        }))
+        .json(&json!({"jsonrpc":"2.0","id":1,"method":"eth_getBlockByNumber",
+                      "params":[format!("{:#x}", num), true]}))
         .send().await?.json().await?;
-
     if resp["result"].is_null() { return Ok(None); }
     Ok(Some(serde_json::from_value(resp["result"].clone())?))
 }
@@ -376,18 +611,14 @@ async fn rpc_block_receipts(
 ) -> eyre::Result<Vec<RpcReceipt>> {
     let resp: Value = http
         .post(rpc)
-        .json(&json!({
-            "jsonrpc": "2.0", "id": 1,
-            "method": "eth_getBlockReceipts",
-            "params": [format!("{:#x}", num)]
-        }))
+        .json(&json!({"jsonrpc":"2.0","id":1,"method":"eth_getBlockReceipts",
+                      "params":[format!("{:#x}", num)]}))
         .send().await?.json().await?;
-
     if resp["result"].is_null() { return Ok(vec![]); }
     Ok(serde_json::from_value(resp["result"].clone()).unwrap_or_default())
 }
 
-// ---------------------------------------------------------------------------
+// ── Main ─────────────────────────────────────────────────────────────────────
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -402,7 +633,7 @@ async fn main() -> eyre::Result<()> {
     let ch_user    = std::env::var("CLICKHOUSE_USER").ok();
     let ch_pass    = std::env::var("CLICKHOUSE_PASSWORD").ok();
     let batch_size = std::env::var("BATCH_SIZE").ok()
-        .and_then(|s| s.parse().ok()).unwrap_or(100u64);
+        .and_then(|s| s.parse().ok()).unwrap_or(50u64);
     let start_override = std::env::var("START_BLOCK").ok()
         .and_then(|s| s.parse().ok());
 
@@ -425,12 +656,47 @@ async fn main() -> eyre::Result<()> {
     let mut cur = start;
     while cur <= head {
         let end = (cur + batch_size - 1).min(head);
+
         let mut blob_txs:    Vec<BlobTxRow>    = Vec::new();
         let mut block_stats: Vec<BlockStatRow> = Vec::new();
         let mut tx_logs:     Vec<BlobTxLogRow> = Vec::new();
 
+        let mut eth_blocks:   Vec<EthBlockRow>          = Vec::new();
+        let mut eth_txs:      Vec<EthTxRow>             = Vec::new();
+        let mut eth_receipts: Vec<EthReceiptRow>        = Vec::new();
+        let mut eth_logs:     Vec<EthLogRow>            = Vec::new();
+        let mut status_rows:  Vec<BlockIndexStatusRow>  = Vec::new();
+        let mut tx_status:    Vec<TxIndexStatusRow>     = Vec::new();
+        let mut log_status:   Vec<LogIndexStatusRow>    = Vec::new();
+
+        let now_sec = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as u32;
+
         for num in cur..=end {
-            let Some(block) = rpc_block(&http, &rpc, num).await? else { continue };
+            let block = match rpc_block(&http, &rpc, num).await {
+                Ok(Some(b)) => b,
+                Ok(None) => {
+                    status_rows.push(BlockIndexStatusRow {
+                        block_number: num, block_hash: String::new(),
+                        block_timestamp: 0, status: "skipped".into(),
+                        error_msg: "block not found".into(),
+                        indexed_at: now_sec, version: now_sec as u64,
+                    });
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(block = num, err = %e, "failed to fetch block");
+                    status_rows.push(BlockIndexStatusRow {
+                        block_number: num, block_hash: String::new(),
+                        block_timestamp: 0, status: "failed".into(),
+                        error_msg: e.to_string(),
+                        indexed_at: now_sec, version: now_sec as u64,
+                    });
+                    continue;
+                }
+            };
 
             let excess    = block.excess_blob_gas.as_deref().map(hex_u64).unwrap_or(0);
             let gas_used  = block.blob_gas_used.as_deref().map(hex_u64).unwrap_or(0);
@@ -439,6 +705,7 @@ async fn main() -> eyre::Result<()> {
             let blob_count = (gas_used / 131_072) as u16;
             let utilization = if gas_used == 0 { 0.0 } else { gas_used as f64 / 786_432.0 };
 
+            // blob_lens.block_blob_stats
             block_stats.push(BlockStatRow {
                 block_number: num, block_hash: block.hash.clone(),
                 block_timestamp: timestamp, blob_base_fee: base_fee,
@@ -446,83 +713,222 @@ async fn main() -> eyre::Result<()> {
                 blob_count, utilization, is_canonical: 1, version: num,
             });
 
-            // Only fetch receipts for blocks that have blob txs
-            let blob_tx_list: Vec<&RpcTx> = block.transactions.iter()
-                .filter(|t| t.tx_type == "0x3")
-                .collect();
+            // ethereum.blocks
+            eth_blocks.push(EthBlockRow {
+                number: num,
+                hash: block.hash.clone(),
+                parent_hash: block.parent_hash.clone(),
+                is_deleted: 0,
+                timestamp,
+                gas_used: hex_u64(&block.gas_used),
+                gas_limit: hex_u64(&block.gas_limit),
+                base_fee_per_gas: block.base_fee_per_gas.as_deref().map(hex_u64),
+                state_root: block.state_root.clone(),
+                receipts_root: block.receipts_root.clone(),
+                transactions_root: block.transactions_root.clone(),
+                miner: block.miner.clone(),
+                difficulty: hex_u64(&block.difficulty),
+                nonce: hex_u64(&block.nonce),
+                transaction_count: block.transactions.len() as u32,
+                extra_data: block.extra_data.clone(),
+                blob_gas_used: if gas_used > 0 { Some(gas_used) } else { None },
+                excess_blob_gas: if excess > 0 { Some(excess) } else { None },
+                blob_count,
+                blob_base_fee: base_fee,
+                utilization,
+                inserted_at: now_sec,
+            });
 
-            let receipts: std::collections::HashMap<String, RpcReceipt> = if blob_tx_list.is_empty() {
-                Default::default()
-            } else {
+            // Fetch receipts for ALL blocks (needed for ethereum.receipts + logs)
+            let receipts: std::collections::HashMap<String, RpcReceipt> =
                 rpc_block_receipts(&http, &rpc, num).await?
                     .into_iter()
                     .map(|r| (r.transaction_hash.to_lowercase(), r))
-                    .collect()
-            };
+                    .collect();
 
-            for tx in blob_tx_list {
-                let hashes  = tx.blob_versioned_hashes.clone().unwrap_or_default();
+            for tx in &block.transactions {
                 let to      = tx.to.clone().unwrap_or_default();
                 let rollup  = resolve_rollup(&registry, &tx.from, &to);
-                let max_fee = tx.max_fee_per_blob_gas.as_deref().map(hex_u128).unwrap_or(0);
+                let tx_type = hex_u64(&tx.tx_type) as u8;
                 let tx_idx  = hex_u64(&tx.transaction_index) as u32;
+                let hashes  = tx.blob_versioned_hashes.clone().unwrap_or_default();
+                let max_fee = tx.max_fee_per_blob_gas.as_deref().map(hex_u128);
+                let is_blob_tx = tx_type == 3;
 
-                blob_txs.push(BlobTxRow {
-                    block_number: num, block_hash: block.hash.clone(),
-                    block_timestamp: timestamp, tx_hash: tx.hash.clone(),
-                    tx_index: tx_idx, from_address: tx.from.clone(),
-                    to_address: to, rollup, num_blobs: hashes.len() as u8,
-                    max_fee_per_blob_gas: max_fee, blob_base_fee: base_fee,
-                    blob_hashes: hashes, is_canonical: 1, version: num,
+                // ethereum.tx_index_status
+                tx_status.push(TxIndexStatusRow {
+                    block_number: num,
+                    tx_hash: tx.hash.clone(),
+                    tx_index: tx_idx,
+                    block_timestamp: timestamp,
+                    status: "indexed".into(),
+                    error_msg: String::new(),
+                    indexed_at: now_sec,
+                    version: now_sec as u64,
                 });
 
+                // ethereum.transactions — ALL tx types
+                eth_txs.push(EthTxRow {
+                    block_number: num,
+                    block_hash: block.hash.clone(),
+                    block_timestamp: timestamp,
+                    tx_index: tx_idx,
+                    tx_hash: tx.hash.clone(),
+                    is_deleted: 0,
+                    tx_type,
+                    from_address: tx.from.clone(),
+                    to_address: tx.to.clone(),
+                    value: tx.value.clone(),
+                    gas_limit: hex_u64(&tx.gas),
+                    gas_price: tx.gas_price.as_deref().map(hex_u128),
+                    max_fee_per_gas: tx.max_fee_per_gas.as_deref().map(hex_u128),
+                    max_priority_fee: tx.max_priority_fee_per_gas.as_deref().map(hex_u128),
+                    nonce: hex_u64(&tx.nonce),
+                    input: tx.input.clone(),
+                    max_fee_per_blob_gas: max_fee,
+                    blob_versioned_hashes: hashes.clone(),
+                    rollup: rollup.clone(),
+                    blob_base_fee: if is_blob_tx { base_fee } else { 0 },
+                    num_blobs: hashes.len() as u8,
+                    inserted_at: now_sec,
+                });
+
+                // blob_lens.blob_transactions — type 3 only
+                if is_blob_tx {
+                    blob_txs.push(BlobTxRow {
+                        block_number: num, block_hash: block.hash.clone(),
+                        block_timestamp: timestamp, tx_hash: tx.hash.clone(),
+                        tx_index: tx_idx, from_address: tx.from.clone(),
+                        to_address: to, rollup,
+                        num_blobs: hashes.len() as u8,
+                        max_fee_per_blob_gas: max_fee.unwrap_or(0),
+                        blob_base_fee: base_fee, blob_hashes: hashes,
+                        is_canonical: 1, version: num,
+                    });
+                }
+
+                // ethereum.receipts + logs + blob_lens.blob_tx_logs from receipts
                 if let Some(receipt) = receipts.get(&tx.hash.to_lowercase()) {
+                    let r_idx = hex_u64(&receipt.transaction_index) as u32;
+
+                    eth_receipts.push(EthReceiptRow {
+                        block_number: num,
+                        block_hash: block.hash.clone(),
+                        block_timestamp: timestamp,
+                        tx_hash: tx.hash.clone(),
+                        tx_index: r_idx,
+                        is_deleted: 0,
+                        success: receipt.status.as_deref()
+                            .map(|s| if hex_u64(s) == 1 { 1u8 } else { 0u8 })
+                            .unwrap_or(1),
+                        gas_used: hex_u64(&receipt.gas_used),
+                        cumulative_gas_used: hex_u64(&receipt.cumulative_gas_used),
+                        effective_gas_price: hex_u64(&receipt.effective_gas_price),
+                        blob_gas_used: receipt.blob_gas_used.as_deref().map(hex_u64),
+                        blob_gas_price: receipt.blob_gas_price.as_deref().map(hex_u64),
+                        inserted_at: now_sec,
+                    });
+
                     for log in &receipt.logs {
                         let log_idx = hex_u64(&log.log_index) as u32;
-                        tx_logs.push(BlobTxLogRow {
-                            block_number:    num,
+                        let log_tx_idx = hex_u64(&log.transaction_index) as u32;
+
+                        // ethereum.logs — ALL logs
+                        eth_logs.push(EthLogRow {
+                            block_number: num,
+                            block_hash: block.hash.clone(),
                             block_timestamp: timestamp,
-                            tx_hash:         tx.hash.clone(),
-                            log_index:       log_idx,
-                            address:         log.address.clone(),
-                            topic0:          log.topics.first().cloned().unwrap_or_default(),
-                            topic1:          log.topics.get(1).cloned().unwrap_or_default(),
-                            topic2:          log.topics.get(2).cloned().unwrap_or_default(),
-                            topic3:          log.topics.get(3).cloned().unwrap_or_default(),
-                            data:            log.data.clone(),
-                            is_canonical:    1,
-                            version:         num,
+                            tx_hash: log.transaction_hash.clone(),
+                            tx_index: log_tx_idx,
+                            log_index: log_idx,
+                            is_deleted: 0,
+                            address: log.address.clone(),
+                            topic0: log.topics.first().cloned().unwrap_or_default(),
+                            topic1: log.topics.get(1).cloned(),
+                            topic2: log.topics.get(2).cloned(),
+                            topic3: log.topics.get(3).cloned(),
+                            data: log.data.clone(),
+                            inserted_at: now_sec,
                         });
+
+                        // ethereum.log_index_status
+                        log_status.push(LogIndexStatusRow {
+                            block_number: num,
+                            tx_hash: log.transaction_hash.clone(),
+                            log_index: log_idx,
+                            block_timestamp: timestamp,
+                            status: "indexed".into(),
+                            error_msg: String::new(),
+                            indexed_at: now_sec,
+                            version: now_sec as u64,
+                        });
+
+                        // blob_lens.blob_tx_logs — only for blob txs
+                        if is_blob_tx {
+                            tx_logs.push(BlobTxLogRow {
+                                block_number: num,
+                                block_timestamp: timestamp,
+                                tx_hash: tx.hash.clone(),
+                                log_index: log_idx,
+                                address: log.address.clone(),
+                                topic0: log.topics.first().cloned().unwrap_or_default(),
+                                topic1: log.topics.get(1).cloned().unwrap_or_default(),
+                                topic2: log.topics.get(2).cloned().unwrap_or_default(),
+                                topic3: log.topics.get(3).cloned().unwrap_or_default(),
+                                data: log.data.clone(),
+                                is_canonical: 1,
+                                version: num,
+                            });
+                        }
                     }
                 }
             }
+
+            // Mark block as successfully indexed
+            status_rows.push(BlockIndexStatusRow {
+                block_number: num,
+                block_hash: block.hash.clone(),
+                block_timestamp: hex_u64(&block.timestamp) as u32,
+                status: "indexed".into(),
+                error_msg: String::new(),
+                indexed_at: now_sec,
+                version: now_sec as u64,
+            });
         }
 
-        // Insert block stats
+        // ── blob_lens inserts ─────────────────────────────────────────────────
         if !block_stats.is_empty() {
             let mut ins = ch.insert("blob_lens.block_blob_stats")?;
             for r in &block_stats { ins.write(r).await?; }
             ins.end().await?;
         }
-        // Insert blob txs
         if !blob_txs.is_empty() {
             let mut ins = ch.insert("blob_lens.blob_transactions")?;
             for r in &blob_txs { ins.write(r).await?; }
             ins.end().await?;
         }
-        // Insert tx logs
         if !tx_logs.is_empty() {
             let mut ins = ch.insert("blob_lens.blob_tx_logs")?;
             for r in &tx_logs { ins.write(r).await?; }
             ins.end().await?;
         }
 
+        // ── ethereum inserts ──────────────────────────────────────────────────
+        insert_eth_blocks(&ch, &eth_blocks).await?;
+        insert_eth_txs(&ch, &eth_txs).await?;
+        insert_eth_receipts(&ch, &eth_receipts).await?;
+        insert_eth_logs(&ch, &eth_logs).await?;
+        insert_block_status(&ch, &status_rows).await?;
+        insert_tx_status(&ch, &tx_status).await?;
+        insert_log_status(&ch, &log_status).await?;
+
         set_progress(&ch, end).await?;
         tracing::info!(
-            up_to    = end,
-            pct      = format!("{:.1}%", (end - start) as f64 / (head - start).max(1) as f64 * 100.0),
-            blobs    = blob_txs.len(),
-            tx_logs  = tx_logs.len(),
+            up_to   = end,
+            pct     = format!("{:.1}%", (end - start) as f64 / (head - start).max(1) as f64 * 100.0),
+            blobs   = blob_txs.len(),
+            eth_txs = eth_txs.len(),
+            eth_logs= eth_logs.len(),
             "batch done"
         );
 

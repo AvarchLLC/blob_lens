@@ -1,4 +1,5 @@
 mod api;
+mod wallet_api;
 
 use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution, whale_indexer, ofac_sync, l1_cost_tracker, security_metrics, ai_analyst}};
 use dotenvy::dotenv;
@@ -27,12 +28,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = db::init_pool(&database_url).await?;
     tracing::info!("✓ Database connected: {}", database_url);
 
+    // Initialize ClickHouse client for wallet API
+    let ch_url   = env::var("CLICKHOUSE_URL").unwrap_or_else(|_| "http://100.76.225.2:8123".into());
+    let ch_user  = env::var("CLICKHOUSE_USER").unwrap_or_else(|_| "blob_lens".into());
+    let ch_pass  = env::var("CLICKHOUSE_PASSWORD").unwrap_or_else(|_| "changeme".into());
+    let reth_rpc = env::var("RETH_RPC").unwrap_or_else(|_| "http://100.76.225.2:8545".into());
+    let ch_client = clickhouse::Client::default()
+        .with_url(&ch_url)
+        .with_user(&ch_user)
+        .with_password(&ch_pass);
+    tracing::info!("✓ ClickHouse connected: {}", ch_url);
+
     // Clone pool for API server
     let pool_clone = pool.clone();
 
     // Start API server on port 8080
     let api_handle = tokio::spawn(async move {
+        let wallet_state = wallet_api::WalletState {
+            ch:       ch_client,
+            pool:     pool_clone.clone(),
+            reth_rpc,
+        };
         let app = Router::new()
+            .merge(wallet_api::wallet_router(wallet_state))
             .nest("/", api::api_router(pool_clone))
             .layer(TraceLayer::new_for_http());
 
