@@ -404,8 +404,13 @@ async fn wallet_rollups(
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
+async fn wallet_ping() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "status": "ok", "service": "wallet-api" }))
+}
+
 pub fn wallet_router(state: WalletState) -> Router {
     Router::new()
+        .route("/api/wallet/ping",              get(wallet_ping))
         .route("/api/wallet/{address}",         get(wallet_summary))
         .route("/api/wallet/{address}/txs",     get(wallet_txs))
         .route("/api/wallet/{address}/tokens",  get(wallet_tokens))
