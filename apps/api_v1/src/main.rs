@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let app = Router::new()
             .merge(wallet_api::wallet_router(wallet_state))
-            .nest("/", api::api_router(pool_clone))
+            .merge(api::api_router(pool_clone))
             .layer(TraceLayer::new_for_http());
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
