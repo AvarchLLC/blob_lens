@@ -191,14 +191,19 @@ jobs:
             ln -sfn "$NEW_RELEASE" "$CURRENT_DIR"
 
             # ── Reload PM2 ────────────────────────────────────────────────────
-            # Delete + start the indexer rather than startOrReload so PM2 creates
-            # a fresh internal entry with interpreter:none.  If the old entry used
-            # Node.js fork() it won't change just from a reload — delete forces it.
+            # Restart only processes whose build artifacts changed.
+            # Delete+start forces PM2 to re-read interpreter:none for the indexer.
+            # Skipping blob-lens-web when not rebuilt avoids "Script not found"
+            # since node_modules are not installed in the new release dir.
             echo "==> Reloading PM2"
             ECOSYSTEM="$NEW_RELEASE/ops/pm2/ecosystem.config.cjs"
             pm2 delete blob-lens-indexer 2>/dev/null || true
-            pm2 delete blob-lens-web 2>/dev/null || true
-            pm2 start "$ECOSYSTEM" --env production
+            if [ "$BUILD_WEB" = "true" ]; then
+              pm2 delete blob-lens-web 2>/dev/null || true
+              pm2 start "$ECOSYSTEM" --env production
+            else
+              pm2 start "$ECOSYSTEM" --only blob-lens-indexer --env production
+            fi
             pm2 save
 
             echo "==> PM2 status:"
@@ -223,7 +228,9 @@ jobs:
             sleep 30
 
             FAIL=0
-            wait_for_http http://127.0.0.1:3000/api/health "Web" || FAIL=1
+            if [ "$BUILD_WEB" = "true" ]; then
+              wait_for_http http://127.0.0.1:3000/api/health "Web" || FAIL=1
+            fi
             if ! wait_for_http http://127.0.0.1:8080/health "API"; then
               echo "--- indexer logs ---"
               pm2 logs blob-lens-indexer --lines 40 --nostream 2>&1 || true
@@ -239,10 +246,14 @@ jobs:
                 PREV_ECOSYSTEM="$PREVIOUS_RELEASE/ops/pm2/ecosystem.config.cjs"
                 if [ -f "$PREV_ECOSYSTEM" ]; then
                   pm2 delete blob-lens-indexer 2>/dev/null || true
-                  pm2 delete blob-lens-web 2>/dev/null || true
-                  pm2 start "$PREV_ECOSYSTEM" --env production || true
+                  if [ "$BUILD_WEB" = "true" ]; then
+                    pm2 delete blob-lens-web 2>/dev/null || true
+                    pm2 start "$PREV_ECOSYSTEM" --env production || true
+                  else
+                    pm2 start "$PREV_ECOSYSTEM" --only blob-lens-indexer --env production || true
+                  fi
                 else
-                  pm2 restart blob-lens-web blob-lens-indexer || true
+                  pm2 restart blob-lens-indexer || true
                 fi
                 pm2 save || true
                 echo "Rolled back to $PREVIOUS_RELEASE"
