@@ -1,5 +1,8 @@
 import type {
   AIInsight,
+  AddressSummary,
+  AddressTx,
+  BlockDetail,
   BlockRow,
   BlobTransaction,
   DailyRollupBlob,
@@ -16,6 +19,7 @@ import type {
   ETHLiquiditySnapshot,
   SecurityMetric,
   SparklinePoint,
+  TxDetail,
   UnknownSender,
   WhaleWallet,
 } from "@/types";
@@ -158,12 +162,12 @@ export async function getOverviewStats(): Promise<OverviewStats> {
         max(block_number)            AS last_block,
         (
           SELECT avg(utilization) * 100
-          FROM ethereum.blocks FINAL
+          FROM ethereum.blocks
           WHERE is_deleted = 0
             AND blob_count > 0
             AND timestamp > now() - toIntervalHour(24)
         ) AS avg_utilization_24h
-      FROM ethereum.transactions FINAL
+      FROM ethereum.transactions
       WHERE is_deleted = 0 AND tx_type = 3
     `,
     format: "JSONEachRow",
@@ -210,20 +214,20 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
           least(100, avg(num_blobs) / 6.0 * 100)        AS packing_score,
           ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
-        FROM ethereum.transactions FINAL
+        FROM ethereum.transactions
         WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
         GROUP BY (rollup)
       ) b
       CROSS JOIN (
         SELECT sum(num_blobs) AS total_blobs_all
-        FROM ethereum.transactions FINAL
+        FROM ethereum.transactions
         WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       ) wt
       CROSS JOIN (
         SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000) AS network_avg_fee
-        FROM ethereum.transactions FINAL
+        FROM ethereum.transactions
         WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       ) na
@@ -464,19 +468,21 @@ export async function getDailyRollupBreakdown(
           toString(toStartOfDay(block_timestamp)) AS day,
           rollup,
           sum(num_blobs)                          AS blobs
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalDay({days:UInt32})
         GROUP BY (toStartOfDay(block_timestamp), rollup)
       ) d
       INNER JOIN (
-        SELECT rollup
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
-          AND block_timestamp > now() - toIntervalDay({days:UInt32})
-        GROUP BY (rollup)
-        ORDER BY sum(num_blobs) DESC
-        LIMIT {topRollups:UInt32}
+        SELECT rollup FROM (
+          SELECT rollup, sum(num_blobs) as total
+          FROM ethereum.transactions
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+            AND block_timestamp > now() - toIntervalDay({days:UInt32})
+          GROUP BY rollup
+          ORDER BY total DESC
+          LIMIT {topRollups:UInt32}
+        )
       ) top ON top.rollup = d.rollup
       ORDER BY d.day ASC, d.rollup ASC
     `,
@@ -496,21 +502,20 @@ export async function getHourlyRollupFee(
         rollup,
         toString(toStartOfHour(block_timestamp))                AS hour,
         ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee > 0 AND blob_base_fee < 1000000000000000000), 0.0) AS value
-      FROM ethereum.transactions FINAL
+      FROM ethereum.transactions
+      INNER JOIN (
+        SELECT rollup, sum(num_blobs) as total
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY rollup
+        ORDER BY total DESC
+        LIMIT {topN:UInt32}
+      ) AS top ON ethereum.transactions.rollup = top.rollup
       WHERE is_deleted = 0 AND tx_type = 3
-        AND rollup != '' AND rollup != 'UNKNOWN'
-        AND rollup IN (
-          SELECT rollup
-          FROM ethereum.transactions FINAL
-          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
-            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-          GROUP BY (rollup)
-          ORDER BY sum(num_blobs) DESC
-          LIMIT {topN:UInt32}
-        )
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      GROUP BY (rollup, toStartOfHour(block_timestamp))
-      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
+      GROUP BY rollup, hour
+      ORDER BY hour ASC, rollup ASC
     `,
     format: "JSONEachRow",
     query_params: { hours, topN },
@@ -527,22 +532,21 @@ export async function getHourlyRollupUtilization(
       SELECT
         rollup,
         toString(toStartOfHour(block_timestamp))                AS hour,
-        sum(num_blobs) / (uniqExact(block_number) * 9.0) * 100 AS value
-      FROM ethereum.transactions FINAL
+        sum(num_blobs) / (uniqExact(block_number) * 6.0) * 100 AS value
+      FROM ethereum.transactions
+      INNER JOIN (
+        SELECT rollup, sum(num_blobs) as total
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY rollup
+        ORDER BY total DESC
+        LIMIT {topN:UInt32}
+      ) AS top ON ethereum.transactions.rollup = top.rollup
       WHERE is_deleted = 0 AND tx_type = 3
-        AND rollup != '' AND rollup != 'UNKNOWN'
-        AND rollup IN (
-          SELECT rollup
-          FROM ethereum.transactions FINAL
-          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
-            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-          GROUP BY (rollup)
-          ORDER BY sum(num_blobs) DESC
-          LIMIT {topN:UInt32}
-        )
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      GROUP BY (rollup, toStartOfHour(block_timestamp))
-      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
+      GROUP BY rollup, hour
+      ORDER BY hour ASC, rollup ASC
     `,
     format: "JSONEachRow",
     query_params: { hours, topN },
@@ -560,21 +564,20 @@ export async function getHourlyRollupActivity(
         rollup,
         toString(toStartOfHour(block_timestamp)) AS hour,
         sum(num_blobs)                           AS blobs
-      FROM ethereum.transactions FINAL
+      FROM ethereum.transactions
+      INNER JOIN (
+        SELECT rollup, sum(num_blobs) as total
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY rollup
+        ORDER BY total DESC
+        LIMIT {topN:UInt32}
+      ) AS top ON ethereum.transactions.rollup = top.rollup
       WHERE is_deleted = 0 AND tx_type = 3
-        AND rollup != '' AND rollup != 'UNKNOWN'
-        AND rollup IN (
-          SELECT rollup
-          FROM ethereum.transactions FINAL
-          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
-            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-          GROUP BY (rollup)
-          ORDER BY sum(num_blobs) DESC
-          LIMIT {topN:UInt32}
-        )
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      GROUP BY (rollup, toStartOfHour(block_timestamp))
-      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
+      GROUP BY rollup, hour
+      ORDER BY hour ASC, rollup ASC
     `,
     format: "JSONEachRow",
     query_params: { hours, topN },
@@ -614,12 +617,12 @@ export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGr
         least(100, greatest(0,
           0.70 * least(100, avg(num_blobs) / 6.0 * 100) + 0.30 * 50.0
         ))                                                              AS efficiency
-      FROM ethereum.transactions FINAL
-      WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
+      FROM ethereum.transactions
+      WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      GROUP BY (rollup)
+      GROUP BY rollup
       HAVING sum(num_blobs) > 0
-      ORDER BY sum(num_blobs) DESC
+      ORDER BY value DESC
     `,
     format: "JSONEachRow",
     query_params: { hours },
@@ -634,25 +637,25 @@ export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGr
         least(100, count() / greatest(total.total_blocks, 1) * 100) AS weight
       FROM (
         SELECT block_number, rollup
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-        GROUP BY (block_number, rollup)
-      ) a
+        GROUP BY block_number, rollup
+      ) AS a
       JOIN (
         SELECT block_number, rollup
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != '' AND rollup != 'UNKNOWN'
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-        GROUP BY (block_number, rollup)
-      ) b ON a.block_number = b.block_number AND a.rollup < b.rollup
+        GROUP BY block_number, rollup
+      ) AS b ON a.block_number = b.block_number AND a.rollup < b.rollup
       CROSS JOIN (
         SELECT uniqExact(block_number) AS total_blocks
-        FROM ethereum.transactions FINAL
+        FROM ethereum.transactions
         WHERE is_deleted = 0 AND tx_type = 3
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      ) total
-      GROUP BY (a.rollup, b.rollup, total.total_blocks)
+      ) AS total
+      GROUP BY source, target, total.total_blocks
       ORDER BY weight DESC
     `,
     format: "JSONEachRow",
@@ -1035,5 +1038,276 @@ export async function getBlockDetail(blockNumber: number): Promise<BlockDetail |
   };
   } catch {
     return null;
+  }
+}
+
+// ── DA Insights page queries ──────────────────────────────────────────────────
+// Uses block_blob_stats (per-block, no FINAL needed for analytics) — much faster than joining transactions
+export async function getDaMarketActivity(hours = 24): Promise<MarketHour[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          toString(toStartOfHour(timestamp))                                     AS hour,
+          0                                                                      AS tx_count,
+          toUInt64(sum(blob_count))                                              AS blobs_total,
+          toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee),
+            blob_base_fee > 0 AND blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+          toUInt16(max(blob_count))                                              AS max_blobs_in_block,
+          round(avg(utilization) * 100, 2)                                      AS avg_utilization
+        FROM ethereum.blocks
+        WHERE is_deleted = 0 AND ethereum.blocks.blob_count > 0
+          AND timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY hour
+        ORDER BY hour ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours },
+    });
+    const rows = await result.json<any>();
+    return rows.map((r: any) => ({
+      hour:               r.hour,
+      tx_count:           Number(r.tx_count),
+      blob_count:         Number(r.blobs_total),
+      avg_fee:            r.avg_fee,
+      max_blobs_in_block: Number(r.max_blobs_in_block),
+      avg_utilization:    Number(r.avg_utilization),
+    }));
+  } catch (e) {
+    console.error("getDaMarketActivity error:", e);
+    return [];
+  }
+}
+
+// No FINAL on ethereum.transactions — columnar scan is much faster than dedup-merge for large windows
+// is_deleted = 0 is sufficient to exclude re-org'd rows for analytics purposes
+
+// Fast leaderboard without FINAL — suitable for large windows (7d / 30d / 90d)
+export async function getDaLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          b.rollup,
+          b.tx_count,
+          b.total_blobs,
+          b.avg_blobs_per_tx,
+          b.avg_fee,
+          toString(b.last_seen_ts)                                             AS last_seen,
+          b.da_cost_eth,
+          b.packing_score,
+          b.total_blobs / greatest(wt.total_blobs_all, 1) * 100               AS network_share_pct,
+          b.cost_per_blob_gwei,
+          NULL AS avg_fullness_pct,
+          0    AS ghost_blob_count,
+          NULL AS total_bytes_used,
+          NULL AS cost_per_byte_eth,
+          least(100, greatest(0,
+            (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
+          )) AS timing_score,
+          least(100, greatest(0,
+            0.70 * b.packing_score + 0.30 * least(100, greatest(0,
+              (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
+            ))
+          )) AS efficiency_score,
+          0.0 AS coordination_score
+        FROM (
+          SELECT
+            rollup,
+            count()                                                              AS tx_count,
+            sum(num_blobs)                                                       AS total_blobs,
+            avg(num_blobs)                                                       AS avg_blobs_per_tx,
+            toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+            max(block_timestamp)                                                 AS last_seen_ts,
+            sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
+            least(100, avg(num_blobs) / 6.0 * 100)                              AS packing_score,
+            ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
+          FROM ethereum.transactions
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          GROUP BY rollup
+        ) b
+        CROSS JOIN (
+          SELECT sum(num_blobs) AS total_blobs_all
+          FROM ethereum.transactions
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        ) wt
+        CROSS JOIN (
+          SELECT ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) AS network_avg_fee
+          FROM ethereum.transactions
+          WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        ) na
+        ORDER BY total_blobs DESC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours },
+    });
+    return result.json<LeaderboardRow>();
+  } catch (e) {
+    console.error("getDaLeaderboard error:", e);
+    return [];
+  }
+}
+
+export async function getDaRollupActivity(hours = 24, topN = 8): Promise<HourlyRollupBlob[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          rollup,
+          toString(toStartOfHour(block_timestamp)) AS hour,
+          toUInt64(sum(num_blobs))                 AS blobs
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          AND has((
+            SELECT topKWeighted({topN:UInt32})(rollup, num_blobs)
+            FROM ethereum.transactions
+            WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+              AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          ), rollup)
+        GROUP BY rollup, hour
+        ORDER BY hour ASC, rollup ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours, topN },
+    });
+    return result.json<HourlyRollupBlob>();
+  } catch (e) {
+    console.error("getDaRollupActivity error:", e);
+    return [];
+  }
+}
+
+export async function getDaRollupFee(hours = 24, topN = 8): Promise<HourlyRollupValue[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          rollup,
+          toString(toStartOfHour(block_timestamp))                                                   AS hour,
+          ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0)    AS value
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          AND has((
+            SELECT topKWeighted({topN:UInt32})(rollup, num_blobs)
+            FROM ethereum.transactions
+            WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+              AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          ), rollup)
+        GROUP BY rollup, hour
+        ORDER BY hour ASC, rollup ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours, topN },
+    });
+    return result.json<HourlyRollupValue>();
+  } catch (e) {
+    console.error("getDaRollupFee error:", e);
+    return [];
+  }
+}
+
+export async function getDaDailyBreakdown(days = 30, topRollups = 8): Promise<DailyRollupBlob[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          toString(toStartOfDay(block_timestamp)) AS day,
+          rollup,
+          toUInt64(sum(num_blobs))                AS blobs
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalDay({days:UInt32})
+          AND has((
+            SELECT topKWeighted({topRollups:UInt32})(rollup, num_blobs)
+            FROM ethereum.transactions
+            WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+              AND block_timestamp > now() - toIntervalDay({days:UInt32})
+          ), rollup)
+        GROUP BY day, rollup
+        ORDER BY day ASC, rollup ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { days, topRollups },
+    });
+    return result.json<DailyRollupBlob>();
+  } catch (e) {
+    console.error("getDaDailyBreakdown error:", e);
+    return [];
+  }
+}
+
+export interface FeePercentile {
+  hour: string;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+}
+
+export async function getDaFeePercentiles(hours = 24): Promise<FeePercentile[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          toString(toStartOfHour(timestamp))                             AS hour,
+          round(quantile(0.25)(toFloat64(blob_base_fee)), 0)            AS p25,
+          round(quantile(0.50)(toFloat64(blob_base_fee)), 0)            AS p50,
+          round(quantile(0.75)(toFloat64(blob_base_fee)), 0)            AS p75,
+          round(quantile(0.95)(toFloat64(blob_base_fee)), 0)            AS p95
+        FROM ethereum.blocks
+        WHERE is_deleted = 0 AND ethereum.blocks.blob_count > 0
+          AND blob_base_fee > 0 AND blob_base_fee < 1000000000000000000
+          AND timestamp > now() - toIntervalHour({hours:UInt32})
+        GROUP BY hour
+        ORDER BY hour ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours },
+    });
+    return result.json<FeePercentile>();
+  } catch (e) {
+    console.error("getDaFeePercentiles error:", e);
+    return [];
+  }
+}
+
+export interface RollupHourStat {
+  rollup: string;
+  hour_of_day: number;
+  blob_count: number;
+}
+
+export async function getDaSubmissionTiming(hours = 168, topN = 8): Promise<RollupHourStat[]> {
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          rollup,
+          toUInt8(toHour(block_timestamp))  AS hour_of_day,
+          toUInt64(sum(num_blobs))          AS blob_count
+        FROM ethereum.transactions
+        WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          AND has((
+            SELECT topKWeighted({topN:UInt32})(rollup, num_blobs)
+            FROM ethereum.transactions
+            WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
+              AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          ), rollup)
+        GROUP BY rollup, hour_of_day
+        ORDER BY rollup ASC, hour_of_day ASC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours, topN },
+    });
+    return result.json<RollupHourStat>();
+  } catch (e) {
+    console.error("getDaSubmissionTiming error:", e);
+    return [];
   }
 }

@@ -17,6 +17,7 @@ const PAGE_META: { match: string; title: string; icon: React.ElementType }[] = [
   { match: '/live',                  title: 'Live Stream',     icon: Activity },
   { match: '/leaderboard',           title: 'Leaderboard',     icon: Trophy },
   { match: '/market',                title: 'Market Intel',    icon: BarChart3 },
+  { match: '/da-insights',           title: 'DA Insights',     icon: BarChart3 },
   { match: '/research/security',     title: 'Security',        icon: ShieldCheck },
   { match: '/research/ai-insights',  title: 'AI Insights',     icon: Brain },
   { match: '/research',             title: 'Deep Research',   icon: FlaskConical },
