@@ -981,26 +981,22 @@ export async function getBlockDetail(blockNumber: number): Promise<BlockDetail |
     ch.query({
       query: `
         SELECT
-          t.block_number,
-          toString(t.block_timestamp)                                      AS block_timestamp,
-          t.tx_hash,
-          t.from_address,
-          t.to_address,
-          t.value,
-          t.tx_type,
-          'out'                                                            AS direction,
-          t.rollup,
-          if(r.success IS NULL, 1, toUInt8(r.success))                    AS status,
-          if(r.gas_used IS NULL, 0, r.gas_used)                           AS gas_used,
-          if(r.effective_gas_price IS NULL, 0, r.effective_gas_price)     AS effective_gas_price,
-          if(b.num_blobs IS NULL, 0, b.num_blobs)                         AS num_blobs
-        FROM ethereum.transactions t FINAL
-        LEFT JOIN ethereum.receipts r FINAL
-          ON t.tx_hash = r.tx_hash AND r.is_deleted = 0
-        LEFT JOIN blob_lens.blob_transactions b FINAL
-          ON t.tx_hash = b.tx_hash AND b.is_canonical = 1
-        WHERE t.is_deleted = 0 AND t.block_number = {n:UInt64}
-        ORDER BY t.tx_index ASC
+          block_number,
+          toString(block_timestamp)      AS block_timestamp,
+          tx_hash,
+          from_address,
+          to_address,
+          '0'                            AS value,
+          3                              AS tx_type,
+          'out'                          AS direction,
+          rollup,
+          1                              AS status,
+          0                              AS gas_used,
+          toUInt64(blob_base_fee)        AS effective_gas_price,
+          num_blobs
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND block_number = {n:UInt64}
+        ORDER BY tx_index ASC
         LIMIT 200
       `,
       query_params: { n: blockNumber },
