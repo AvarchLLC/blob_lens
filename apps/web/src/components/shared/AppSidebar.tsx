@@ -121,6 +121,16 @@ const NAV_GROUPS: NavGroup[] = [
                     { label: 'Network Graph', sectionId: 'ecosystem-relationships' },
                 ],
             },
+            {
+                href: '/da-insights',
+                label: 'DA Insights',
+                icon: BarChart3,
+                children: [
+                    { label: 'Fee Market Health', sectionId: 'fee-market-health' },
+                    { label: 'DA Cost Efficiency', sectionId: 'da-cost-efficiency' },
+                    { label: 'Regime Alerts', sectionId: 'regime-alerts' },
+                ],
+            },
         ],
     },
     {
