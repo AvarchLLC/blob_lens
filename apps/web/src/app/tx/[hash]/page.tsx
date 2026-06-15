@@ -1,4 +1,5 @@
 import { getTxDetail } from "@/lib/queries";
+import { getEthPrice, formatUsd } from "@/lib/ethPrice";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { shortHash, formatFee } from "@/lib/utils";
@@ -18,6 +19,13 @@ function weiToEth(wei: string | number): string {
   return `${eth.toFixed(6)} ETH`;
 }
 
+function weiToUsd(wei: string | number, ethUsd: number | null): string | null {
+  if (!ethUsd) return null;
+  const n = typeof wei === "number" ? BigInt(Math.round(wei)) : BigInt(wei || "0");
+  const usd = (Number(n) / 1e18) * ethUsd;
+  return formatUsd(usd);
+}
+
 function gasPriceGwei(wei: number): string {
   if (!wei) return "—";
   return `${(wei / 1e9).toFixed(3)} Gwei`;
@@ -29,7 +37,7 @@ function feeWei(gasUsed: number, gasPrice: number): string {
 
 export default async function TxDetailPage({ params }: Props) {
   const { hash } = await params;
-  const tx = await getTxDetail(hash);
+  const [tx, ethUsd] = await Promise.all([getTxDetail(hash), getEthPrice()]);
   if (tx === null) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
@@ -106,7 +114,7 @@ export default async function TxDetailPage({ params }: Props) {
             <Row label="Gas Used">{tx.gas_used ? tx.gas_used.toLocaleString() : "—"}</Row>
             <Row label="Gas Price">{gasPriceGwei(tx.effective_gas_price)}</Row>
             <Row label="Execution Fee">
-              <span className="font-semibold">{weiToEth(execFeeWei)}</span>
+              <FeeValue eth={weiToEth(execFeeWei)} usd={weiToUsd(execFeeWei, ethUsd)} />
             </Row>
           </CardContent>
         </Card>
@@ -120,7 +128,7 @@ export default async function TxDetailPage({ params }: Props) {
             <Row label="Blob Gas Used">{tx.blob_gas_used ? tx.blob_gas_used.toLocaleString() : "—"}</Row>
             <Row label="Blob Base Fee">{tx.blob_gas_price ? gasPriceGwei(tx.blob_gas_price) : (tx.blob_base_fee ? formatFee(tx.blob_base_fee) : "—")}</Row>
             <Row label="Blob Fee">
-              <span className="font-semibold">{weiToEth(blobFeeWei)}</span>
+              <FeeValue eth={weiToEth(blobFeeWei)} usd={weiToUsd(blobFeeWei, ethUsd)} />
             </Row>
           </CardContent>
         </Card>
@@ -129,7 +137,12 @@ export default async function TxDetailPage({ params }: Props) {
       {/* Total fee highlight */}
       <div className="surface-elevated border border-border rounded-lg p-4 flex items-center justify-between">
         <span className="text-sm text-text-secondary">Total Fee (execution + blob)</span>
-        <span className="font-semibold text-text-primary">{weiToEth(totalFeeWei)}</span>
+        <div className="text-right">
+          <p className="font-semibold text-text-primary">{weiToEth(totalFeeWei)}</p>
+          {ethUsd && (
+            <p className="text-xs text-text-secondary">{weiToUsd(totalFeeWei, ethUsd)}</p>
+          )}
+        </div>
       </div>
 
       {/* Blob hashes */}
@@ -158,5 +171,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-sm text-text-secondary w-36 shrink-0">{label}</span>
       <span className="text-sm text-text-primary flex-1">{children}</span>
     </div>
+  );
+}
+
+function FeeValue({ eth, usd }: { eth: string; usd: string | null }) {
+  return (
+    <span className="font-semibold">
+      {eth}
+      {usd && <span className="ml-2 text-text-secondary font-normal text-xs">{usd}</span>}
+    </span>
   );
 }
