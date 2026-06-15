@@ -205,3 +205,77 @@ export interface AIInsight {
   confidence_score: number | null;
   generated_at: string;
 }
+
+// ── Transaction Reader ────────────────────────────────────────────────────────
+
+export interface TokenTransfer {
+  token_address: string;
+  from_address: string;
+  to_address: string;
+  value: string;
+  log_index: number;
+}
+
+export interface TxDetail {
+  tx_hash: string;
+  block_number: number;
+  block_timestamp: string;
+  from_address: string;
+  to_address: string;
+  value: string;
+  tx_type: number;
+  rollup: string | null;
+  status: boolean;
+  gas_used: number;
+  effective_gas_price: number;
+  total_fee_wei: string;
+  blob_gas_used: number;
+  blob_gas_price: number;
+  is_blob_tx: boolean;
+  num_blobs: number;
+  blob_hashes: string[];
+  blob_base_fee: string | null;
+  token_transfers: TokenTransfer[];
+}
+
+export interface AddressSummary {
+  address: string;
+  tx_total: number;
+  tx_sent: number;
+  tx_received: number;
+  blob_tx_count: number;
+  top_rollup: string | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  ofac_flagged: boolean;
+  whale_flagged: boolean;
+}
+
+export interface AddressTx {
+  block_number: number;
+  block_timestamp: string;
+  tx_hash: string;
+  from_address: string;
+  to_address: string;
+  value: string;
+  tx_type: number;
+  direction: "in" | "out";
+  rollup: string | null;
+  status: boolean;
+  gas_used: number;
+  effective_gas_price: number;
+  num_blobs: number;
+}
+
+export interface BlockDetail {
+  block_number: number;
+  block_timestamp: string;
+  blob_count: number;
+  blob_gas_used: number;
+  excess_blob_gas: number;
+  blob_base_fee: string;
+  utilization: number;
+  tx_count: number;
+  rollups: string[];
+  txs: AddressTx[];
+}

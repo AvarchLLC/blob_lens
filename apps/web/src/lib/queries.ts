@@ -250,7 +250,7 @@ export async function getForecastData(): Promise<ForecastData | null> {
           blob_base_fee,
           blob_gas_used,
           excess_blob_gas,
-          row_number() OVER (ORDER BY block_number DESC) AS rn
+          row_number() OVER (ORDER BY number DESC) AS rn
         FROM ethereum.blocks FINAL
         WHERE is_deleted = 0 AND blob_count > 0
         ORDER BY number DESC
@@ -395,9 +395,9 @@ export async function getLatestBlobs(limit = 20): Promise<BlobTransaction[]> {
         toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas,
         toString(blob_base_fee)        AS blob_base_fee,
         toString(block_timestamp)      AS created_at
-      FROM ethereum.transactions FINAL
-      WHERE is_deleted = 0 AND tx_type = 3
-      ORDER BY block_number DESC, tx_index DESC
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1
+      ORDER BY block_number DESC, tx_hash DESC
       LIMIT {limit:UInt32}
     `,
     format: "JSONEachRow",
@@ -411,30 +411,22 @@ export async function getRecentBlocks(limit = 20): Promise<BlockRow[]> {
     query: `
       SELECT
         bbs.block_number,
-        toString(bbs.blob_base_fee)                                    AS blob_base_fee,
+        toString(bbs.blob_base_fee)                                AS blob_base_fee,
         bbs.blob_gas_used,
         bbs.blob_count,
-        round(bbs.utilization * 100, 1)                                AS utilization,
-        countIf(bt.tx_hash != '')                                      AS tx_count,
-        arrayFilter(x -> x != '', groupUniqArray(bt.rollup))           AS rollups,
-        toString(bbs.block_timestamp)                                  AS created_at
-      FROM (
-        SELECT number AS block_number, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used,
-               blob_count, utilization, timestamp AS block_timestamp
-        FROM ethereum.blocks FINAL
-        WHERE is_deleted = 0 AND blob_count > 0
-        ORDER BY number DESC
-        LIMIT {limit:UInt32}
-      ) bbs
-      LEFT JOIN (
-        SELECT block_number, tx_hash, rollup
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0 AND tx_type = 3
-      ) bt ON bt.block_number = bbs.block_number
+        round(bbs.utilization * 100, 1)                            AS utilization,
+        countIf(bt.tx_hash != '')                                  AS tx_count,
+        arrayFilter(x -> x != '', groupUniqArray(bt.rollup))       AS rollups,
+        toString(bbs.block_timestamp)                              AS created_at
+      FROM blob_lens.block_blob_stats bbs FINAL
+      LEFT JOIN blob_lens.blob_transactions bt FINAL
+        ON bt.block_number = bbs.block_number AND bt.is_canonical = 1
+      WHERE bbs.is_canonical = 1
       GROUP BY
         bbs.block_number, bbs.blob_base_fee, bbs.blob_gas_used,
         bbs.blob_count, bbs.utilization, bbs.block_timestamp
       ORDER BY bbs.block_number DESC
+      LIMIT {limit:UInt32}
     `,
     format: "JSONEachRow",
     query_params: { limit },
@@ -517,8 +509,8 @@ export async function getHourlyRollupFee(
           LIMIT {topN:UInt32}
         )
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      GROUP BY (bt.rollup, toStartOfHour(bt.block_timestamp))
-      ORDER BY toStartOfHour(bt.block_timestamp) ASC, bt.rollup ASC
+      GROUP BY (rollup, toStartOfHour(block_timestamp))
+      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
     `,
     format: "JSONEachRow",
     query_params: { hours, topN },
@@ -754,4 +746,294 @@ export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
     format: "JSONEachRow",
   });
   return result.json<BpoEpochStat>();
+}
+
+// ── Transaction Reader ────────────────────────────────────────────────────────
+
+export async function getTxDetail(hash: string): Promise<TxDetail | null> {
+  try {
+  const h = hash.toLowerCase();
+
+  // Step 1: blob data (gives us block_number for the indexed receipt lookup)
+  const blobResult = await ch.query({
+    query: `
+      SELECT
+        tx_hash,
+        block_number,
+        toString(block_timestamp)      AS block_timestamp,
+        from_address,
+        to_address,
+        rollup,
+        num_blobs,
+        blob_hashes,
+        toString(blob_base_fee)        AS blob_base_fee,
+        toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas
+      FROM blob_lens.blob_transactions
+      WHERE tx_hash = {hash:String} AND is_canonical = 1
+      LIMIT 1
+    `,
+    query_params: { hash: h },
+    format: "JSONEachRow",
+  });
+
+  type BlobRow = {
+    tx_hash: string; block_number: number; block_timestamp: string;
+    from_address: string; to_address: string; rollup: string;
+    num_blobs: number; blob_hashes: string[];
+    blob_base_fee: string; max_fee_per_blob_gas: string;
+  };
+
+  const blobs = await blobResult.json<BlobRow>();
+  if (!blobs.length) return null;
+  const b = blobs[0];
+
+  // Step 2: receipt — fast because block_number is the leading sort key
+  const receiptResult = await ch.query({
+    query: `
+      SELECT success, gas_used, effective_gas_price,
+             ifNull(blob_gas_used, 0) AS blob_gas_used,
+             ifNull(blob_gas_price, 0) AS blob_gas_price
+      FROM ethereum.receipts
+      WHERE block_number = {n:UInt64} AND tx_hash = {hash:String}
+      LIMIT 1
+    `,
+    query_params: { n: b.block_number, hash: h },
+    format: "JSONEachRow",
+  });
+
+  type ReceiptRow = {
+    success: number; gas_used: number; effective_gas_price: number;
+    blob_gas_used: number; blob_gas_price: number;
+  };
+
+  const receipts = await receiptResult.json<ReceiptRow>();
+  const rec = receipts[0] ?? { success: 1, gas_used: 0, effective_gas_price: 0, blob_gas_used: 0, blob_gas_price: 0 };
+
+  const totalFeeWei = BigInt(rec.gas_used) * BigInt(rec.effective_gas_price);
+
+  return {
+    tx_hash:             b.tx_hash,
+    block_number:        b.block_number,
+    block_timestamp:     b.block_timestamp,
+    from_address:        b.from_address,
+    to_address:          b.to_address,
+    value:               "0",
+    tx_type:             3,
+    rollup:              b.rollup || null,
+    status:              rec.success !== 0,
+    gas_used:            rec.gas_used,
+    effective_gas_price: rec.effective_gas_price,
+    total_fee_wei:       totalFeeWei.toString(),
+    blob_gas_used:       rec.blob_gas_used,
+    blob_gas_price:      rec.blob_gas_price,
+    is_blob_tx:          true,
+    num_blobs:           b.num_blobs,
+    blob_hashes:         b.blob_hashes,
+    blob_base_fee:       b.blob_base_fee,
+    token_transfers:     [],
+  };
+  } catch {
+    return null;
+  }
+}
+
+export async function getAddressSummary(addr: string): Promise<AddressSummary | null> {
+  try {
+  const a = addr.toLowerCase();
+  const [blobResult, ofacResult, whaleResult] = await Promise.all([
+    ch.query({
+      query: `
+        SELECT
+          count()                        AS blob_tx_count,
+          toString(min(block_timestamp)) AS first_seen,
+          toString(max(block_timestamp)) AS last_seen,
+          topK(1)(rollup)                AS top_rollups
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND from_address = {a:String}
+      `,
+      query_params: { a },
+      format: "JSONEachRow",
+    }),
+    sql<{ exists: boolean }[]>`
+      SELECT EXISTS(SELECT 1 FROM ofac_sanctions_list WHERE lower(address) = ${a}) AS exists
+    `,
+    sql<{ exists: boolean }[]>`
+      SELECT EXISTS(SELECT 1 FROM whale_wallets WHERE lower(address) = ${a}) AS exists
+    `,
+  ]);
+
+  type BlobSummaryRow = { blob_tx_count: number; first_seen: string; last_seen: string; top_rollups: string[] };
+
+  const blobRows = await blobResult.json<BlobSummaryRow>();
+  const blob = blobRows[0] ?? { blob_tx_count: 0, first_seen: "", last_seen: "", top_rollups: [] };
+
+  return {
+    address:       a,
+    tx_total:      blob.blob_tx_count,
+    tx_sent:       blob.blob_tx_count,
+    tx_received:   0,
+    blob_tx_count: blob.blob_tx_count,
+    top_rollup:    blob.top_rollups.find(r => r) ?? null,
+    first_seen:    blob.first_seen || null,
+    last_seen:     blob.last_seen || null,
+    ofac_flagged:  ofacResult[0]?.exists ?? false,
+    whale_flagged: whaleResult[0]?.exists ?? false,
+  };
+  } catch {
+    return null;
+  }
+}
+
+export async function getAddressTxs(
+  addr: string, page = 1, limit = 25
+): Promise<AddressTx[]> {
+  try {
+  const a = addr.toLowerCase();
+  const offset = (page - 1) * limit;
+  const result = await ch.query({
+    query: `
+      SELECT
+        block_number,
+        toString(block_timestamp)      AS block_timestamp,
+        tx_hash,
+        from_address,
+        to_address,
+        '0'                            AS value,
+        3                              AS tx_type,
+        'out'                          AS direction,
+        rollup,
+        1                              AS status,
+        0                              AS gas_used,
+        toUInt64(blob_base_fee)        AS effective_gas_price,
+        num_blobs
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND from_address = {a:String}
+      ORDER BY block_number DESC
+      LIMIT {limit:UInt32} OFFSET {offset:UInt32}
+    `,
+    query_params: { a, limit, offset },
+    format: "JSONEachRow",
+  });
+
+  type Row = {
+    block_number: number; block_timestamp: string; tx_hash: string;
+    from_address: string; to_address: string; value: string; tx_type: number;
+    direction: string; rollup: string; status: number;
+    gas_used: number; effective_gas_price: number; num_blobs: number;
+  };
+
+  const rows = await result.json<Row>();
+  return rows.map(r => ({
+    block_number:        r.block_number,
+    block_timestamp:     r.block_timestamp,
+    tx_hash:             r.tx_hash,
+    from_address:        r.from_address,
+    to_address:          r.to_address,
+    value:               r.value,
+    tx_type:             r.tx_type,
+    direction:           "out" as const,
+    rollup:              r.rollup || null,
+    status:              true,
+    gas_used:            r.gas_used,
+    effective_gas_price: r.effective_gas_price,
+    num_blobs:           r.num_blobs,
+  }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getBlockDetail(blockNumber: number): Promise<BlockDetail | null> {
+  try {
+  const [statsResult, txsResult] = await Promise.all([
+    ch.query({
+      query: `
+        SELECT
+          block_number,
+          toString(block_timestamp)  AS block_timestamp,
+          blob_count,
+          blob_gas_used,
+          excess_blob_gas,
+          toString(blob_base_fee)    AS blob_base_fee,
+          round(utilization * 100, 1) AS utilization
+        FROM blob_lens.block_blob_stats FINAL
+        WHERE is_canonical = 1 AND block_number = {n:UInt64}
+        LIMIT 1
+      `,
+      query_params: { n: blockNumber },
+      format: "JSONEachRow",
+    }),
+    ch.query({
+      query: `
+        SELECT
+          block_number,
+          toString(block_timestamp)      AS block_timestamp,
+          tx_hash,
+          from_address,
+          to_address,
+          '0'                            AS value,
+          3                              AS tx_type,
+          'out'                          AS direction,
+          rollup,
+          1                              AS status,
+          0                              AS gas_used,
+          toUInt64(blob_base_fee)        AS effective_gas_price,
+          num_blobs
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1 AND block_number = {n:UInt64}
+        ORDER BY tx_index ASC
+        LIMIT 200
+      `,
+      query_params: { n: blockNumber },
+      format: "JSONEachRow",
+    }),
+  ]);
+
+  type StatsRow = {
+    block_number: number; block_timestamp: string; blob_count: number;
+    blob_gas_used: number; excess_blob_gas: number; blob_base_fee: string; utilization: number;
+  };
+  type TxRow = {
+    block_number: number; block_timestamp: string; tx_hash: string;
+    from_address: string; to_address: string; value: string; tx_type: number;
+    direction: string; rollup: string; status: number;
+    gas_used: number; effective_gas_price: number; num_blobs: number;
+  };
+
+  const stats = await statsResult.json<StatsRow>();
+  const txs = await txsResult.json<TxRow>();
+  if (!stats.length && !txs.length) return null;
+
+  const s = stats[0];
+  const rollups = [...new Set(txs.filter(t => t.rollup).map(t => t.rollup))];
+
+  return {
+    block_number:   s?.block_number ?? blockNumber,
+    block_timestamp: s?.block_timestamp ?? "",
+    blob_count:     s?.blob_count ?? 0,
+    blob_gas_used:  s?.blob_gas_used ?? 0,
+    excess_blob_gas: s?.excess_blob_gas ?? 0,
+    blob_base_fee:  s?.blob_base_fee ?? "0",
+    utilization:    s?.utilization ?? 0,
+    tx_count:       txs.length,
+    rollups,
+    txs: txs.map(r => ({
+      block_number:        r.block_number,
+      block_timestamp:     r.block_timestamp,
+      tx_hash:             r.tx_hash,
+      from_address:        r.from_address,
+      to_address:          r.to_address,
+      value:               r.value,
+      tx_type:             r.tx_type,
+      direction:           "out" as const,
+      rollup:              r.rollup || null,
+      status:              r.status !== 0,
+      gas_used:            r.gas_used,
+      effective_gas_price: r.effective_gas_price,
+      num_blobs:           r.num_blobs,
+    })),
+  };
+  } catch {
+    return null;
+  }
 }
