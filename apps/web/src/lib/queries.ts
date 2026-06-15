@@ -753,99 +753,56 @@ export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
 export async function getTxDetail(hash: string): Promise<TxDetail | null> {
   try {
   const h = hash.toLowerCase();
-  const [txResult, transferResult, blobResult] = await Promise.all([
-    ch.query({
-      query: `
-        SELECT
-          t.tx_hash,
-          t.block_number,
-          toString(t.block_timestamp)          AS block_timestamp,
-          t.from_address,
-          t.to_address,
-          t.value,
-          t.tx_type,
-          t.rollup,
-          if(r.success IS NULL, 1, toUInt8(r.success))                   AS status,
-          if(r.gas_used IS NULL, 0, r.gas_used)                          AS gas_used,
-          if(r.effective_gas_price IS NULL, 0, r.effective_gas_price)    AS effective_gas_price,
-          toString(
-            toUInt256(if(r.gas_used IS NULL, 0, r.gas_used)) *
-            toUInt256(if(r.effective_gas_price IS NULL, 0, r.effective_gas_price))
-          ) AS total_fee_wei
-        FROM ethereum.transactions t FINAL
-        LEFT JOIN ethereum.receipts r FINAL
-          ON t.tx_hash = r.tx_hash AND r.is_deleted = 0
-        WHERE t.is_deleted = 0 AND t.tx_hash = {hash:String}
-        LIMIT 1
-      `,
-      query_params: { hash: h },
-      format: "JSONEachRow",
-    }),
-    ch.query({
-      query: `
-        SELECT
-          token_address,
-          from_address,
-          to_address,
-          value,
-          log_index
-        FROM ethereum.erc20_transfers
-        WHERE tx_hash = {hash:String}
-        ORDER BY log_index ASC
-        LIMIT 50
-      `,
-      query_params: { hash: h },
-      format: "JSONEachRow",
-    }),
-    ch.query({
-      query: `
-        SELECT
-          num_blobs,
-          blob_hashes,
-          toString(blob_base_fee) AS blob_base_fee
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND tx_hash = {hash:String}
-        LIMIT 1
-      `,
-      query_params: { hash: h },
-      format: "JSONEachRow",
-    }),
-  ]);
+  const result = await ch.query({
+    query: `
+      SELECT
+        tx_hash,
+        block_number,
+        toString(block_timestamp)      AS block_timestamp,
+        from_address,
+        to_address,
+        rollup,
+        num_blobs,
+        blob_hashes,
+        toString(blob_base_fee)        AS blob_base_fee,
+        toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas
+      FROM blob_lens.blob_transactions
+      WHERE tx_hash = {hash:String} AND is_canonical = 1
+      LIMIT 1
+    `,
+    query_params: { hash: h },
+    format: "JSONEachRow",
+  });
 
-  type TxRow = {
+  type Row = {
     tx_hash: string; block_number: number; block_timestamp: string;
-    from_address: string; to_address: string; value: string; tx_type: number;
-    rollup: string; status: number; gas_used: number;
-    effective_gas_price: number; total_fee_wei: string;
+    from_address: string; to_address: string; rollup: string;
+    num_blobs: number; blob_hashes: string[];
+    blob_base_fee: string; max_fee_per_blob_gas: string;
   };
-  type BlobRow = { num_blobs: number; blob_hashes: string[]; blob_base_fee: string };
 
-  const txs = await txResult.json<TxRow>();
-  if (!txs.length) return null;
-  const tx = txs[0];
-
-  const transfers = await transferResult.json<TokenTransfer>();
-  const blobs = await blobResult.json<BlobRow>();
-  const blob = blobs[0] ?? null;
+  const rows = await result.json<Row>();
+  if (!rows.length) return null;
+  const r = rows[0];
 
   return {
-    tx_hash:             tx.tx_hash,
-    block_number:        tx.block_number,
-    block_timestamp:     tx.block_timestamp,
-    from_address:        tx.from_address,
-    to_address:          tx.to_address,
-    value:               tx.value,
-    tx_type:             tx.tx_type,
-    rollup:              tx.rollup || null,
-    status:              tx.status !== 0,
-    gas_used:            tx.gas_used,
-    effective_gas_price: tx.effective_gas_price,
-    total_fee_wei:       tx.total_fee_wei,
-    is_blob_tx:          !!blob,
-    num_blobs:           blob?.num_blobs ?? 0,
-    blob_hashes:         blob?.blob_hashes ?? [],
-    blob_base_fee:       blob?.blob_base_fee ?? null,
-    token_transfers:     transfers,
+    tx_hash:             r.tx_hash,
+    block_number:        r.block_number,
+    block_timestamp:     r.block_timestamp,
+    from_address:        r.from_address,
+    to_address:          r.to_address,
+    value:               "0",
+    tx_type:             3,
+    rollup:              r.rollup || null,
+    status:              true,
+    gas_used:            0,
+    effective_gas_price: 0,
+    total_fee_wei:       "0",
+    is_blob_tx:          true,
+    num_blobs:           r.num_blobs,
+    blob_hashes:         r.blob_hashes,
+    blob_base_fee:       r.blob_base_fee,
+    token_transfers:     [],
   };
   } catch {
     return null;
