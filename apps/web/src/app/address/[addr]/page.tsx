@@ -1,9 +1,8 @@
 import { getAddressSummary, getAddressTxs } from "@/lib/queries";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { MetricCard } from "@/components/shared/MetricCard";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { shortHash, timeAgo } from "@/lib/utils";
 import { notFound } from "next/navigation";
+import { ShieldAlert, Layers, Clock, Activity } from "lucide-react";
 import Link from "next/link";
 import type { AddressTx } from "@/types";
 
@@ -12,11 +11,6 @@ export const dynamic = "force-dynamic";
 interface Props {
   params: Promise<{ addr: string }>;
   searchParams: Promise<{ page?: string }>;
-}
-
-function weiToEth(wei: string): string {
-  const n = Number(BigInt(wei || "0")) / 1e18;
-  return n === 0 ? "0 ETH" : `${n.toFixed(6)} ETH`;
 }
 
 export default async function AddressPage({ params, searchParams }: Props) {
@@ -32,153 +26,160 @@ export default async function AddressPage({ params, searchParams }: Props) {
   if (summary === null) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="surface border border-border rounded-lg p-8 text-center space-y-2">
-          <p className="text-text-secondary text-sm">Data temporarily unavailable — ClickHouse unreachable</p>
+        <div className="surface border border-border rounded-xl p-12 text-center space-y-2">
+          <p className="text-text-secondary text-sm">Data temporarily unavailable</p>
           <p className="font-mono text-xs text-text-secondary/60 break-all">{addr}</p>
         </div>
       </main>
     );
   }
 
-  if (summary.tx_total === 0) {
-    notFound();
-  }
+  if (summary.tx_total === 0) notFound();
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <PageHeader title="Address" summary={addr} />
+    <main className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-fade-up">
+      <PageHeader
+        meta="Address"
+        title={shortHash(addr)}
+        summary={addr}
+      />
 
       {/* Flags */}
       {(summary.ofac_flagged || summary.whale_flagged) && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {summary.ofac_flagged && (
-            <span className="text-xs px-3 py-1 rounded-full border border-red-700 bg-red-950 text-red-300 font-semibold">
-              ⚠ OFAC Flagged
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-status-critical/40 bg-status-critical/10 text-status-critical">
+              <ShieldAlert className="h-3.5 w-3.5" /> OFAC Sanctioned
             </span>
           )}
           {summary.whale_flagged && (
-            <span className="text-xs px-3 py-1 rounded-full border border-yellow-700 bg-yellow-950 text-yellow-300 font-semibold">
-              🐋 Whale
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-yellow-400">
+              🐋 Whale Wallet
             </span>
           )}
         </div>
       )}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Total Txs" value={summary.tx_total.toLocaleString()} />
-        <MetricCard label="Sent" value={summary.tx_sent.toLocaleString()} />
-        <MetricCard label="Received" value={summary.tx_received.toLocaleString()} />
-        <MetricCard label="Blob Txs" value={summary.blob_tx_count.toLocaleString()} />
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          icon={<Layers className="h-4 w-4 text-primary" />}
+          label="Blob Txs"
+          value={summary.blob_tx_count.toLocaleString()}
+          bg="bg-primary/5 border-primary/15"
+        />
+        <StatCard
+          icon={<Activity className="h-4 w-4 text-blue-400" />}
+          label="Top Rollup"
+          value={summary.top_rollup ?? "—"}
+          bg="bg-blue-500/5 border-blue-500/15"
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4 text-text-secondary" />}
+          label="First Seen"
+          value={summary.first_seen ? timeAgo(summary.first_seen) : "—"}
+          bg="bg-surface-elevated border-border"
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4 text-text-secondary" />}
+          label="Last Active"
+          value={summary.last_seen ? timeAgo(summary.last_seen) : "—"}
+          bg="bg-surface-elevated border-border"
+        />
       </div>
 
-      {/* Meta row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-        {summary.top_rollup && (
-          <div className="surface-elevated p-4 rounded-lg">
-            <p className="text-text-secondary text-xs uppercase tracking-wider mb-1">Top Rollup</p>
-            <p className="font-semibold">{summary.top_rollup}</p>
-          </div>
-        )}
-        {summary.first_seen && (
-          <div className="surface-elevated p-4 rounded-lg">
-            <p className="text-text-secondary text-xs uppercase tracking-wider mb-1">First Seen</p>
-            <p>{timeAgo(summary.first_seen)}</p>
-          </div>
-        )}
-        {summary.last_seen && (
-          <div className="surface-elevated p-4 rounded-lg">
-            <p className="text-text-secondary text-xs uppercase tracking-wider mb-1">Last Active</p>
-            <p>{timeAgo(summary.last_seen)}</p>
-          </div>
-        )}
-      </div>
+      {/* Tx history */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+            Blob Transaction History
+          </p>
+          <span className="text-xs text-text-secondary">Page {page}</span>
+        </div>
 
-      {/* Transaction list */}
-      <Card>
-        <CardHeader className="pb-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
-            Transactions (page {page})
-          </h2>
-        </CardHeader>
-        <CardContent className="p-0">
+        <div className="surface border border-border rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-text-secondary text-xs uppercase tracking-wider">
-                  <th className="text-left p-3">Hash</th>
-                  <th className="text-left p-3">Block</th>
-                  <th className="text-left p-3">Age</th>
-                  <th className="text-left p-3">Dir</th>
-                  <th className="text-left p-3">From / To</th>
-                  <th className="text-right p-3">Value</th>
-                  <th className="text-right p-3">Blobs</th>
+                <tr className="border-b border-border bg-surface-elevated">
+                  <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Tx Hash</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Block</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Age</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Rollup</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Blobs</th>
                 </tr>
               </thead>
-              <tbody>
-                {txs.map((tx) => (
-                  <TxRow key={tx.tx_hash} tx={tx} currentAddr={addr.toLowerCase()} />
-                ))}
+              <tbody className="divide-y divide-border">
+                {txs.map((tx) => <TxRow key={tx.tx_hash} tx={tx} />)}
+                {txs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-text-secondary">
+                      No transactions found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Pagination */}
-      <div className="flex justify-between items-center text-sm">
-        {page > 1 ? (
-          <Link href={`/address/${addr}?page=${page - 1}`} className="text-blue-400 hover:underline">
-            ← Prev
-          </Link>
-        ) : <span />}
-        {txs.length === 25 && (
-          <Link href={`/address/${addr}?page=${page + 1}`} className="text-blue-400 hover:underline">
-            Next →
-          </Link>
-        )}
+        {/* Pagination */}
+        <div className="flex justify-between items-center mt-4">
+          {page > 1 ? (
+            <Link href={`/address/${addr}?page=${page - 1}`}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+              ← Previous
+            </Link>
+          ) : <span />}
+          {txs.length === 25 && (
+            <Link href={`/address/${addr}?page=${page + 1}`}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+              Next →
+            </Link>
+          )}
+        </div>
       </div>
     </main>
   );
 }
 
-function TxRow({ tx, currentAddr }: { tx: AddressTx; currentAddr: string }) {
-  const isOut = tx.from_address.toLowerCase() === currentAddr;
-  const counterpart = isOut ? tx.to_address : tx.from_address;
-  const dirColor = isOut ? "text-orange-400" : "text-green-400";
-  const dirLabel = isOut ? "OUT" : "IN";
-
+function StatCard({ icon, label, value, bg }: { icon: React.ReactNode; label: string; value: string; bg: string }) {
   return (
-    <tr className="border-b border-border hover:bg-white/5 transition-colors">
-      <td className="p-3 font-mono text-xs">
-        <Link href={`/tx/${tx.tx_hash}`} className="text-blue-400 hover:underline">
+    <div className={`surface-elevated border rounded-xl p-4 ${bg}`}>
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">{label}</span>
+      </div>
+      <p className="text-lg font-bold text-text-primary truncate">{value}</p>
+    </div>
+  );
+}
+
+function TxRow({ tx }: { tx: AddressTx }) {
+  return (
+    <tr className="hover:bg-white/[0.02] transition-colors">
+      <td className="px-4 py-3 font-mono text-xs">
+        <Link href={`/tx/${tx.tx_hash}`} className="text-primary hover:underline">
           {shortHash(tx.tx_hash)}
         </Link>
       </td>
-      <td className="p-3 font-mono text-xs">
-        <Link href={`/block/${tx.block_number}`} className="text-text-secondary hover:underline">
+      <td className="px-4 py-3 font-mono text-xs text-text-secondary">
+        <Link href={`/block/${tx.block_number}`} className="hover:text-primary transition-colors">
           {tx.block_number.toLocaleString()}
         </Link>
       </td>
-      <td className="p-3 text-text-secondary text-xs">{timeAgo(tx.block_timestamp)}</td>
-      <td className={`p-3 font-semibold text-xs ${dirColor}`}>{dirLabel}</td>
-      <td className="p-3 font-mono text-xs">
-        <Link href={`/address/${counterpart}`} className="text-blue-400 hover:underline">
-          {shortHash(counterpart)}
-        </Link>
-        {tx.rollup && (
-          <span className="ml-2 text-text-secondary text-xs">({tx.rollup})</span>
-        )}
+      <td className="px-4 py-3 text-xs text-text-secondary">{timeAgo(tx.block_timestamp)}</td>
+      <td className="px-4 py-3 text-xs">
+        {tx.rollup
+          ? <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-semibold">{tx.rollup}</span>
+          : <span className="text-text-secondary">—</span>
+        }
       </td>
-      <td className="p-3 text-right font-mono text-xs">
-        {tx.value === "0" ? "—" : `${(Number(BigInt(tx.value)) / 1e18).toFixed(4)} ETH`}
-      </td>
-      <td className="p-3 text-right">
-        {tx.num_blobs > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
-            {tx.num_blobs}
-          </span>
-        )}
+      <td className="px-4 py-3 text-right">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <Layers className="h-3 w-3" />
+          {tx.num_blobs}
+        </span>
       </td>
     </tr>
   );
