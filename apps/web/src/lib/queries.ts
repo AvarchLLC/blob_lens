@@ -250,7 +250,7 @@ export async function getForecastData(): Promise<ForecastData | null> {
           blob_base_fee,
           blob_gas_used,
           excess_blob_gas,
-          row_number() OVER (ORDER BY block_number DESC) AS rn
+          row_number() OVER (ORDER BY number DESC) AS rn
         FROM ethereum.blocks FINAL
         WHERE is_deleted = 0 AND blob_count > 0
         ORDER BY number DESC
@@ -509,8 +509,8 @@ export async function getHourlyRollupFee(
           LIMIT {topN:UInt32}
         )
         AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      GROUP BY (bt.rollup, toStartOfHour(bt.block_timestamp))
-      ORDER BY toStartOfHour(bt.block_timestamp) ASC, bt.rollup ASC
+      GROUP BY (rollup, toStartOfHour(block_timestamp))
+      ORDER BY toStartOfHour(block_timestamp) ASC, rollup ASC
     `,
     format: "JSONEachRow",
     query_params: { hours, topN },
