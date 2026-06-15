@@ -395,9 +395,9 @@ export async function getLatestBlobs(limit = 20): Promise<BlobTransaction[]> {
         toString(max_fee_per_blob_gas) AS max_fee_per_blob_gas,
         toString(blob_base_fee)        AS blob_base_fee,
         toString(block_timestamp)      AS created_at
-      FROM ethereum.transactions FINAL
-      WHERE is_deleted = 0 AND tx_type = 3
-      ORDER BY block_number DESC, tx_index DESC
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1
+      ORDER BY block_number DESC, tx_hash DESC
       LIMIT {limit:UInt32}
     `,
     format: "JSONEachRow",
@@ -411,30 +411,22 @@ export async function getRecentBlocks(limit = 20): Promise<BlockRow[]> {
     query: `
       SELECT
         bbs.block_number,
-        toString(bbs.blob_base_fee)                                    AS blob_base_fee,
+        toString(bbs.blob_base_fee)                                AS blob_base_fee,
         bbs.blob_gas_used,
         bbs.blob_count,
-        round(bbs.utilization * 100, 1)                                AS utilization,
-        countIf(bt.tx_hash != '')                                      AS tx_count,
-        arrayFilter(x -> x != '', groupUniqArray(bt.rollup))           AS rollups,
-        toString(bbs.block_timestamp)                                  AS created_at
-      FROM (
-        SELECT number AS block_number, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used,
-               blob_count, utilization, timestamp AS block_timestamp
-        FROM ethereum.blocks FINAL
-        WHERE is_deleted = 0 AND blob_count > 0
-        ORDER BY number DESC
-        LIMIT {limit:UInt32}
-      ) bbs
-      LEFT JOIN (
-        SELECT block_number, tx_hash, rollup
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0 AND tx_type = 3
-      ) bt ON bt.block_number = bbs.block_number
+        round(bbs.utilization * 100, 1)                            AS utilization,
+        countIf(bt.tx_hash != '')                                  AS tx_count,
+        arrayFilter(x -> x != '', groupUniqArray(bt.rollup))       AS rollups,
+        toString(bbs.block_timestamp)                              AS created_at
+      FROM blob_lens.block_blob_stats bbs FINAL
+      LEFT JOIN blob_lens.blob_transactions bt FINAL
+        ON bt.block_number = bbs.block_number AND bt.is_canonical = 1
+      WHERE bbs.is_canonical = 1
       GROUP BY
         bbs.block_number, bbs.blob_base_fee, bbs.blob_gas_used,
         bbs.blob_count, bbs.utilization, bbs.block_timestamp
       ORDER BY bbs.block_number DESC
+      LIMIT {limit:UInt32}
     `,
     format: "JSONEachRow",
     query_params: { limit },
