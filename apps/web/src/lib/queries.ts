@@ -753,7 +753,9 @@ export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
 export async function getTxDetail(hash: string): Promise<TxDetail | null> {
   try {
   const h = hash.toLowerCase();
-  const result = await ch.query({
+
+  // Step 1: blob data (gives us block_number for the indexed receipt lookup)
+  const blobResult = await ch.query({
     query: `
       SELECT
         tx_hash,
@@ -774,34 +776,60 @@ export async function getTxDetail(hash: string): Promise<TxDetail | null> {
     format: "JSONEachRow",
   });
 
-  type Row = {
+  type BlobRow = {
     tx_hash: string; block_number: number; block_timestamp: string;
     from_address: string; to_address: string; rollup: string;
     num_blobs: number; blob_hashes: string[];
     blob_base_fee: string; max_fee_per_blob_gas: string;
   };
 
-  const rows = await result.json<Row>();
-  if (!rows.length) return null;
-  const r = rows[0];
+  const blobs = await blobResult.json<BlobRow>();
+  if (!blobs.length) return null;
+  const b = blobs[0];
+
+  // Step 2: receipt — fast because block_number is the leading sort key
+  const receiptResult = await ch.query({
+    query: `
+      SELECT success, gas_used, effective_gas_price,
+             ifNull(blob_gas_used, 0) AS blob_gas_used,
+             ifNull(blob_gas_price, 0) AS blob_gas_price
+      FROM ethereum.receipts
+      WHERE block_number = {n:UInt64} AND tx_hash = {hash:String}
+      LIMIT 1
+    `,
+    query_params: { n: b.block_number, hash: h },
+    format: "JSONEachRow",
+  });
+
+  type ReceiptRow = {
+    success: number; gas_used: number; effective_gas_price: number;
+    blob_gas_used: number; blob_gas_price: number;
+  };
+
+  const receipts = await receiptResult.json<ReceiptRow>();
+  const rec = receipts[0] ?? { success: 1, gas_used: 0, effective_gas_price: 0, blob_gas_used: 0, blob_gas_price: 0 };
+
+  const totalFeeWei = BigInt(rec.gas_used) * BigInt(rec.effective_gas_price);
 
   return {
-    tx_hash:             r.tx_hash,
-    block_number:        r.block_number,
-    block_timestamp:     r.block_timestamp,
-    from_address:        r.from_address,
-    to_address:          r.to_address,
+    tx_hash:             b.tx_hash,
+    block_number:        b.block_number,
+    block_timestamp:     b.block_timestamp,
+    from_address:        b.from_address,
+    to_address:          b.to_address,
     value:               "0",
     tx_type:             3,
-    rollup:              r.rollup || null,
-    status:              true,
-    gas_used:            0,
-    effective_gas_price: 0,
-    total_fee_wei:       "0",
+    rollup:              b.rollup || null,
+    status:              rec.success !== 0,
+    gas_used:            rec.gas_used,
+    effective_gas_price: rec.effective_gas_price,
+    total_fee_wei:       totalFeeWei.toString(),
+    blob_gas_used:       rec.blob_gas_used,
+    blob_gas_price:      rec.blob_gas_price,
     is_blob_tx:          true,
-    num_blobs:           r.num_blobs,
-    blob_hashes:         r.blob_hashes,
-    blob_base_fee:       r.blob_base_fee,
+    num_blobs:           b.num_blobs,
+    blob_hashes:         b.blob_hashes,
+    blob_base_fee:       b.blob_base_fee,
     token_transfers:     [],
   };
   } catch {
