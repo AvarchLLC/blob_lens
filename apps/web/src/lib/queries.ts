@@ -855,25 +855,14 @@ export async function getTxDetail(hash: string): Promise<TxDetail | null> {
 export async function getAddressSummary(addr: string): Promise<AddressSummary | null> {
   try {
   const a = addr.toLowerCase();
-  const [txResult, blobResult, ofacResult, whaleResult] = await Promise.all([
+  const [blobResult, ofacResult, whaleResult] = await Promise.all([
     ch.query({
       query: `
         SELECT
-          countIf(from_address = {a:String}) AS tx_sent,
-          countIf(to_address   = {a:String}) AS tx_received,
-          count()                             AS tx_total,
-          toString(min(block_timestamp))      AS first_seen,
-          toString(max(block_timestamp))      AS last_seen
-        FROM ethereum.transactions FINAL
-        WHERE is_deleted = 0
-          AND (from_address = {a:String} OR to_address = {a:String})
-      `,
-      query_params: { a },
-      format: "JSONEachRow",
-    }),
-    ch.query({
-      query: `
-        SELECT count() AS blob_tx_count, topK(1)(rollup) AS top_rollups
+          count()                        AS blob_tx_count,
+          toString(min(block_timestamp)) AS first_seen,
+          toString(max(block_timestamp)) AS last_seen,
+          topK(1)(rollup)                AS top_rollups
         FROM blob_lens.blob_transactions FINAL
         WHERE is_canonical = 1 AND from_address = {a:String}
       `,
@@ -888,23 +877,20 @@ export async function getAddressSummary(addr: string): Promise<AddressSummary | 
     `,
   ]);
 
-  type TxSummaryRow = { tx_sent: number; tx_received: number; tx_total: number; first_seen: string; last_seen: string };
-  type BlobSummaryRow = { blob_tx_count: number; top_rollups: string[] };
+  type BlobSummaryRow = { blob_tx_count: number; first_seen: string; last_seen: string; top_rollups: string[] };
 
-  const txRows = await txResult.json<TxSummaryRow>();
   const blobRows = await blobResult.json<BlobSummaryRow>();
-  const tx = txRows[0] ?? { tx_sent: 0, tx_received: 0, tx_total: 0, first_seen: "", last_seen: "" };
-  const blob = blobRows[0] ?? { blob_tx_count: 0, top_rollups: [] };
+  const blob = blobRows[0] ?? { blob_tx_count: 0, first_seen: "", last_seen: "", top_rollups: [] };
 
   return {
     address:       a,
-    tx_total:      tx.tx_total,
-    tx_sent:       tx.tx_sent,
-    tx_received:   tx.tx_received,
+    tx_total:      blob.blob_tx_count,
+    tx_sent:       blob.blob_tx_count,
+    tx_received:   0,
     blob_tx_count: blob.blob_tx_count,
     top_rollup:    blob.top_rollups.find(r => r) ?? null,
-    first_seen:    tx.first_seen || null,
-    last_seen:     tx.last_seen || null,
+    first_seen:    blob.first_seen || null,
+    last_seen:     blob.last_seen || null,
     ofac_flagged:  ofacResult[0]?.exists ?? false,
     whale_flagged: whaleResult[0]?.exists ?? false,
   };
@@ -922,27 +908,22 @@ export async function getAddressTxs(
   const result = await ch.query({
     query: `
       SELECT
-        t.block_number,
-        toString(t.block_timestamp)                                        AS block_timestamp,
-        t.tx_hash,
-        t.from_address,
-        t.to_address,
-        t.value,
-        t.tx_type,
-        if(t.from_address = {a:String}, 'out', 'in')                      AS direction,
-        t.rollup,
-        if(r.success IS NULL, 1, toUInt8(r.success))                      AS status,
-        if(r.gas_used IS NULL, 0, r.gas_used)                             AS gas_used,
-        if(r.effective_gas_price IS NULL, 0, r.effective_gas_price)       AS effective_gas_price,
-        if(b.num_blobs IS NULL, 0, b.num_blobs)                           AS num_blobs
-      FROM ethereum.transactions t FINAL
-      LEFT JOIN ethereum.receipts r FINAL
-        ON t.tx_hash = r.tx_hash AND r.is_deleted = 0
-      LEFT JOIN blob_lens.blob_transactions b FINAL
-        ON t.tx_hash = b.tx_hash AND b.is_canonical = 1
-      WHERE t.is_deleted = 0
-        AND (t.from_address = {a:String} OR t.to_address = {a:String})
-      ORDER BY t.block_number DESC
+        block_number,
+        toString(block_timestamp)      AS block_timestamp,
+        tx_hash,
+        from_address,
+        to_address,
+        '0'                            AS value,
+        3                              AS tx_type,
+        'out'                          AS direction,
+        rollup,
+        1                              AS status,
+        0                              AS gas_used,
+        toUInt64(blob_base_fee)        AS effective_gas_price,
+        num_blobs
+      FROM blob_lens.blob_transactions FINAL
+      WHERE is_canonical = 1 AND from_address = {a:String}
+      ORDER BY block_number DESC
       LIMIT {limit:UInt32} OFFSET {offset:UInt32}
     `,
     query_params: { a, limit, offset },
@@ -965,9 +946,9 @@ export async function getAddressTxs(
     to_address:          r.to_address,
     value:               r.value,
     tx_type:             r.tx_type,
-    direction:           r.direction as "in" | "out",
+    direction:           "out" as const,
     rollup:              r.rollup || null,
-    status:              r.status !== 0,
+    status:              true,
     gas_used:            r.gas_used,
     effective_gas_price: r.effective_gas_price,
     num_blobs:           r.num_blobs,
