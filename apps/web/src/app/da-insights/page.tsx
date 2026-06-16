@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Activity, BarChart3, Bell, Clock, TrendingUp, Zap } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
 import { CongestionForecast } from "@/components/charts/CongestionForecast";
@@ -21,10 +21,10 @@ import { RollupShareDonut } from "@/components/charts/RollupShareDonut";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
 import { SlotUtilizationChart } from "@/components/charts/SlotUtilizationChart";
 import { SubmissionTimingHeatmap } from "@/components/charts/SubmissionTimingHeatmap";
+import { PageHeader, PageSection } from "@/components/shared/PageHeader";
 import { RegimeAlertPanel } from "@/components/shared/RegimeAlertPanel";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { TimeRangePicker } from "@/components/shared/TimeRangePicker";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { getEthPrice } from "@/lib/ethPrice";
 import {
   getDaDailyBreakdown,
@@ -37,15 +37,15 @@ import {
   getForecastData,
   getHistoricalDailyStats,
 } from "@/lib/queries";
-import { classifyRegime } from "@/lib/utils";
+import { classifyRegime, formatNumber } from "@/lib/utils";
 
 export const revalidate = 30;
 
 const HOURS_LABEL: Record<number, string> = {
-  24:   "last 24 hours",
-  168:  "last 7 days",
-  720:  "last 30 days",
-  2160: "last 90 days",
+  24:   "24 hours",
+  168:  "7 days",
+  720:  "30 days",
+  2160: "90 days",
 };
 
 const REGIME_DESC: Record<string, string> = {
@@ -81,9 +81,9 @@ export default async function DaInsightsPage({
     getHistoricalDailyStats().catch(() => []),
   ]);
 
-  const latest    = market[market.length - 1];
-  const regime    = latest ? classifyRegime(latest.max_blobs_in_block) : "healthy";
-  const totalBlobs = leaderboard.reduce((s, r) => s + Number(r.total_blobs), 0);
+  const latest      = market[market.length - 1];
+  const regime       = latest ? classifyRegime(latest.max_blobs_in_block) : "healthy";
+  const totalBlobs   = leaderboard.reduce((s, r) => s + Number(r.total_blobs), 0);
   const networkAvgGwei = leaderboard.length
     ? leaderboard.reduce((s, r) => s + Number(r.cost_per_blob_gwei), 0) / leaderboard.length
     : 0;
@@ -93,335 +93,308 @@ export default async function DaInsightsPage({
   const avgPacking = leaderboard.length
     ? Math.round(leaderboard.reduce((s, r) => s + Number(r.packing_score), 0) / leaderboard.length)
     : 0;
+  const avgTiming = leaderboard.length
+    ? Math.round(leaderboard.reduce((s, r) => s + Number(r.timing_score), 0) / leaderboard.length)
+    : 0;
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-10 space-y-14">
+    <div className="animate-page-in">
       <PageHeader
-        title="DA Market Intelligence"
-        meta="Blob fee market health · per-rollup cost efficiency · submission timing analysis"
-      />
+        meta="DA Market Intelligence"
+        title="Blob Data Availability Insights"
+        summary="Per-rollup DA cost-efficiency scoring and live blob fee market health, in one place — packing/timing/composite scores, cost per byte, regime classification, and congestion forecasting."
+      >
+        <div className="flex flex-col items-end gap-2.5">
+          <Suspense fallback={<div className="h-9 w-56 rounded-lg bg-border/30 animate-pulse" />}>
+            <TimeRangePicker basePath="/da-insights" current={hours} />
+          </Suspense>
+          <div className="flex items-center gap-3 text-[11px] text-text-secondary">
+            <Link href="/leaderboard" className="hover:text-primary transition-colors inline-flex items-center gap-0.5">
+              Full Leaderboard <ArrowUpRight className="w-3 h-3" />
+            </Link>
+            <span className="opacity-30">·</span>
+            <Link href="/market" className="hover:text-primary transition-colors inline-flex items-center gap-0.5">
+              Market Overview <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      </PageHeader>
 
-      {/* Time range + links */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <Suspense fallback={<div className="h-9 w-56 rounded-lg bg-border/30 animate-pulse" />}>
-          <TimeRangePicker basePath="/da-insights" current={hours} />
-        </Suspense>
-        <div className="flex items-center gap-3 text-xs text-text-secondary">
-          <Link href="/leaderboard" className="hover:text-primary transition-colors">Full Leaderboard →</Link>
-          <span>·</span>
-          <Link href="/market" className="hover:text-primary transition-colors">Market Overview →</Link>
+      {/* ── Orientation strip: where the market stands right now ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-12">
+        <div className="surface-elevated p-5 flex flex-col justify-between">
+          <span className="caption text-[11px] uppercase tracking-wider mb-2 block">Current Regime</span>
+          <RegimeBadge maxBlobsInBlock={latest?.max_blobs_in_block ?? 0} size="sm" />
+          <p className="text-[11px] text-text-secondary mt-3 opacity-70 leading-snug">{REGIME_DESC[regime]}</p>
+        </div>
+        <StatCard
+          label="Avg Utilisation"
+          value={latest ? `${Math.round(Number(latest.avg_utilization))}%` : "—"}
+          note={`Hourly avg · ${HOURS_LABEL[hours]}`}
+        />
+        <StatCard
+          label="Total Blobs"
+          value={totalBlobs ? formatNumber(totalBlobs) : "—"}
+          note={`Canonical txs · ${HOURS_LABEL[hours]}`}
+        />
+        <StatCard
+          label="Network Avg Fee"
+          value={networkAvgGwei ? `${networkAvgGwei.toFixed(2)} Gwei` : "—"}
+          note="Per blob, all rollups"
+        />
+        <StatCard
+          label="Top Efficiency"
+          value={topEfficient?.rollup ?? "—"}
+          note={topEfficient ? `Score ${Math.round(Number(topEfficient.efficiency_score))} / 100 · ${leaderboard.length} active` : "No data"}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+
+        {/* ═══════════════ Left column — fee market health ═══════════════ */}
+        <div className="xl:col-span-8">
+
+          <PageSection
+            id="fee-market-health"
+            label="Gap 1 · Market Health"
+            title="Blob Fee Market Health"
+            description={`Regime classification, fee distribution and slot utilisation over the last ${HOURS_LABEL[hours]}.`}
+            interpretation="The percentile band shows how spread out fees were within each hour — a wide band or a P95 that detaches from the median signals bursty, uncoordinated submissions. Use the cost heatmap below to find the cheapest hour-of-day / day-of-week window to post blobs."
+          >
+            <div className="space-y-10">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div className="lg:col-span-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Fee Percentile Bands (P25 / P50 / P75 / P95)
+                  </h4>
+                  {percentiles.length ? <FeePercentilesChart data={percentiles} /> : <Empty />}
+                </div>
+                <div className="lg:border-l lg:border-border/50 lg:pl-10">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    4–12 Slot Congestion Forecast
+                  </h4>
+                  {forecast ? <CongestionForecast data={forecast} /> : <Empty />}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-10 border-t border-border/50">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Blob Base Fee Trend
+                  </h4>
+                  {market.length ? <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} /> : <Empty />}
+                </div>
+                <div className="lg:border-l lg:border-border/50 lg:pl-10">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Slot Utilisation
+                  </h4>
+                  {market.length ? <SlotUtilizationChart data={market} /> : <Empty />}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t border-border/50">
+                <div className="lg:col-span-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Regime Heatmap
+                  </h4>
+                  {market.length ? <RegimeHeatmap data={market} /> : <Empty />}
+                </div>
+                <div className="lg:border-l lg:border-border/50 lg:pl-10">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Cumulative Blobs
+                  </h4>
+                  {market.length ? <CumulativeBlobGrowth data={market} /> : <Empty />}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-10 border-t border-border/50">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Regime Timeline
+                  </h4>
+                  {market.length ? <MarketRegimeTimeline data={market} /> : <Empty />}
+                </div>
+                <div className="lg:border-l lg:border-border/50 lg:pl-10">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                    Fee vs Blob Volume
+                  </h4>
+                  {market.length ? <FeeBlobScatter data={market} ethUsd={ethUsd} /> : <Empty />}
+                </div>
+              </div>
+
+              <div className="pt-10 border-t border-border/50">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                  Blob Cost Heatmap — Hour of Day × Day
+                </h4>
+                {market.length && ethUsd
+                  ? <CostHeatmap data={market} ethUsd={ethUsd} />
+                  : <Empty />
+                }
+              </div>
+            </div>
+          </PageSection>
+        </div>
+
+        {/* ═══════════════ Right column — supporting context for fee health ═══════════════ */}
+        <div className="xl:col-span-4 space-y-12">
+
+          <PageSection
+            label="Attribution"
+            title="Network Share"
+            description={`Blob volume distribution across rollups · ${HOURS_LABEL[hours]}.`}
+          >
+            <div className="space-y-6">
+              {leaderboard.length ? <RollupShareDonut data={leaderboard} /> : <Empty />}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <MiniStat label="Avg Packing" value={avgPacking ? `${avgPacking}` : "—"} sub="blobs/tx vs max 6" />
+                <MiniStat label="Avg Timing" value={avgTiming ? `${avgTiming}` : "—"} sub="vs network avg fee" />
+              </div>
+            </div>
+          </PageSection>
+
+          <PageSection
+            id="regime-alerts"
+            label="Automation"
+            title="Regime Threshold Alerts"
+            description="Subscribe your rollup ops team to webhook notifications when the blob market shifts regime."
+            interpretation="Alerts fire within one epoch of a regime change into 'congested' or 'spike' — early enough to adjust batching strategy before fees peak."
+          >
+            <RegimeAlertPanel />
+          </PageSection>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════
-          SECTION 1 · FEE MARKET HEALTH
-      ═══════════════════════════════════════════════════════════ */}
-      <section className="space-y-5">
-        <SectionLabel icon={<Activity className="w-4 h-4" />} title="Blob Fee Market Health" />
+      {/* ═══════════════ Full-width sections below — each needs its own breathing room ═══════════════ */}
+      <div className="space-y-12 mt-12">
 
-        {/* Regime + Forecast */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5 space-y-4">
-            <Label>Current Regime</Label>
-            <div className="flex items-start gap-4">
-              {latest && <RegimeBadge maxBlobsInBlock={latest.max_blobs_in_block} size="lg" />}
-              <p className="text-sm text-text-secondary leading-relaxed">{REGIME_DESC[regime]}</p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border">
-              <MiniStat label="Avg Util" value={latest ? `${Math.round(Number(latest.avg_utilization))}%` : "—"} />
-              <MiniStat label="Blobs/hr" value={latest ? latest.blob_count.toLocaleString() : "—"} />
-              <MiniStat label="Txs/hr"   value={latest ? latest.tx_count.toLocaleString() : "—"} />
-            </div>
-          </div>
-
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <Label>4–12 Slot Congestion Forecast</Label>
-            <div className="mt-4">
-              {forecast
-                ? <CongestionForecast data={forecast} />
+        <PageSection
+          id="da-cost-efficiency"
+          label="Gap 2 · Cost Efficiency Scoring"
+          title="Per-Rollup DA Cost Breakdown"
+          description="Packing, timing and composite efficiency scores per rollup — the metrics that don't exist anywhere else today."
+          interpretation="Packing score rewards rollups that fill blobs close to the 6-blob max per tx (fewer, fuller batches = cheaper DA per byte). Timing score rewards posting when network fees are below average. Efficiency score blends both (70% packing / 30% timing) into one comparable number across rollups."
+        >
+          <div className="space-y-10">
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                Hourly Blob Activity — Top 8 Rollups
+              </h4>
+              {rollupActivity.length
+                ? <RollupActivityLineChart data={rollupActivity} />
                 : <Empty />
               }
             </div>
-          </div>
-        </div>
 
-        {/* Fee percentile band — full width */}
-        <div className="surface-elevated border border-border rounded-xl p-5">
-          <ChartHeader
-            title="Fee Percentile Bands"
-            sub={`P25 / P50 (median) / P75 / P95 · ${HOURS_LABEL[hours]}`}
-            note="Shaded band = interquartile range. Dashed = 95th percentile spike."
-          />
-          {percentiles.length
-            ? <FeePercentilesChart data={percentiles} />
-            : <Empty />
-          }
-        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-10 border-t border-border/50">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                  Daily Blob Volume by Rollup
+                </h4>
+                {dailyBreakdown.length ? <RollupVolumeAreaChart data={dailyBreakdown} /> : <Empty />}
+              </div>
+              <div className="lg:border-l lg:border-border/50 lg:pl-10">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                  Per-Rollup Fee Trend
+                </h4>
+                {rollupFee.length
+                  ? <RollupMetricLineChart data={rollupFee} mode="fee-wei" ethUsd={ethUsd ?? undefined} />
+                  : <Empty />
+                }
+              </div>
+            </div>
 
-        {/* Fee trend + Slot util */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Blob Base Fee Trend" sub={`Hourly avg · ${HOURS_LABEL[hours]}`} />
-            {market.length ? <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} /> : <Empty />}
-          </div>
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Slot Utilisation" sub={`Hourly avg % of max blob capacity · ${HOURS_LABEL[hours]}`} />
-            {market.length ? <SlotUtilizationChart data={market} /> : <Empty />}
-          </div>
-        </div>
+            <div className="pt-10 border-t border-border/50">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                Efficiency Scatter — Packing vs Timing
+              </h4>
+              {leaderboard.length ? <EfficiencyScatterplot data={leaderboard} /> : <Empty />}
+            </div>
 
-        {/* Regime heatmap + Regime timeline + Cumulative growth */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Regime Heatmap" sub={`Hour-by-hour market state · ${HOURS_LABEL[hours]}`} />
-            {market.length ? <RegimeHeatmap data={market} /> : <Empty />}
-          </div>
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Cumulative Blobs" sub="Running blob count (same window)" />
-            {market.length ? <CumulativeBlobGrowth data={market} /> : <Empty />}
-          </div>
-        </div>
+            <div className="pt-10 border-t border-border/50">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                DA Cost per Rollup
+              </h4>
+              {leaderboard.length ? <DACostCharts leaderboard={leaderboard} ethUsd={ethUsd} /> : <Empty />}
+            </div>
 
-        {/* Regime bar + Fee-blob scatter */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Regime Timeline" sub="Compact block-by-block view" />
-            {market.length ? <MarketRegimeTimeline data={market} /> : <Empty />}
-          </div>
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Fee vs Blob Volume Scatter" sub="Each point = 1 hour bucket" />
-            {market.length ? <FeeBlobScatter data={market} ethUsd={ethUsd} /> : <Empty />}
-          </div>
-        </div>
-
-        {/* Cost heatmap — hour of day × day */}
-        <div className="surface-elevated border border-border rounded-xl p-5">
-          <ChartHeader
-            title="Blob Cost Heatmap"
-            sub="Hour-of-day × day — find the cheapest submission windows"
-            note="Darker = higher fee. Use this to optimise when your rollup submits blobs."
-          />
-          {market.length && ethUsd
-            ? <CostHeatmap data={market} ethUsd={ethUsd} />
-            : <Empty />
-          }
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════
-          SECTION 2 · PER-ROLLUP DA BREAKDOWN
-      ═══════════════════════════════════════════════════════════ */}
-      <section className="space-y-5">
-        <SectionLabel icon={<BarChart3 className="w-4 h-4" />} title="Per-Rollup DA Cost Breakdown" />
-
-        {/* Summary cards + Donut */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <Label>Network Share</Label>
-            <div className="mt-3">
-              {leaderboard.length ? <RollupShareDonut data={leaderboard} /> : <Empty />}
+            <div className="pt-10 border-t border-border/50">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                Efficiency Leaderboard
+              </h4>
+              {leaderboard.length
+                ? <EfficiencyComparisonTable leaderboard={leaderboard} networkAvgGwei={networkAvgGwei} />
+                : <Empty label="No rollup data for this period" />
+              }
             </div>
           </div>
-          <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3 content-start">
-            <SummaryCard
-              label="Top Efficiency" accent="text-primary"
-              value={topEfficient?.rollup ?? "—"}
-              sub={topEfficient ? `Score ${Math.round(Number(topEfficient.efficiency_score))}` : ""}
-            />
-            <SummaryCard
-              label="Avg Packing" accent="text-blue-400"
-              value={avgPacking ? `${avgPacking}` : "—"}
-              sub="blobs per tx vs max-6"
-            />
-            <SummaryCard
-              label="Network Avg Fee" accent="text-orange-400"
-              value={networkAvgGwei ? `${networkAvgGwei.toFixed(3)} Gwei` : "—"}
-              sub="avg cost per blob"
-            />
-            <SummaryCard
-              label="Active Rollups" accent="text-green-400"
-              value={leaderboard.length.toString()}
-              sub={HOURS_LABEL[hours]}
-            />
-            <SummaryCard
-              label="Total Blobs" accent="text-purple-400"
-              value={totalBlobs ? totalBlobs.toLocaleString() : "—"}
-              sub="canonical blob txs"
-            />
-            <SummaryCard
-              label="Avg Timing Score" accent="text-teal-400"
-              value={leaderboard.length
-                ? `${Math.round(leaderboard.reduce((s, r) => s + Number(r.timing_score), 0) / leaderboard.length)}`
-                : "—"}
-              sub="cost vs network avg"
-            />
-          </div>
-        </div>
+        </PageSection>
 
-        {/* Hourly rollup activity stacked area */}
-        <div className="surface-elevated border border-border rounded-xl p-5">
-          <ChartHeader
-            title="Hourly Blob Activity by Rollup"
-            sub={`Top-8 rollups · ${HOURS_LABEL[hours]}`}
-            note="Each line = blobs per hour. Identify traffic spikes and quiet windows per rollup."
-          />
-          {rollupActivity.length
-            ? <RollupActivityLineChart data={rollupActivity} />
-            : <Empty />
-          }
-        </div>
-
-        {/* Daily stacked area + Per-rollup fee trend */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Daily Blob Volume by Rollup" sub={`Stacked area · ${days}d`} />
-            {dailyBreakdown.length ? <RollupVolumeAreaChart data={dailyBreakdown} /> : <Empty />}
-          </div>
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Per-Rollup Blob Fee Trend" sub={`Hourly avg fee per rollup · ${HOURS_LABEL[hours]}`} />
-            {rollupFee.length
-              ? <RollupMetricLineChart data={rollupFee} mode="fee-wei" ethUsd={ethUsd ?? undefined} />
-              : <Empty />
-            }
-          </div>
-        </div>
-
-        {/* Efficiency scatter + DA cost bar */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader
-              title="Efficiency Scatter"
-              sub="Packing score vs timing score per rollup"
-              note="Top-right = most efficient. Bubble size = total blobs."
-            />
-            {leaderboard.length ? <EfficiencyScatterplot data={leaderboard} /> : <Empty />}
-          </div>
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader
-              title="DA Cost per Rollup"
-              sub="Total ETH spent on blob DA · cost per megabyte"
-            />
-            {leaderboard.length ? <DACostCharts leaderboard={leaderboard} ethUsd={ethUsd} /> : <Empty />}
-          </div>
-        </div>
-
-        {/* Full efficiency table */}
-        <div className="surface-elevated border border-border rounded-xl p-5">
-          <ChartHeader
-            title="Efficiency Leaderboard"
-            sub={`Packing · timing · composite efficiency score · ${HOURS_LABEL[hours]}`}
-          />
-          {leaderboard.length
-            ? <EfficiencyComparisonTable leaderboard={leaderboard} networkAvgGwei={networkAvgGwei} />
-            : <Empty label="No rollup data for this period" />
-          }
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════
-          SECTION 3 · SUBMISSION TIMING
-      ═══════════════════════════════════════════════════════════ */}
-      <section className="space-y-5">
-        <SectionLabel icon={<Clock className="w-4 h-4" />} title="Rollup Submission Timing" />
-        <p className="text-sm text-text-secondary max-w-2xl">
-          When does each rollup post blobs relative to UTC hour? Darker cells = more blobs in that hour.
-          Use this to identify coordination patterns and find low-competition windows for cheaper DA.
-        </p>
-        <div className="surface-elevated border border-border rounded-xl p-5">
-          <ChartHeader
-            title="Blob Submissions by Hour of Day"
-            sub={`Top-8 rollups by volume · ${HOURS_LABEL[Math.min(hours, 720)]}`}
-            note="X axis = UTC hour. Y axis = rollup. Color intensity = blob count."
-          />
+        <PageSection
+          id="submission-timing"
+          label="Coordination"
+          title="Rollup Submission Timing"
+          description="When does each rollup post blobs relative to UTC hour?"
+          interpretation="Darker cells mean more blobs posted in that UTC hour. Rollups clustering in the same hours compete for the same fee window — gaps in the grid are low-competition windows worth targeting for cheaper DA."
+        >
           {timing.length ? <SubmissionTimingHeatmap data={timing} /> : <Empty />}
-        </div>
-      </section>
+        </PageSection>
 
-      {/* ═══════════════════════════════════════════════════════════
-          SECTION 4 · LONG-TERM TRENDS
-      ═══════════════════════════════════════════════════════════ */}
-      <section className="space-y-5">
-        <SectionLabel icon={<TrendingUp className="w-4 h-4" />} title="Long-Term Network Trends" />
-        <p className="text-sm text-text-secondary max-w-2xl">
-          All-time daily statistics from the first EIP-4844 blob (Dencun, March 2024) to now.
-        </p>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Daily Blob Volume" sub="All-time · blobs per day" />
-            {historical.length ? <HistoricalBlobVolumeChart data={historical} /> : <Empty />}
+        <PageSection
+          id="long-term-trends"
+          label="History"
+          title="Long-Term Network Trends"
+          description="All-time daily statistics from the first EIP-4844 blob (Dencun, March 2024) to now."
+        >
+          <div className="space-y-10">
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                Daily Blob Volume
+              </h4>
+              {historical.length ? <HistoricalBlobVolumeChart data={historical} /> : <Empty />}
+            </div>
+            <div className="pt-10 border-t border-border/50">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+                Daily Avg Blob Cost
+              </h4>
+              {historical.length ? <HistoricalBlobCostChart data={historical} /> : <Empty />}
+            </div>
           </div>
-          <div className="surface-elevated border border-border rounded-xl p-5">
-            <ChartHeader title="Daily Avg Blob Cost" sub="All-time · avg fee in Gwei per blob" />
-            {historical.length ? <HistoricalBlobCostChart data={historical} /> : <Empty />}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════
-          SECTION 5 · ALERTS
-      ═══════════════════════════════════════════════════════════ */}
-      <section className="space-y-4">
-        <SectionLabel icon={<Bell className="w-4 h-4" />} title="Regime Threshold Alerts" />
-        <p className="text-sm text-text-secondary max-w-2xl">
-          Subscribe your rollup ops team to webhook notifications when the blob market enters a
-          congested or spike regime. Alerts fire within one epoch of the regime change.
-        </p>
-        <RegimeAlertPanel />
-      </section>
-    </main>
+        </PageSection>
+      </div>
+    </div>
   );
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
-function SectionLabel({ icon, title }: { icon: React.ReactNode; title: string }) {
+function StatCard({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="flex items-center gap-2 border-b border-border pb-3">
-      <span className="text-primary">{icon}</span>
-      <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-text-primary">{title}</h2>
+    <div className="surface-elevated p-5 flex flex-col justify-between">
+      <span className="caption text-[11px] uppercase tracking-wider mb-2 block">{label}</span>
+      <span
+        className="font-mono font-bold text-text-primary text-2xl leading-tight truncate"
+        title={value}
+      >
+        {value}
+      </span>
+      <p className="text-[11px] text-text-secondary mt-3 opacity-70 truncate">{note}</p>
     </div>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary">{children}</p>;
-}
-
-function ChartHeader({ title, sub, note }: { title: string; sub: string; note?: string }) {
+function MiniStat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="mb-4">
-      <p className="text-sm font-semibold text-text-primary">{title}</p>
-      <p className="text-xs text-text-secondary">{sub}</p>
-      {note && <p className="text-[10px] text-text-secondary/60 mt-0.5 italic">{note}</p>}
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] text-text-secondary uppercase tracking-wide">{label}</p>
-      <p className="text-sm font-semibold text-text-primary">{value}</p>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, sub, accent }: {
-  label: string; value: string; sub: string; accent: string;
-}) {
-  return (
-    <div className="surface border border-border rounded-xl p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary">{label}</p>
-      <p className={`text-base font-bold mt-1 truncate ${accent}`}>{value}</p>
-      <p className="text-[10px] text-text-secondary mt-0.5">{sub}</p>
+    <div className="surface border border-border rounded-md p-3">
+      <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-60">{label}</p>
+      <p className="text-base font-bold text-text-primary mt-0.5">{value}</p>
+      <p className="text-[10px] text-text-secondary opacity-60">{sub}</p>
     </div>
   );
 }
 
 function Empty({ label = "No data for this period" }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center py-10 text-xs text-text-secondary">
-      <Zap className="w-4 h-4 mr-2 opacity-40" />
+    <div className="flex items-center justify-center py-10 text-xs text-text-secondary opacity-50 italic">
       {label}
     </div>
   );

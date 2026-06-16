@@ -40,6 +40,13 @@ export function HistoricalBlobCostChart({ data }: Props) {
 
   const points = data.map((d) => [new Date(d.day).getTime(), d.avg_fee_gwei === 0 ? null : d.avg_fee_gwei]);
 
+  // ECharts' log-axis "nice" auto-max blows up to absurd values (e.g. 1e10) when
+  // the data spans many orders of magnitude with no explicit max — pin it to the
+  // next power of 10 above the real data max instead of trusting the auto-scale.
+  const positiveValues = points.map((p) => p[1]).filter((v): v is number => typeof v === "number" && v > 0);
+  const dataMax = positiveValues.length ? Math.max(...positiveValues) : 1;
+  const axisMax = Math.pow(10, Math.ceil(Math.log10(dataMax)));
+
   const markAreaData = EPOCHS.map((e) => [
     {
       name: e.name,
@@ -77,6 +84,7 @@ export function HistoricalBlobCostChart({ data }: Props) {
       type: "log" as const,
       ...t.axis,
       min: "dataMin" as const,
+      max: axisMax,
       axisLabel: {
         ...t.axis.axisLabel,
         formatter: (v: number) => fmtFee(v),

@@ -113,17 +113,22 @@ export function RollupMetricLineChart({ data, mode, ethUsd }: Props) {
       type: 'scroll',
       icon: 'circle',
     },
-    grid: { 
+    grid: {
       ...t.gridDefaults,
-      top: 50, 
-      bottom: 60 
+      top: 50,
+      bottom: 70,
     },
     xAxis: {
       type: "category",
       data: hours.map((h) =>
         new Date(h).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       ),
-      axisLabel: { ...t.axis.axisLabel, interval: Math.floor(hours.length / 8) },
+      axisLabel: {
+        ...t.axis.axisLabel,
+        interval: Math.max(0, Math.floor(hours.length / 8)),
+        rotate: 30,
+        fontSize: 9,
+      },
       axisLine: t.axis.axisLine,
       axisTick: t.axis.axisTick,
     },
