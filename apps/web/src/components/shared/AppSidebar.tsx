@@ -128,6 +128,8 @@ const NAV_GROUPS: NavGroup[] = [
                 children: [
                     { label: 'Fee Market Health', sectionId: 'fee-market-health' },
                     { label: 'DA Cost Efficiency', sectionId: 'da-cost-efficiency' },
+                    { label: 'Submission Timing', sectionId: 'submission-timing' },
+                    { label: 'Long-Term Trends', sectionId: 'long-term-trends' },
                     { label: 'Regime Alerts', sectionId: 'regime-alerts' },
                 ],
             },
