@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import sql from "@/lib/db";
+import ch from "@/lib/clickhouse";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -99,10 +99,17 @@ export async function GET(req: NextRequest) {
   if (!Number.isInteger(blockNumber) || blockNumber <= 0)
     return Response.json({ error: "invalid block_number" }, { status: 400 });
 
-  // Fetch tx's blob versioned hashes from DB
-  const rows = await sql<{ blob_hashes: string[] }[]>`
-    SELECT blob_hashes FROM blob_transactions WHERE tx_hash = ${tx_hash} LIMIT 1
-  `;
+  // Fetch tx's blob versioned hashes from ClickHouse
+  const result = await ch.query({
+    query: `
+      SELECT blob_hashes FROM blob_lens.blob_transactions FINAL
+      WHERE tx_hash = {tx_hash:String} AND is_canonical = 1
+      LIMIT 1
+    `,
+    format: "JSONEachRow",
+    query_params: { tx_hash },
+  });
+  const rows = await result.json<{ blob_hashes: string[] }>();
   const knownHashes: Set<string> = new Set(rows[0]?.blob_hashes ?? []);
 
   // Try the computed slot and neighbours (handles missed slots)

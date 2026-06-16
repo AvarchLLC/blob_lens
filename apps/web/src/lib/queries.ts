@@ -1054,7 +1054,11 @@ export async function getDaMarketActivity(hours = 24): Promise<MarketHour[]> {
           toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee),
             blob_base_fee > 0 AND blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
           toUInt16(max(blob_count))                                              AS max_blobs_in_block,
-          round(avg(utilization) * 100, 2)                                      AS avg_utilization
+          round(avg(blob_gas_used / multiIf(
+            number >= 24833256, 2359296.0,
+            number >= 22431084, 1179648.0,
+            786432.0
+          )) * 100, 2)                                                          AS avg_utilization
         FROM ethereum.blocks
         WHERE is_deleted = 0 AND ethereum.blocks.blob_count > 0
           AND timestamp > now() - toIntervalHour({hours:UInt32})

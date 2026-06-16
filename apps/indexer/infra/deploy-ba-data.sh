@@ -4,10 +4,20 @@
 #
 # Steps:
 #   1. Start ClickHouse (Docker)
-#   2. Build the custom Reth+ExEx image
+#   2. Build the custom Reth+ExEx image (from apps/exex-node — this is the
+#      crate with the real Reth dependency; apps/indexer only has the
+#      backfill binary now, see apps/indexer/Cargo.toml)
 #   3. Stop the vanilla reth container
 #   4. Start the new blob-indexer container (same data dir, same ports)
-#   5. Optionally kick off the backfill job
+#   5. Backfill (Dencun → head historical catch-up) is run separately, NOT
+#      via this script or Docker — in practice it's built with
+#      `cargo build --release --bin backfill` from apps/indexer and run
+#      directly on the host (e.g. in a long-lived tmux session), since it's
+#      a one-shot/resumable catch-up job, not a perpetual service. The live
+#      ExEx container started in step 4 already keeps blob_lens.* AND
+#      ethereum.* fresh in real time on its own — backfill is only needed
+#      to fill in historical blocks from before the ExEx was first deployed,
+#      or after an extended downtime gap.
 #
 # Prerequisites: Docker installed, /ethereum/data/reth pre-synced with stock Reth.
 
@@ -15,7 +25,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 INFRA_DIR="$REPO_ROOT/apps/indexer/infra"
-INDEXER_DIR="$REPO_ROOT/apps/indexer"
+EXEX_NODE_DIR="$REPO_ROOT/apps/exex-node"
 ETH_DIR="/ethereum"
 
 echo "=== [1/5] Start ClickHouse ==="
@@ -28,7 +38,10 @@ done
 echo "ClickHouse ready."
 
 echo "=== [2/5] Build blob-indexer image ==="
-docker build -t blob-indexer:latest "$INDEXER_DIR"
+# apps/exex-node's Dockerfile just COPYs a pre-built binary (no builder
+# stage), so the release binary must exist on the host before building.
+(cd "$EXEX_NODE_DIR" && cargo build --release --bin blob-indexer)
+docker build -t blob-indexer:latest "$EXEX_NODE_DIR"
 
 echo "=== [3/5] Stop vanilla reth ==="
 # Graceful stop — Reth flushes DB on SIGTERM; give it 5 minutes
@@ -55,17 +68,20 @@ docker run -d \
     -e RUST_LOG="info,reth=warn" \
     blob-indexer:latest
 
-echo "=== [5/5] Optional: run backfill (Dencun → head) ==="
-echo "To start the backfill in the background, run:"
+echo "=== [5/5] Optional: run backfill (Dencun → head, or to fill a gap) ==="
+echo "The live ExEx container started above already keeps blob_lens.* and"
+echo "ethereum.* fresh going forward. Only run backfill if you need to fill"
+echo "in historical blocks (first deploy, or after extended downtime)."
+echo "It's a one-shot/resumable job, not a perpetual service — run it"
+echo "directly on the host, e.g. in tmux:"
 echo ""
-echo "  docker run -d --name backfill --network ethereum_eth-net \\"
-echo "    -e RETH_RPC=http://reth:8545 \\"
-echo "    -e CLICKHOUSE_URL=http://clickhouse:8123 \\"
-echo "    -e CLICKHOUSE_DB=blob_lens \\"
-echo "    -e CLICKHOUSE_USER=blob_lens \\"
-echo "    -e CLICKHOUSE_PASSWORD=changeme \\"
-echo "    -e BATCH_SIZE=200 \\"
-echo "    --entrypoint backfill \\"
-echo "    blob-indexer:latest"
+echo "  tmux new-session -d -s backfill"
+echo "  tmux send-keys -t backfill \\"
+echo "    'cd $REPO_ROOT/apps/indexer && \\"
+echo "     RETH_RPC=http://localhost:8545 \\"
+echo "     CLICKHOUSE_URL=http://localhost:8123 \\"
+echo "     CLICKHOUSE_DB=blob_lens CLICKHOUSE_USER=blob_lens \\"
+echo "     CLICKHOUSE_PASSWORD=changeme BATCH_SIZE=200 \\"
+echo "     cargo run --release --bin backfill' Enter"
 echo ""
 echo "Deploy complete. Watch logs: docker logs -f reth"
