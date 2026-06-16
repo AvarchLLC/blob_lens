@@ -1,7 +1,7 @@
 mod api;
 mod wallet_api;
 
-use blob_lens::{db, services::{alerts, blob_parser, rwa_indexer, eth_distribution, whale_indexer, ofac_sync, l1_cost_tracker, security_metrics, ai_analyst}};
+use blob_lens::{db, services::{alerts, rwa_indexer, eth_distribution, whale_indexer, ofac_sync, l1_cost_tracker, security_metrics, ai_analyst}};
 use dotenvy::dotenv;
 use std::env;
 use axum::Router;
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let app = Router::new()
             .merge(wallet_api::wallet_router(wallet_state))
-            .merge(api::api_router(pool_clone))
+            .merge(api::api_router())
             .layer(TraceLayer::new_for_http());
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
@@ -59,22 +59,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
         axum::serve(listener, app).await.unwrap();
-    });
-
-    // Start blob listener with auto-retry so the HTTP server stays alive
-    // even when the Alchemy WebSocket connection drops or errors.
-    let pool_for_blobs = pool.clone();
-    let blob_handle = tokio::spawn(async move {
-        let mut attempt: u32 = 0;
-        loop {
-            attempt += 1;
-            tracing::info!("Starting blob transaction listener (attempt {})...", attempt);
-            match blob_parser::fetch_blob(&pool_for_blobs).await {
-                Ok(_)  => tracing::warn!("Blob parser exited cleanly; reconnecting in 30s"),
-                Err(e) => tracing::error!("Blob parser error: {}; reconnecting in 30s", e),
-            }
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-        }
     });
 
     // Start persistent alert worker
@@ -126,10 +110,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Only the API server exiting should bring down the process.
-    // The blob handle is an infinite retry loop and never resolves.
     tokio::select! {
         _ = api_handle   => tracing::error!("API server stopped unexpectedly"),
-        _ = blob_handle  => tracing::error!("Blob parser task stopped unexpectedly"),
         _ = alert_handle => tracing::error!("Alert worker task stopped unexpectedly"),
         _ = rwa_handle   => tracing::error!("RWA indexer task stopped unexpectedly"),
         _ = eth_handle   => tracing::error!("ETH distribution indexer task stopped unexpectedly"),
