@@ -14,31 +14,40 @@ interface PageHeaderProps {
 export function PageHeader({ meta, title, summary, children, className }: PageHeaderProps) {
   return (
     <div className={cn("mb-10 animate-fade-up", className)}>
-      {meta && (
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-2 block">
-          {meta}
-        </span>
-      )}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
         <div className="max-w-3xl">
-          <h1 className="display-hero text-text-primary mb-4">
+          {meta && (
+            <p
+              className="mb-1"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.65rem',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--text-tertiary)',
+              }}
+            >
+              {meta}
+            </p>
+          )}
+          <h1 className="page-title">
             {title}
           </h1>
           {summary && (
-            <p className="body-large text-text-secondary leading-relaxed">
+            <p className="body-base text-text-secondary mt-1">
               {summary}
             </p>
           )}
         </div>
         {children && (
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 md:mt-2">
             {children}
           </div>
         )}
       </div>
       
       {/* Section Divider */}
-      <div className="h-px w-full bg-border mt-8" />
+      <div className="border-t border-border mt-6" />
     </div>
   );
 }

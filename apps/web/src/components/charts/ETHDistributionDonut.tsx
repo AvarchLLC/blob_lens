@@ -13,9 +13,9 @@ interface Props {
 const CAT_COLORS: Record<string, string> = {
   staked: "#00A86B",
   cex: "#3B82F6",
-  enterprise: "#F5A524",
-  bridges: "#8B5CF6",
-  other: "#71717A",
+  enterprise: "#E8A020",
+  bridges: "#5B8DB8",
+  other: "#52666E",
 };
 
 export function ETHDistributionDonut({ data }: Props) {

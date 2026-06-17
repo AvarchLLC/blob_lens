@@ -261,7 +261,7 @@ export function AppSidebar() {
                 {NAV_GROUPS.map((group) => (
                     <div key={group.label} className="mb-2">
                         {expanded && (
-                            <h3 className="px-5 mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary/50">
+                            <h3 className="sidebar-group-label">
                                 {group.label}
                             </h3>
                         )}
@@ -415,21 +415,11 @@ function NavItemRow({
                 href={item.href}
                 onClick={onMobileClose}
                 className={cn(
-                    "group relative flex items-center gap-3 py-2 rounded-lg mx-2 transition-all duration-200",
-                    expanded ? "px-3" : "justify-center px-0 mx-1",
-                    isActive
-                        ? "text-primary bg-primary/8"
-                        : "text-text-secondary hover:text-text-primary hover:bg-surface-elevated/50"
+                    "sidebar-nav-item group relative flex items-center gap-3 py-2 mx-2",
+                    !expanded && "justify-center px-0 mx-1"
                 )}
+                data-active={isActive ? "true" : "false"}
             >
-                {/* Active indicator bar */}
-                {(isActive || childActive) && (
-                    <motion.span
-                        layoutId="sidebar-active-indicator"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-r-full"
-                        transition={{ duration: 0.2, ease: 'easeInOut' }}
-                    />
-                )}
 
                 <Icon className={cn(
                     "h-[18px] w-[18px] shrink-0 transition-colors duration-200",
@@ -494,10 +484,10 @@ function NavItemRow({
                                                 onMobileClose();
                                             }}
                                             className={cn(
-                                                "block py-1.5 px-2.5 rounded-md text-[13px] transition-all duration-200",
+                                                "sidebar-sub-item block rounded-md transition-all duration-200",
                                                 isChildActive
-                                                    ? "text-primary font-semibold bg-primary/5"
-                                                    : "text-text-secondary/60 hover:text-text-primary hover:bg-surface-elevated/30"
+                                                    ? "text-primary font-semibold bg-primary/5 opacity-100"
+                                                    : "hover:text-text-primary hover:bg-surface-elevated/30"
                                             )}
                                         >
                                             <span className="flex items-center gap-2">

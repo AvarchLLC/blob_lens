@@ -8,7 +8,7 @@ import type { LeaderboardRow } from "@/types";
 
 const EFFICIENCY_COLORS = {
   excellent: "#00A86B",
-  good: "#F5A524",
+  good: "#E8A020",
   poor: "#E5484D",
 };
 

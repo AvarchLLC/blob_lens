@@ -40,10 +40,7 @@ export function EfficiencyComparisonTable({ leaderboard, networkAvgGwei }: Props
             const packing = Number(row.packing_score);
             const feeGwei = Number(row.cost_per_blob_gwei);
             const delta   = networkAvgGwei > 0 ? ((feeGwei - networkAvgGwei) / networkAvgGwei) * 100 : 0;
-            const scoreColor =
-              score >= 78 ? "var(--status-healthy)" :
-              score >= 52 ? "var(--status-warning)" :
-              "var(--status-critical)";
+            const scoreColor = "var(--primary)";
 
             return (
               <tr key={`${row.rollup}-${i}`} className="hover:bg-surface-elevated/30 transition-colors">

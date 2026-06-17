@@ -29,7 +29,7 @@ import {
   getRollupNetworkGraph,
   getRollupSparklines,
 } from "@/lib/queries";
-import { classifyRegime, formatNumber } from "@/lib/utils";
+import { classifyRegime, formatNumber, cn } from "@/lib/utils";
 import { LayoutGrid, Trophy, Activity, Network, BarChart2 } from "lucide-react";
 
 export const revalidate = 60;
@@ -86,93 +86,99 @@ export default async function OverviewPage() {
   return (
     <div className="animate-page-in space-y-8">
       {/* ── System Dashboard Header ── */}
-      <div className="p-6 glass-card-bordered border-glow rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 animate-fade-up">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[9px] font-mono tracking-[0.25em] text-primary uppercase">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            System Console // EIP-4844 Analytics
+      <div className="mb-10 animate-fade-up">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+          <div className="max-w-3xl">
+            <p
+              className="mb-1"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.65rem',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--text-tertiary)',
+              }}
+            >
+              System Console · EIP-4844 Analytics
+            </p>
+            <h1 className="page-title">DA Intelligence Console</h1>
+            <p className="body-base text-text-secondary mt-1" style={{ maxWidth: '560px', lineHeight: 1.5 }}>
+              Observing the Ethereum blob economy through real-time fee market health classification and rollup cost-efficiency scoring.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold text-text-primary tracking-tight font-display">
-            DA Intelligence Console
-          </h1>
-          <p className="text-xs text-text-secondary opacity-80 max-w-2xl leading-relaxed">
-            Observing the Ethereum blob economy through real-time fee market health classification and rollup cost-efficiency scoring.
-          </p>
+          
+          {/* Devcon Supporter Highlights Badge */}
+          <div className="flex flex-wrap items-center gap-2 md:mt-2 shrink-0">
+            <div className="px-3.5 py-2 bg-primary/10 border border-primary/20 rounded-xl text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+              <Trophy className="h-3.5 w-3.5" />
+              DA Cost-Efficiency Scoring
+            </div>
+            <div className="px-3.5 py-2 bg-accent/10 border border-accent/20 rounded-xl text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5" />
+              Live Market Health Monitoring
+            </div>
+          </div>
         </div>
-        
-        {/* Devcon Supporter Highlights Badge */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="px-3.5 py-2 bg-primary/10 border border-primary/20 rounded-xl text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-            <Trophy className="h-3.5 w-3.5" />
-            DA Cost-Efficiency Scoring
-          </div>
-          <div className="px-3.5 py-2 bg-accent/10 border border-accent/20 rounded-xl text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
-            <Activity className="h-3.5 w-3.5" />
-            Live Market Health Monitoring
-          </div>
-        </div>
+        <div className="border-t border-border mt-6" />
       </div>
 
       {/* ── Technical Diagnostics Metrics Strip ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-2 border-primary">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-secondary opacity-50">Ecosystem Efficiency</p>
-            <p className="font-mono text-2xl font-extrabold text-text-primary mt-1">
-              {leaderboard.length ? (leaderboard.reduce((s, r) => s + Number(r.efficiency_score), 0) / leaderboard.length).toFixed(0) : "—"}/100
-            </p>
-          </div>
-          <Trophy className="h-5 w-5 text-primary opacity-40" />
+        <div className="stat-card">
+          <p className="section-label">Ecosystem Efficiency</p>
+          <h2 className="metric-value">
+            {leaderboard.length ? (leaderboard.reduce((s, r) => s + Number(r.efficiency_score), 0) / leaderboard.length).toFixed(0) : "—"}/100
+          </h2>
+          <span className="caption text-text-secondary">composite score</span>
         </div>
         
-        <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-2 border-status-healthy">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-secondary opacity-50">Market Regime</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="h-2 w-2 rounded-full bg-status-healthy animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-wider text-text-primary">{currentRegime}</span>
-            </div>
-          </div>
-          <Activity className="h-5 w-5 text-status-healthy opacity-40" />
+        <div className="stat-card">
+          <p className="section-label">Market Regime</p>
+          <h2 className={cn(
+            "metric-value uppercase",
+            currentRegime === "undersaturated" && "text-status-neutral",
+            currentRegime === "healthy" && "text-status-healthy",
+            currentRegime === "congested" && "text-status-warning",
+            currentRegime === "spike" && "text-status-critical"
+          )}>
+            {currentRegime}
+          </h2>
+          <span className="caption text-text-secondary">EIP-4844 status</span>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-2 border-accent">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-secondary opacity-50">Current Base Fee</p>
-            <p className="font-mono text-2xl font-extrabold text-text-primary mt-1">
-              {latestFeeWei > 0 ? `${(latestFeeWei / 1e9).toFixed(3)} Gwei` : "—"}
-            </p>
-          </div>
-          <span className="font-mono text-xs font-extrabold text-accent opacity-50">WEI</span>
+        <div className="stat-card">
+          <p className="section-label">Current Base Fee</p>
+          <h2 className="metric-value">
+            {latestFeeWei > 0 ? `${(latestFeeWei / 1e9).toFixed(3)} Gwei` : "—"}
+          </h2>
+          <span className="caption text-text-secondary">network average</span>
         </div>
 
-        <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-2 border-purple-500">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-text-secondary opacity-50">Active Rollups</p>
-            <p className="font-mono text-2xl font-extrabold text-text-primary mt-1">
-              {activeRollups}
-            </p>
-          </div>
-          <LayoutGrid className="h-5 w-5 text-purple-500 opacity-40" />
+        <div className="stat-card">
+          <p className="section-label">Active Rollups</p>
+          <h2 className="metric-value">
+            {activeRollups}
+          </h2>
+          <span className="caption text-text-secondary">submitting data</span>
         </div>
       </div>
 
       {/* ── Console Tabs ── */}
       <Tabs defaultValue="overview" className="w-full space-y-8">
-        <TabsList className="bg-surface/60 backdrop-blur-md border border-border p-1.5 rounded-2xl h-16 flex items-center justify-start gap-1 overflow-x-auto custom-scrollbar">
-          <TabsTrigger value="overview" className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+        <TabsList className="flex items-center justify-start gap-0 border-b border-[var(--border-subtle)] overflow-x-auto custom-scrollbar h-12 bg-transparent rounded-none p-0">
+          <TabsTrigger value="overview" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="market" className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+          <TabsTrigger value="market" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
             Market Health
           </TabsTrigger>
-          <TabsTrigger value="efficiency" className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+          <TabsTrigger value="efficiency" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
             Cost Efficiency
           </TabsTrigger>
-          <TabsTrigger value="topology" className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+          <TabsTrigger value="topology" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
             Ecosystem Map
           </TabsTrigger>
-          <TabsTrigger value="feeds" className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner">
+          <TabsTrigger value="feeds" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
             Trends & Feeds
           </TabsTrigger>
         </TabsList>
@@ -380,7 +386,7 @@ export default async function OverviewPage() {
                   const score = Number(row.efficiency_score);
                   const packing = Number(row.packing_score);
                   const timing = Number(row.timing_score);
-                  const color = score >= 80 ? "var(--status-healthy)" : score >= 50 ? "var(--status-warning)" : "var(--status-critical)";
+                  const color = "var(--primary)";
                   const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
                   return (
                     <div key={`${row.rollup}-${idx}`} className="glass-card rounded-2xl p-5 border-l-2" style={{ borderLeftColor: color }}>
@@ -512,11 +518,11 @@ export default async function OverviewPage() {
             {/* Live block/transaction feeds */}
             <div className="glass-card rounded-2xl overflow-hidden flex flex-col min-h-[380px]">
               <Tabs defaultValue="blocks" className="w-full h-full flex flex-col">
-                <TabsList className="flex gap-1 p-2 bg-surface-elevated/50 border-b border-border rounded-none h-12 shrink-0">
-                  <TabsTrigger value="blocks" className="flex-1 rounded-md text-xs font-bold uppercase tracking-widest data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+                <TabsList className="flex gap-0 bg-transparent border-b border-[var(--border-subtle)] rounded-none h-11 shrink-0 p-0">
+                  <TabsTrigger value="blocks" className="flex-1 rounded-none text-xs font-bold uppercase tracking-widest -mb-px border-b-2 border-transparent text-text-secondary data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none transition-all">
                     Recent Blocks
                   </TabsTrigger>
-                  <TabsTrigger value="transactions" className="flex-1 rounded-md text-xs font-bold uppercase tracking-widest data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+                  <TabsTrigger value="transactions" className="flex-1 rounded-none text-xs font-bold uppercase tracking-widest -mb-px border-b-2 border-transparent text-text-secondary data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none transition-all">
                     Live Transactions
                   </TabsTrigger>
                 </TabsList>

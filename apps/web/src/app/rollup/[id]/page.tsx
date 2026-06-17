@@ -21,9 +21,9 @@ interface Props {
 }
 
 const REGIME_COLOR: Record<string, string> = {
-  undersaturated: "#71717A",
+  undersaturated: "#52666E",
   healthy: "#00A86B",
-  congested: "#F5A524",
+  congested: "#E8A020",
   spike: "#E5484D",
 };
 
