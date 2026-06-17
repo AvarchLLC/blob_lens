@@ -19,7 +19,7 @@ async fn update_security_metrics(pool: &Pool<Postgres>) -> eyre::Result<()> {
     let client = Client::new();
     
     // 1. L1 (Ethereum) metrics from Beacon API
-    let beacon_url = env::var("BEACON_RPC_URL").unwrap_or_else(|_| "https://eth-mainnet.g.alchemy.com/v2/".to_string());
+    let beacon_url = env::var("BEACON_RPC_URL").unwrap_or_else(|_| "https://ethereum-mainnet-beacon.publicnode.com".to_string());
     
     let validator_count = match client.get(format!("{}/eth/v1/beacon/states/head/validators", beacon_url)).send().await {
         Ok(resp) => {

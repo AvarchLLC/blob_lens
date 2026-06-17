@@ -523,8 +523,8 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
         <div className="max-w-6xl mx-auto px-6">
           <motion.div variants={fadeUp} className="text-center mb-16">
             <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary mb-3 block">Capabilities</span>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Two Gaps. One Platform.</h2>
-            <p className="text-text-secondary/60 max-w-lg mx-auto">Closing the critical observability gaps across the full DA layer.</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Complete Observability. One Platform.</h2>
+            <p className="text-text-secondary/60 max-w-lg mx-auto">Providing unified visibility and real-time intelligence across the full DA layer.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

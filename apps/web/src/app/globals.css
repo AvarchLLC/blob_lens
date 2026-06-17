@@ -272,6 +272,49 @@
   .chart-footer-time {
     font-family: var(--font-mono);
   }
+
+  /* ── Premium Card Styles & Glows ── */
+  .glow-card {
+    position: relative;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.25);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .glow-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0, 167, 181, 0.08), 0 0 0 1px rgba(0, 167, 181, 0.15);
+  }
+
+  .glass-card {
+    background: rgba(15, 21, 25, 0.7);
+    backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(30, 45, 51, 0.5);
+  }
+  
+  .glass-card-bordered {
+    background: rgba(21, 29, 34, 0.75);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 167, 181, 0.2);
+  }
+
+  .border-glow {
+    box-shadow: 0 0 15px rgba(0, 167, 181, 0.08);
+  }
+
+  .light .glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(212, 224, 227, 0.6);
+  }
+
+  .light .glass-card-bordered {
+    background: rgba(243, 248, 248, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 138, 150, 0.25);
+  }
+
+  .light .glow-card:hover {
+    box-shadow: 0 12px 30px rgba(0, 138, 150, 0.06), 0 0 0 1px rgba(0, 138, 150, 0.15);
+  }
 }
 
 /* ── Custom Utilities ── */

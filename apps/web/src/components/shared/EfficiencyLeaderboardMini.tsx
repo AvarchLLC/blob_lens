@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { RollupBadge } from '@/components/shared/RollupBadge';
 import { BlobSparkline } from '@/components/charts/BlobSparkline';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { LeaderboardRow, SparklinePoint } from '@/types';
 import { ArrowRight } from 'lucide-react';
 
@@ -45,9 +46,12 @@ export function EfficiencyLeaderboardMini({ leaderboard, sparklines }: Props) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">
-          Top Performers
-        </h4>
+        <div className="flex items-center gap-1.5">
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">
+            Top Performers
+          </h4>
+          <InfoTooltip content="Top 5 rollups ranked by their composite DA cost-efficiency score (70% packing density + 30% timing efficiency)." side="right" />
+        </div>
         <Link
           href="/leaderboard"
           className="flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary-hover transition-colors uppercase tracking-wider"
@@ -66,7 +70,7 @@ export function EfficiencyLeaderboardMini({ leaderboard, sparklines }: Props) {
 
           return (
             <div
-              key={row.rollup}
+              key={`${row.rollup}-${idx}`}
               className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-surface-elevated/50 transition-colors group"
             >
               {/* Rank */}
