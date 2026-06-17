@@ -45,24 +45,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start API server on port 8080
     let api_handle = tokio::spawn(async move {
-        let wallet_state = wallet_api::WalletState {
+        let wallet_state = Arc::new(wallet_api::WalletState {
             ch:       ch_client,
             pool:     pool_clone.clone(),
             reth_rpc,
-        };
+        });
         let auth_state = Arc::new(api_auth::AuthState { pool: pool_clone.clone() });
 
-        // Wallet routes require a valid API key (except /ping and /admin/new-key
-        // which have their own auth via X-Admin-Secret).
-        let wallet_routes = wallet_api::wallet_router(wallet_state)
+        let protected_wallet = wallet_api::wallet_protected_router(wallet_state.clone())
             .route_layer(middleware::from_fn_with_state(
                 auth_state,
                 api_auth::require_api_key,
             ));
 
         let app = Router::new()
-            .merge(wallet_routes)
-            .merge(api::api_router())    // /health — no auth
+            .merge(wallet_api::wallet_public_router(wallet_state))
+            .merge(protected_wallet)
+            .merge(api::api_router())
             .layer(TraceLayer::new_for_http());
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
