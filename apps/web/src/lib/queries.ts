@@ -209,11 +209,11 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           count()                                        AS tx_count,
           sum(num_blobs)                                 AS total_blobs,
           avg(num_blobs)                                 AS avg_blobs_per_tx,
-          toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+          toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
           max(block_timestamp)                           AS last_seen_ts,
-          sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
+          sum(if(blob_base_fee < 1000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
           least(100, avg(num_blobs) / 6.0 * 100)        AS packing_score,
-          ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
+          ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
         FROM ethereum.transactions
         WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
@@ -226,7 +226,7 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
       ) wt
       CROSS JOIN (
-        SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000) AS network_avg_fee
+        SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000) AS network_avg_fee
         FROM ethereum.transactions
         WHERE is_deleted = 0 AND tx_type = 3 AND rollup != ''
           AND block_timestamp > now() - toIntervalHour({hours:UInt32})
@@ -313,9 +313,9 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
         toString(toStartOfHour(bt.block_timestamp))                   AS hour,
         count()                                                        AS tx_count,
         sum(bt.num_blobs)                                              AS blob_count,
-        toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+        toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
-        round(avg(bbs.blob_gas_used / if(bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
+        round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM ethereum.transactions AS bt FINAL
       LEFT JOIN (
         SELECT number AS block_number, blob_base_fee, blob_count, ifNull(blob_gas_used, 0) AS blob_gas_used
@@ -343,9 +343,9 @@ export async function getPerRollupFeeActivity(
         toString(toStartOfHour(bt.block_timestamp))                   AS hour,
         count()                                                        AS tx_count,
         sum(bt.num_blobs)                                              AS blob_count,
-        toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000000000), 0.0))) AS avg_fee,
+        toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
-        round(avg(bbs.blob_gas_used / if(bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
+        round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM ethereum.transactions AS bt FINAL
       LEFT JOIN (
         SELECT number AS block_number, blob_base_fee, blob_count, ifNull(blob_gas_used, 0) AS blob_gas_used
@@ -501,7 +501,7 @@ export async function getHourlyRollupFee(
       SELECT
         rollup,
         toString(toStartOfHour(block_timestamp))                AS hour,
-        ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee > 0 AND blob_base_fee < 1000000000000000000), 0.0) AS value
+        ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee > 0 AND blob_base_fee < 1000000000000), 0.0) AS value
       FROM ethereum.transactions
       INNER JOIN (
         SELECT rollup, sum(num_blobs) as total
@@ -611,9 +611,9 @@ export async function getRollupNetworkGraph(hours = 24): Promise<RollupNetworkGr
       SELECT
         rollup                                                          AS name,
         sum(num_blobs)                                                  AS value,
-        ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000), 0.0) / 1e9 AS avgFeeGwei,
+        ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0) / 1e9 AS avgFeeGwei,
         count()                                                         AS txCount,
-        sum(if(blob_base_fee < 1000000000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS costEth,
+        sum(if(blob_base_fee < 1000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS costEth,
         least(100, greatest(0,
           0.70 * least(100, avg(num_blobs) / 6.0 * 100) + 0.30 * 50.0
         ))                                                              AS efficiency
@@ -729,7 +729,7 @@ export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
         SELECT
           block_number,
           sum(num_blobs) AS blobs_in_block,
-          avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000000000) / 1e9 AS fee_gwei,
+          avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000) / 1e9 AS fee_gwei,
           multiIf(block_number < 22431084, 'Dencun',
                    block_number < 24833256, 'Pectra',
                    'Fusaka') AS epoch,
