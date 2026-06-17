@@ -451,9 +451,9 @@ pub fn wallet_router(state: WalletState) -> Router {
     Router::new()
         .route("/api/wallet/ping",              get(wallet_ping))
         .route("/api/wallet/admin/new-key",     post(admin_new_key))
-        .route("/api/wallet/{address}",         get(wallet_summary))
-        .route("/api/wallet/{address}/txs",     get(wallet_txs))
-        .route("/api/wallet/{address}/tokens",  get(wallet_tokens))
-        .route("/api/wallet/{address}/rollups", get(wallet_rollups))
+        .route("/api/wallet/:address",          get(wallet_summary))
+        .route("/api/wallet/:address/txs",      get(wallet_txs))
+        .route("/api/wallet/:address/tokens",   get(wallet_tokens))
+        .route("/api/wallet/:address/rollups",  get(wallet_rollups))
         .with_state(Arc::new(state))
 }
