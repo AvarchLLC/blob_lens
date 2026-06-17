@@ -366,6 +366,46 @@ pub async fn init_pool(database_url: &str) -> Result<Pool<Postgres>> {
     .execute(&pool)
     .await?;
 
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id            BIGSERIAL PRIMARY KEY,
+            key_hash      TEXT    NOT NULL UNIQUE,
+            key_prefix    TEXT    NOT NULL,
+            tier          TEXT    NOT NULL DEFAULT 'free',
+            daily_limit   INTEGER NOT NULL DEFAULT 100,
+            owner_email   TEXT,
+            requests_today INTEGER NOT NULL DEFAULT 0,
+            reset_date    DATE    NOT NULL DEFAULT CURRENT_DATE,
+            is_active     BOOLEAN NOT NULL DEFAULT true,
+            created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+        )"#)
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS api_usage_logs (
+            id           BIGSERIAL PRIMARY KEY,
+            key_id       BIGINT REFERENCES api_keys(id),
+            endpoint     TEXT NOT NULL,
+            status_code  SMALLINT NOT NULL,
+            response_ms  INTEGER,
+            requested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )"#)
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        r#"CREATE INDEX IF NOT EXISTS idx_api_usage_key_time ON api_usage_logs(key_id, requested_at DESC)"#,
+    )
+    .execute(&pool)
+    .await?;
+
     Ok(pool)
 }
 

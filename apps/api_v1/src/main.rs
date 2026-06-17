@@ -1,11 +1,12 @@
 mod api;
+mod api_auth;
 mod wallet_api;
 
 use blob_lens::{db, services::{alerts, rwa_indexer, eth_distribution, whale_indexer, ofac_sync, l1_cost_tracker, security_metrics, ai_analyst}};
 use dotenvy::dotenv;
 use std::env;
-use axum::Router;
-use std::net::SocketAddr;
+use axum::{middleware, Router};
+use std::{net::SocketAddr, sync::Arc};
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
@@ -49,9 +50,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             pool:     pool_clone.clone(),
             reth_rpc,
         };
+        let auth_state = Arc::new(api_auth::AuthState { pool: pool_clone.clone() });
+
+        // Wallet routes require a valid API key (except /ping and /admin/new-key
+        // which have their own auth via X-Admin-Secret).
+        let wallet_routes = wallet_api::wallet_router(wallet_state)
+            .route_layer(middleware::from_fn_with_state(
+                auth_state,
+                api_auth::require_api_key,
+            ));
+
         let app = Router::new()
-            .merge(wallet_api::wallet_router(wallet_state))
-            .merge(api::api_router())
+            .merge(wallet_routes)
+            .merge(api::api_router())    // /health — no auth
             .layer(TraceLayer::new_for_http());
 
         let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
