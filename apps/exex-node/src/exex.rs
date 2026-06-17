@@ -116,7 +116,10 @@ where
                 let block_hash      = format!("{:#x}", *sealed_hdr.hash_ref());
                 let block_timestamp = sealed_hdr.timestamp() as u32;
                 let blob_count      = (blob_gas_used / 131_072) as u16;
-                let utilization     = if blob_gas_used == 0 { 0.0 } else { blob_gas_used as f64 / 786_432.0 };
+                let max_blob_gas    = if block_num >= 24_833_256 { 2_359_296.0_f64 }
+                                      else if block_num >= 22_431_084 { 1_179_648.0_f64 }
+                                      else { 786_432.0_f64 };
+                let utilization     = if blob_gas_used == 0 { 0.0 } else { blob_gas_used as f64 / max_blob_gas };
                 let base_fee_u64    = sealed_hdr.base_fee_per_gas().map(|f| f as u64);
                 let block_nonce     = sealed_hdr.nonce().map(|n| u64::from_be_bytes(*n)).unwrap_or(0);
 
@@ -556,7 +559,10 @@ async fn process_chain(
         let block_hash      = format!("{:#x}", block.hash());
         let block_timestamp = block.timestamp() as u32;
         let blob_count      = (blob_gas_used / 131_072) as u16;
-        let utilization     = if blob_gas_used == 0 { 0.0 } else { blob_gas_used as f64 / 786_432.0 };
+        let max_blob_gas    = if block_number >= 24_833_256 { 2_359_296.0_f64 }
+                              else if block_number >= 22_431_084 { 1_179_648.0_f64 }
+                              else { 786_432.0_f64 };
+        let utilization     = if blob_gas_used == 0 { 0.0 } else { blob_gas_used as f64 / max_blob_gas };
         let base_fee_u64    = block.base_fee_per_gas().map(|f| f as u64);
         let tx_count        = block.body().transactions().count() as u32;
         let block_nonce     = block.nonce().map(|n| u64::from_be_bytes(*n)).unwrap_or(0);
