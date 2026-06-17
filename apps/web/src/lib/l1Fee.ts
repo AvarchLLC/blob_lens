@@ -2,6 +2,8 @@ const BLOCKS_PER_HOUR = 300;
 const BLOCKS_PER_CHUNK = 1024;
 
 function getRpcUrl(): string {
+  const custom = process.env.RPC_URL || process.env.RETH_RPC;
+  if (custom) return custom;
   const key = process.env.ALCHEMY_KEY;
   if (key) return `https://eth-mainnet.g.alchemy.com/v2/${key}`;
   return "https://cloudflare-eth.com";

@@ -318,7 +318,7 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
         round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM blob_lens.blob_transactions AS bt FINAL
       LEFT JOIN (
-        SELECT block_number, blob_count, ifNull(blob_gas_used, 0) AS blob_gas_used
+        SELECT block_number, blob_count, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used
         FROM blob_lens.block_blob_stats FINAL
         WHERE is_canonical = 1
       ) bbs ON bbs.block_number = bt.block_number
@@ -348,7 +348,7 @@ export async function getPerRollupFeeActivity(
         round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM blob_lens.blob_transactions AS bt FINAL
       LEFT JOIN (
-        SELECT block_number, blob_count, ifNull(blob_gas_used, 0) AS blob_gas_used
+        SELECT block_number, blob_count, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used
         FROM blob_lens.block_blob_stats FINAL
         WHERE is_canonical = 1
       ) bbs ON bbs.block_number = bt.block_number

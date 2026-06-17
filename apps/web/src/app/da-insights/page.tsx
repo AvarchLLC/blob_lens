@@ -156,7 +156,7 @@ export default async function DaInsightsPage({
 
           <PageSection
             id="fee-market-health"
-            label="Gap 1 · Market Health"
+            label="Market Health Monitoring"
             title="Blob Fee Market Health"
             description={`Regime classification, fee distribution and slot utilisation over the last ${HOURS_LABEL[hours]}.`}
             interpretation="The percentile band shows how spread out fees were within each hour — a wide band or a P95 that detaches from the median signals bursty, uncoordinated submissions. Use the cost heatmap below to find the cheapest hour-of-day / day-of-week window to post blobs."
@@ -269,7 +269,7 @@ export default async function DaInsightsPage({
 
         <PageSection
           id="da-cost-efficiency"
-          label="Gap 2 · Cost Efficiency Scoring"
+          label="DA Cost-Efficiency Scoring"
           title="Per-Rollup DA Cost Breakdown"
           description="Packing, timing and composite efficiency scores per rollup — the metrics that don't exist anywhere else today."
           interpretation="Packing score rewards rollups that fill blobs close to the 6-blob max per tx (fewer, fuller batches = cheaper DA per byte). Timing score rewards posting when network fees are below average. Efficiency score blends both (70% packing / 30% timing) into one comparable number across rollups."

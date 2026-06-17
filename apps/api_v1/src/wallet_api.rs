@@ -163,8 +163,8 @@ async fn wallet_summary(
 
         state.ch.query(
             "SELECT uniqExact(token_address) AS token_count
-             FROM ethereum.erc20_transfers
-             WHERE from_address = {addr:String} OR to_address = {addr:String}"
+             FROM blob_lens.erc20_by_addr
+             WHERE addr = {addr:String}"
         ).param("addr", addr.as_str()).fetch_optional::<TokenCountRow>(),
 
         state.ch.query(
@@ -336,8 +336,8 @@ async fn wallet_tokens(
            countIf(from_address = {addr:String}) AS transfers_out,
            count()                               AS total_transfers,
            toString(max(block_timestamp))        AS last_transfer
-         FROM ethereum.erc20_transfers
-         WHERE from_address = {addr:String} OR to_address = {addr:String}
+         FROM blob_lens.erc20_by_addr
+         WHERE addr = {addr:String}
          GROUP BY token_address
          ORDER BY total_transfers DESC
          LIMIT 50"
