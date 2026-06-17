@@ -383,7 +383,7 @@ export default async function OverviewPage() {
                   const color = score >= 80 ? "var(--status-healthy)" : score >= 50 ? "var(--status-warning)" : "var(--status-critical)";
                   const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
                   return (
-                    <div key={row.rollup} className="glass-card rounded-2xl p-5 border-l-2" style={{ borderLeftColor: color }}>
+                    <div key={`${row.rollup}-${idx}`} className="glass-card rounded-2xl p-5 border-l-2" style={{ borderLeftColor: color }}>
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{medal}</span>

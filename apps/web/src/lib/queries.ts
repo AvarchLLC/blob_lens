@@ -177,66 +177,155 @@ export async function getOverviewStats(): Promise<OverviewStats> {
 }
 
 export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
-  const result = await ch.query({
-    query: `
-      SELECT
-        b.rollup,
-        b.tx_count,
-        b.total_blobs,
-        b.avg_blobs_per_tx,
-        b.avg_fee,
-        toString(b.last_seen_ts) AS last_seen,
-        b.da_cost_eth,
-        b.packing_score,
-        b.total_blobs / greatest(wt.total_blobs_all, 1) * 100 AS network_share_pct,
-        b.cost_per_blob_gwei,
-        NULL AS avg_fullness_pct,
-        0    AS ghost_blob_count,
-        NULL AS total_bytes_used,
-        NULL AS cost_per_byte_eth,
-        least(100, greatest(0,
-          (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
-        )) AS timing_score,
-        least(100, greatest(0,
-          0.70 * b.packing_score + 0.30 * least(100, greatest(0,
-            (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
-          ))
-        )) AS efficiency_score,
-        0.0 AS coordination_score
-      FROM (
+  try {
+    const chPromise = ch.query({
+      query: `
         SELECT
-          rollup,
-          count()                                        AS tx_count,
-          sum(num_blobs)                                 AS total_blobs,
-          avg(num_blobs)                                 AS avg_blobs_per_tx,
-          toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
-          max(block_timestamp)                           AS last_seen_ts,
-          sum(if(blob_base_fee < 1000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
-          least(100, avg(num_blobs) / 6.0 * 100)        AS packing_score,
-          ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != ''
-          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-        GROUP BY (rollup)
-      ) b
-      CROSS JOIN (
-        SELECT sum(num_blobs) AS total_blobs_all
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != ''
-          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      ) wt
-      CROSS JOIN (
-        SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000) AS network_avg_fee
-        FROM blob_lens.blob_transactions FINAL
-        WHERE is_canonical = 1 AND rollup != ''
-          AND block_timestamp > now() - toIntervalHour({hours:UInt32})
-      ) na
-      ORDER BY total_blobs DESC
-    `,
-    format: "JSONEachRow",
-    query_params: { hours },
-  });
-  return result.json<LeaderboardRow>();
+          b.rollup AS rollup,
+          b.tx_count,
+          b.total_blobs,
+          b.avg_blobs_per_tx,
+          b.avg_fee,
+          toString(b.last_seen_ts) AS last_seen,
+          b.da_cost_eth,
+          b.packing_score,
+          b.total_blobs / greatest(wt.total_blobs_all, 1) * 100 AS network_share_pct,
+          b.cost_per_blob_gwei,
+          NULL AS avg_fullness_pct,
+          0    AS ghost_blob_count,
+          NULL AS total_bytes_used,
+          NULL AS cost_per_byte_eth,
+          least(100, greatest(0,
+            (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
+          )) AS timing_score,
+          least(100, greatest(0,
+            0.70 * b.packing_score + 0.30 * least(100, greatest(0,
+              (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
+            ))
+          )) AS efficiency_score,
+          ifNull(c.coordination_score, 0.0) AS coordination_score
+        FROM (
+          SELECT
+            rollup,
+            count()                                        AS tx_count,
+            sum(num_blobs)                                 AS total_blobs,
+            avg(num_blobs)                                 AS avg_blobs_per_tx,
+            toString(toUInt64(ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
+            max(block_timestamp)                           AS last_seen_ts,
+            sum(if(blob_base_fee < 1000000000000, toFloat64(num_blobs) * toFloat64(blob_base_fee), 0)) * 131072.0 / 1e18 AS da_cost_eth,
+            least(100, avg(num_blobs) / 6.0 * 100)        AS packing_score,
+            ifNotFinite(avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000), 0.0) / 1e9 AS cost_per_blob_gwei
+          FROM blob_lens.blob_transactions FINAL
+          WHERE is_canonical = 1 AND rollup != ''
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+          GROUP BY (rollup)
+        ) b
+        CROSS JOIN (
+          SELECT sum(num_blobs) AS total_blobs_all
+          FROM blob_lens.blob_transactions FINAL
+          WHERE is_canonical = 1 AND rollup != ''
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        ) wt
+        CROSS JOIN (
+          SELECT avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000) AS network_avg_fee
+          FROM blob_lens.blob_transactions FINAL
+          WHERE is_canonical = 1 AND rollup != ''
+            AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+        ) na
+        LEFT JOIN (
+          SELECT
+            rollup,
+            avg(co_occurrence_pct) AS coordination_score
+          FROM (
+            SELECT
+              a.rollup AS rollup,
+              b.rollup AS peer,
+              least(100.0, count() / greatest(total.total_blocks, 1) * 100.0) AS co_occurrence_pct
+            FROM (
+              SELECT block_number, rollup
+              FROM blob_lens.blob_transactions FINAL
+              WHERE is_canonical = 1 AND rollup != ''
+                AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+              GROUP BY block_number, rollup
+            ) AS a
+            JOIN (
+              SELECT block_number, rollup
+              FROM blob_lens.blob_transactions FINAL
+              WHERE is_canonical = 1 AND rollup != ''
+                AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+              GROUP BY block_number, rollup
+            ) AS b ON a.block_number = b.block_number AND a.rollup != b.rollup
+            CROSS JOIN (
+              SELECT uniqExact(block_number) AS total_blocks
+              FROM blob_lens.blob_transactions FINAL
+              WHERE is_canonical = 1
+                AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+            ) AS total
+            GROUP BY a.rollup, b.rollup, total.total_blocks
+          )
+          GROUP BY \`rollup\`
+        ) c ON b.rollup = c.rollup
+        ORDER BY total_blobs DESC
+      `,
+      format: "JSONEachRow",
+      query_params: { hours },
+    });
+
+    const pgPromise = sql<{
+      rollup: string;
+      avg_fullness_pct: number | null;
+      ghost_blob_count: number;
+      total_bytes_used: string | null;
+      cost_per_byte_eth: number | null;
+    }[]>`
+      SELECT
+        rollup,
+        AVG(fullness_ratio) * 100 AS avg_fullness_pct,
+        COUNT(CASE WHEN is_ghost_blob THEN 1 END)::int AS ghost_blob_count,
+        SUM(bytes_used)::bigint AS total_bytes_used,
+        SUM(num_blobs * blob_base_fee) * 131072.0 / 1e18 / GREATEST(SUM(bytes_used), 1) AS cost_per_byte_eth
+      FROM blob_transactions
+      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
+        AND rollup IS NOT NULL AND rollup != ''
+      GROUP BY rollup
+    `.catch((e) => {
+      console.error("Failed to query Postgres beacon metrics:", e);
+      return [];
+    });
+
+    const [chResult, pgRows] = await Promise.all([chPromise, pgPromise]);
+    const chRows = await chResult.json<LeaderboardRow>();
+
+    const postgresMetrics: Record<string, {
+      avg_fullness_pct: number | null;
+      ghost_blob_count: number;
+      total_bytes_used: number | null;
+      cost_per_byte_eth: number | null;
+    }> = {};
+
+    for (const r of pgRows) {
+      postgresMetrics[r.rollup] = {
+        avg_fullness_pct: r.avg_fullness_pct != null ? Number(r.avg_fullness_pct) : null,
+        ghost_blob_count: Number(r.ghost_blob_count || 0),
+        total_bytes_used: r.total_bytes_used != null ? Number(r.total_bytes_used) : null,
+        cost_per_byte_eth: r.cost_per_byte_eth != null ? Number(r.cost_per_byte_eth) : null,
+      };
+    }
+
+    return chRows.map((row) => {
+      const pg = postgresMetrics[row.rollup];
+      return {
+        ...row,
+        avg_fullness_pct: pg?.avg_fullness_pct ?? null,
+        ghost_blob_count: pg?.ghost_blob_count ?? 0,
+        total_bytes_used: pg?.total_bytes_used ?? null,
+        cost_per_byte_eth: pg?.cost_per_byte_eth ?? null,
+      };
+    });
+  } catch (e) {
+    console.error("getLeaderboard error:", e);
+    return [];
+  }
 }
 
 export async function getForecastData(): Promise<ForecastData | null> {
@@ -1090,10 +1179,10 @@ export async function getDaMarketActivity(hours = 24): Promise<MarketHour[]> {
 // index on tx_type, so filtering tx_type=3 there forces a full partition scan.
 export async function getDaLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
   try {
-    const result = await ch.query({
+    const chPromise = ch.query({
       query: `
         SELECT
-          b.rollup,
+          b.rollup AS rollup,
           b.tx_count,
           b.total_blobs,
           b.avg_blobs_per_tx,
@@ -1115,7 +1204,7 @@ export async function getDaLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
               (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
             ))
           )) AS efficiency_score,
-          0.0 AS coordination_score
+          ifNull(c.coordination_score, 0.0) AS coordination_score
         FROM (
           SELECT
             rollup,
@@ -1144,12 +1233,96 @@ export async function getDaLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           WHERE is_canonical = 1 AND rollup != ''
             AND block_timestamp > now() - toIntervalHour({hours:UInt32})
         ) na
+        LEFT JOIN (
+          SELECT
+            rollup,
+            avg(co_occurrence_pct) AS coordination_score
+          FROM (
+            SELECT
+              a.rollup AS rollup,
+              b.rollup AS peer,
+              least(100.0, count() / greatest(total.total_blocks, 1) * 100.0) AS co_occurrence_pct
+            FROM (
+              SELECT block_number, rollup
+              FROM blob_lens.blob_transactions FINAL
+              WHERE is_canonical = 1 AND rollup != ''
+                AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+              GROUP BY block_number, rollup
+            ) AS a
+            JOIN (
+              SELECT block_number, rollup
+              FROM blob_lens.blob_transactions FINAL
+              WHERE is_canonical = 1 AND rollup != ''
+                AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+              GROUP BY block_number, rollup
+            ) AS b ON a.block_number = b.block_number AND a.rollup != b.rollup
+            CROSS JOIN (
+              SELECT uniqExact(block_number) AS total_blocks
+              FROM blob_lens.blob_transactions FINAL
+              WHERE is_canonical = 1
+                AND block_timestamp > now() - toIntervalHour({hours:UInt32})
+            ) AS total
+            GROUP BY a.rollup, b.rollup, total.total_blocks
+          )
+          GROUP BY \`rollup\`
+        ) c ON b.rollup = c.rollup
         ORDER BY total_blobs DESC
       `,
       format: "JSONEachRow",
       query_params: { hours },
     });
-    return result.json<LeaderboardRow>();
+
+    const pgPromise = sql<{
+      rollup: string;
+      avg_fullness_pct: number | null;
+      ghost_blob_count: number;
+      total_bytes_used: string | null;
+      cost_per_byte_eth: number | null;
+    }[]>`
+      SELECT
+        rollup,
+        AVG(fullness_ratio) * 100 AS avg_fullness_pct,
+        COUNT(CASE WHEN is_ghost_blob THEN 1 END)::int AS ghost_blob_count,
+        SUM(bytes_used)::bigint AS total_bytes_used,
+        SUM(num_blobs * blob_base_fee) * 131072.0 / 1e18 / GREATEST(SUM(bytes_used), 1) AS cost_per_byte_eth
+      FROM blob_transactions
+      WHERE created_at > NOW() - INTERVAL '1 hour' * ${hours}
+        AND rollup IS NOT NULL AND rollup != ''
+      GROUP BY rollup
+    `.catch((e) => {
+      console.error("Failed to query Postgres beacon metrics:", e);
+      return [];
+    });
+
+    const [chResult, pgRows] = await Promise.all([chPromise, pgPromise]);
+    const chRows = await chResult.json<LeaderboardRow>();
+
+    const postgresMetrics: Record<string, {
+      avg_fullness_pct: number | null;
+      ghost_blob_count: number;
+      total_bytes_used: number | null;
+      cost_per_byte_eth: number | null;
+    }> = {};
+
+    for (const r of pgRows) {
+      postgresMetrics[r.rollup] = {
+        avg_fullness_pct: r.avg_fullness_pct != null ? Number(r.avg_fullness_pct) : null,
+        ghost_blob_count: Number(r.ghost_blob_count || 0),
+        total_bytes_used: r.total_bytes_used != null ? Number(r.total_bytes_used) : null,
+        cost_per_byte_eth: r.cost_per_byte_eth != null ? Number(r.cost_per_byte_eth) : null,
+      };
+    }
+
+    return chRows.map((row) => {
+      const pg = postgresMetrics[row.rollup];
+      return {
+        ...row,
+        avg_fullness_pct: pg?.avg_fullness_pct ?? null,
+        ghost_blob_count: pg?.ghost_blob_count ?? 0,
+        total_bytes_used: pg?.total_bytes_used ?? null,
+        cost_per_byte_eth: pg?.cost_per_byte_eth ?? null,
+      };
+    });
   } catch (e) {
     console.error("getDaLeaderboard error:", e);
     return [];

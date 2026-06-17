@@ -46,7 +46,7 @@ export function EfficiencyComparisonTable({ leaderboard, networkAvgGwei }: Props
               "var(--status-critical)";
 
             return (
-              <tr key={row.rollup} className="hover:bg-surface-elevated/30 transition-colors">
+              <tr key={`${row.rollup}-${i}`} className="hover:bg-surface-elevated/30 transition-colors">
                 <td className="py-3 pr-3 font-mono text-[11px] text-text-secondary opacity-30 w-5">{i + 1}</td>
                 <td className="py-3 pr-4"><RollupBadge rollup={row.rollup} linkable /></td>
                 <td className="py-3 pr-4 font-mono text-xs text-text-primary text-right tabular-nums">

@@ -72,7 +72,7 @@ export function BlobFeeLineChartSelector({ networkData, rollups, rollupFeeData, 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="network">All rollups</SelectItem>
-              {rollups.map((r) => (
+              {Array.from(new Set(rollups.filter(Boolean))).map((r) => (
                 <SelectItem key={r} value={r}>{r}</SelectItem>
               ))}
             </SelectContent>

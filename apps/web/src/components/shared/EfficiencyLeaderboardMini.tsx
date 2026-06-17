@@ -70,7 +70,7 @@ export function EfficiencyLeaderboardMini({ leaderboard, sparklines }: Props) {
 
           return (
             <div
-              key={row.rollup}
+              key={`${row.rollup}-${idx}`}
               className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-surface-elevated/50 transition-colors group"
             >
               {/* Rank */}
