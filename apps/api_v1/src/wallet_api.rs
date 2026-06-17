@@ -169,9 +169,9 @@ async fn wallet_summary(
         ).bind(("addr", addr.as_str())).fetch_optional::<TokenCountRow>(),
 
         state.ch.query(
-            "SELECT count()            AS blob_tx_count,
-                    topK(1)(rollup)    AS top_rollups,
-                    uniqExact(rollup)  AS rollup_count
+            "SELECT count()               AS blob_tx_count,
+                    topK(1)(`rollup`)    AS top_rollups,
+                    uniqExact(`rollup`)  AS rollup_count
              FROM blob_lens.blob_transactions FINAL
              WHERE is_canonical = 1 AND from_address = {addr:String}"
         ).bind(("addr", addr.as_str())).fetch_optional::<BlobStatsRow>(),
@@ -277,7 +277,7 @@ async fn wallet_txs(
            t.to_address,
            t.value,
            t.tx_type,
-           t.rollup,
+           t.`rollup`,
            if(r.success IS NULL, 1, toUInt8(r.success)) AS success,
            if(r.gas_used IS NULL, 0, r.gas_used)            AS gas_used,
            if(r.effective_gas_price IS NULL, 0, r.effective_gas_price) AS effective_gas_price
@@ -378,14 +378,14 @@ async fn wallet_rollups(
 
     let rows = state.ch.query(
         "SELECT
-           rollup,
+           `rollup`,
            count()                        AS tx_count,
            sum(num_blobs)                 AS total_blobs,
            toString(min(block_timestamp)) AS first_seen,
            toString(max(block_timestamp)) AS last_seen
          FROM blob_lens.blob_transactions FINAL
          WHERE is_canonical = 1 AND from_address = {addr:String}
-         GROUP BY rollup
+         GROUP BY `rollup`
          ORDER BY tx_count DESC"
     )
     .bind(("addr", addr.as_str()))
@@ -447,13 +447,20 @@ async fn wallet_ping() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok", "service": "wallet-api" }))
 }
 
-pub fn wallet_router(state: WalletState) -> Router {
+/// Public routes — no API key needed.
+pub fn wallet_public_router(state: Arc<WalletState>) -> Router {
     Router::new()
-        .route("/api/wallet/ping",              get(wallet_ping))
-        .route("/api/wallet/admin/new-key",     post(admin_new_key))
-        .route("/api/wallet/:address",          get(wallet_summary))
-        .route("/api/wallet/:address/txs",      get(wallet_txs))
-        .route("/api/wallet/:address/tokens",   get(wallet_tokens))
-        .route("/api/wallet/:address/rollups",  get(wallet_rollups))
-        .with_state(Arc::new(state))
+        .route("/api/wallet/ping",          get(wallet_ping))
+        .route("/api/wallet/admin/new-key", post(admin_new_key))
+        .with_state(state)
+}
+
+/// Protected routes — API key required (middleware applied in main.rs).
+pub fn wallet_protected_router(state: Arc<WalletState>) -> Router {
+    Router::new()
+        .route("/api/wallet/:address",         get(wallet_summary))
+        .route("/api/wallet/:address/txs",     get(wallet_txs))
+        .route("/api/wallet/:address/tokens",  get(wallet_tokens))
+        .route("/api/wallet/:address/rollups", get(wallet_rollups))
+        .with_state(state)
 }
