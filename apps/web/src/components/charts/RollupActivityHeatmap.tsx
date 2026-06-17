@@ -39,7 +39,7 @@ export function RollupActivityHeatmap({ txs }: Props) {
                     <TooltipTrigger asChild>
                       <div
                         className="h-3.5 rounded-sm cursor-default"
-                        style={{ backgroundColor: `rgba(138,79,216,${alpha})` }}
+                        style={{ backgroundColor: `rgba(0,167,181,${alpha})` }}
                       />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="px-3 py-2 space-y-1 max-w-[180px]">

@@ -36,15 +36,17 @@ export const chartTheme = {
   dark: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "#0F1519", // --surface
-      borderColor: "#1E2D33",
+      backgroundColor: "var(--surface-elevated)",
+      borderColor: "var(--border)",
       borderWidth: 1,
+      borderRadius: 8,
+      padding: [10, 14],
       textStyle: {
-        color: "#F0F4F5",
+        color: "var(--text-primary)",
         fontSize: 12,
-        fontFamily: "var(--font-body), system-ui, sans-serif",
+        fontFamily: "var(--font-mono), monospace",
       },
-      padding: [12, 14],
+      extraCssText: "backdrop-filter: blur(8px);",
       axisPointer: {
         lineStyle: {
           color: "rgba(0, 167, 181, 0.2)",
@@ -65,8 +67,9 @@ export const chartTheme = {
     axis: {
       axisLabel: {
         color: "#7E9098", // Text Secondary
-        fontSize: 11,
+        fontSize: 10,
         fontFamily: "var(--font-mono), monospace",
+        margin: 8,
       },
       axisLine: {
         show: false,
@@ -76,8 +79,9 @@ export const chartTheme = {
       },
       splitLine: {
         lineStyle: {
-          color: "#1E2D33", // Border color
-          opacity: 0.5,
+          color: "var(--border)", // Border color
+          opacity: 0.4,
+          type: "dashed" as const,
         },
       },
     },
@@ -127,15 +131,17 @@ export const chartTheme = {
   light: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "#FFFFFF",
-      borderColor: "#D9E5E7",
+      backgroundColor: "var(--surface-elevated)",
+      borderColor: "var(--border)",
       borderWidth: 1,
+      borderRadius: 8,
+      padding: [10, 14],
       textStyle: {
-        color: "#0D1618",
+        color: "var(--text-primary)",
         fontSize: 12,
-        fontFamily: "var(--font-body), system-ui, sans-serif",
+        fontFamily: "var(--font-mono), monospace",
       },
-      padding: [12, 14],
+      extraCssText: "backdrop-filter: blur(8px);",
       axisPointer: {
         lineStyle: {
           color: "rgba(0, 138, 150, 0.2)",
@@ -156,8 +162,9 @@ export const chartTheme = {
     axis: {
       axisLabel: {
         color: "#5C7077",
-        fontSize: 11,
+        fontSize: 10,
         fontFamily: "var(--font-mono), monospace",
+        margin: 8,
       },
       axisLine: {
         show: false,
@@ -167,8 +174,9 @@ export const chartTheme = {
       },
       splitLine: {
         lineStyle: {
-          color: "#D4E0E3",
-          opacity: 0.5,
+          color: "var(--border)",
+          opacity: 0.4,
+          type: "dashed" as const,
         },
       },
     },

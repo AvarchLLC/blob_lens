@@ -4,13 +4,15 @@ import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
 import { classifyRegime } from "@/lib/utils";
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
-import { watermarkGraphic } from "@/lib/chartTheme";
+import { getChartTheme, animationConfig } from "@/lib/chartTheme";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 const REGIME_COLOR: Record<string, string> = {
-  undersaturated: "#3D4F6B",
-  healthy:        "#10B981",
-  congested:      "#F59E0B",
-  spike:          "#EF4444",
+  undersaturated: "#52666E",
+  healthy:        "#00A86B",
+  congested:      "#E8A020",
+  spike:          "#E5484D",
 };
 
 interface Props {
@@ -19,10 +21,18 @@ interface Props {
 }
 
 export function FeeBlobScatter({ data, ethUsd }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-[280px] w-full animate-pulse bg-surface-elevated rounded-md" />;
+
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-text-secondary opacity-50 italic">No historical scatter data</p>;
 
   const isUsd = ethUsd != null;
+  const isDark = theme !== "light";
+  const t = getChartTheme(isDark);
 
   const seriesData = data.map((d) => {
     const regime = classifyRegime(d.max_blobs_in_block);
@@ -38,53 +48,54 @@ export function FeeBlobScatter({ data, ethUsd }: Props) {
   });
 
   const option = {
-    animation: true,
-    animationEasing: "cubicOut" as const,
-    animationDuration: 700,
-    graphic: watermarkGraphic,
-    grid: { top: 24, right: 24, bottom: 24, left: 0, containLabel: true },
+    ...animationConfig,
+    backgroundColor: t.backgroundColor,
+    graphic: t.graphic,
+    grid: t.gridDefaults,
     xAxis: {
       type: "value" as const,
       name: "Blob count",
-      nameTextStyle: { color: "#4B5563", fontSize: 11 },
-      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
+      nameTextStyle: { color: t.axis.axisLabel.color, fontSize: 10, fontFamily: "var(--font-body), sans-serif" },
+      axisLabel: t.axis.axisLabel,
+      axisLine: t.axis.axisLine,
+      axisTick: t.axis.axisTick,
+      splitLine: t.axis.splitLine,
     },
     yAxis: {
       type: "value" as const,
       name: isUsd ? "Cost / blob (USD)" : "Avg fee (gwei)",
-      nameTextStyle: { color: "#4B5563", fontSize: 11 },
+      nameTextStyle: { color: t.axis.axisLabel.color, fontSize: 10, fontFamily: "var(--font-body), sans-serif" },
       axisLabel: {
-        color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
+        ...t.axis.axisLabel,
         formatter: isUsd
           ? (v: number) => v < 0.0001 ? "< $0.0001" : `$${v.toFixed(4)}`
           : (v: number) => v < 0.0001 ? "< 0.0001" : v.toFixed(4),
       },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
+      axisLine: t.axis.axisLine,
+      axisTick: t.axis.axisTick,
+      splitLine: t.axis.splitLine,
     },
     tooltip: {
       trigger: "item" as const,
-      backgroundColor: "#1A2235",
-      borderColor: "rgba(16,185,129,0.2)",
-      borderWidth: 1,
-      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
+      ...t.tooltip,
       formatter: (params: { data: { value: [number, number]; ts: string; regime: string } }) => {
         const [blobs, fee] = params.data.value;
         const feeStr = isUsd
           ? formatUsd(fee)
           : (fee < 0.0001 ? "< 0.0001 gwei" : `${fee.toFixed(4)} gwei`);
-        return `<span style="color:#4B5563;font-size:11px">${new Date(params.data.ts).toLocaleString()}</span><br/>Blobs: <b>${blobs}</b><br/>Cost: <b style="font-family:monospace;color:#6EE7B7">${feeStr}</b><br/>Regime: <b>${params.data.regime}</b>`;
+        return `<div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="color:#8FA1A8;font-size:10px;font-weight:bold;text-transform:uppercase;">${new Date(params.data.ts).toLocaleString()}</span>
+          <span style="font-size:12px;">Blobs: <b style="font-family:var(--font-mono);">${blobs}</b></span>
+          <span style="font-size:12px;">Cost: <b style="font-family:var(--font-mono);color:#00A7B5;">${feeStr}</b></span>
+          <span style="font-size:12px;">Regime: <b style="text-transform:capitalize;">${params.data.regime}</b></span>
+        </div>`;
       },
     },
     series: [
       {
         type: "scatter" as const,
         data: seriesData,
-        symbolSize: 7,
+        symbolSize: 8,
       },
     ],
   };

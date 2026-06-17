@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function BlobSparkline({ points }: Props) {
-  if (!points.length) return <span className="text-[0.6875rem] text-[#5C5575]">—</span>;
+  if (!points.length) return <span className="text-[0.6875rem] text-text-secondary opacity-40">—</span>;
 
   const values = points.map((p) => Number(p.blobs));
 
@@ -22,9 +22,18 @@ export function BlobSparkline({ points }: Props) {
         type: "line" as const,
         data: values,
         smooth: 0.4,
-        lineStyle: { color: "#8A4FD8", width: 1.8 },
+        lineStyle: { color: "#00A7B5", width: 1.5 },
         symbol: "none",
-        areaStyle: { color: "rgba(138,79,216,0.12)" },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(0, 167, 181, 0.15)" },
+              { offset: 1, color: "rgba(0, 167, 181, 0)" },
+            ],
+          },
+        },
       },
     ],
   };

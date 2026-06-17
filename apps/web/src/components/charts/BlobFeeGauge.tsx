@@ -19,17 +19,11 @@ function toGaugeValue(feeWei: number): number {
   return Math.min(100, Math.max(0, ((Math.log10(feeGwei) + 3) / 4) * 100));
 }
 
-const LEVELS = [
-  { max: 20,  label: "Ultra Cheap", color: "#22c55e" },
-  { max: 40,  label: "Cheap",       color: "#84cc16" },
-  { max: 58,  label: "Moderate",    color: "#eab308" },
-  { max: 72,  label: "Elevated",    color: "#f97316" },
-  { max: 87,  label: "Expensive",   color: "#ea580c" },
-  { max: 100, label: "Extreme",     color: "#dc2626" },
-] as const;
-
-function getLevel(v: number) {
-  return LEVELS.find((l) => v <= l.max) ?? LEVELS[LEVELS.length - 1];
+function getRegimeFromValue(val: number): { label: string; color: string } {
+  if (val < 25)  return { label: "UNDERSATURATED", color: "#52666E" };
+  if (val < 60)  return { label: "HEALTHY",        color: "#00A86B" };
+  if (val < 85)  return { label: "CONGESTED",      color: "#E8A020" };
+  return           { label: "SPIKE",             color: "#E5484D" };
 }
 
 export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
@@ -46,53 +40,48 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
       ? (latestFeeWei * GAS_PER_BLOB) / 1e18 * ethUsd
       : null;
 
-  const level = latestFeeWei > 0 ? getLevel(gaugeVal) : null;
-
-  // Gap color matches card background per theme
   const isDark = theme !== "light";
-  const cardBg = isDark ? "#0F1519" : "#FFFFFF";
-  const pointerColor = isDark ? "#F0F4F5" : "#1C2A30";
-  const anchorBorder = isDark ? "#4B5563" : "#D4E0E3";
-
-  const GAP  = 0.012;
-  const N    = 6;
-  const seg  = (1 - GAP * (N - 1)) / N;
-  const stops: [number, string][] = [];
-  LEVELS.forEach(({ color }, i) => {
-    stops.push([seg * (i + 1) + GAP * i, color]);
-    if (i < N - 1) stops.push([seg * (i + 1) + GAP * (i + 1), cardBg]);
-  });
+  const regime = latestFeeWei > 0 ? getRegimeFromValue(gaugeVal) : null;
+  const pointerColor = isDark ? "#E8F0F2" : "#0A1C20";
 
   const option = {
     backgroundColor: "transparent",
     series: [
       {
         type: "gauge",
-        startAngle: 180,
-        endAngle: 0,
+        startAngle: 200,
+        endAngle: -20,
         min: 0,
         max: 100,
         radius: "90%",
-        center: ["50%", "82%"],
+        center: ["50%", "75%"],
+        splitNumber: 0,
         axisLine: {
-          roundCap: false,
-          lineStyle: { width: 30, color: stops },
+          lineStyle: {
+            width: 12,
+            color: [
+              [0.25, "#52666E"],
+              [0.60, "#00A86B"],
+              [0.85, "#E8A020"],
+              [1,    "#E5484D"],
+            ],
+          },
         },
         axisTick:  { show: false },
         splitLine: { show: false },
         axisLabel: { show: false },
         pointer: {
-          length: "62%",
-          width: 5,
+          length: "60%",
+          width: 3,
           itemStyle: { color: pointerColor },
         },
         anchor: {
           show: true,
-          size: 16,
+          size: 10,
           itemStyle: {
             color: pointerColor,
-            borderColor: anchorBorder,
-            borderWidth: 3,
+            borderColor: isDark ? "#1A2830" : "#C8D8DC",
+            borderWidth: 2,
           },
         },
         detail: { show: false },
@@ -105,27 +94,32 @@ export function BlobFeeGauge({ latestFeeWei, ethUsd }: Props) {
   };
 
   return (
-    <div className="flex min-h-[280px] flex-col items-center justify-center gap-2 text-center">
+    <div className="flex min-h-[280px] flex-col items-center justify-center gap-2 text-center w-full">
       <div className="relative w-full" style={{ maxWidth: 300, margin: "0 auto" }}>
         <ReactECharts option={option} style={{ height: 155, width: "100%" }} />
+        {/* Regime label rendered below arc, not inside ECharts */}
         <p
-          className="absolute text-[11px] font-semibold tracking-widest uppercase"
+          className="absolute text-[10px] uppercase tracking-[0.12em]"
           style={{
-            bottom: 2,
+            bottom: 4,
             left: "50%",
             transform: "translateX(-50%)",
-            color: level ? level.color : "#4B5563",
+            fontFamily: "var(--font-body)",
+            color: regime ? regime.color : "var(--text-tertiary)",
             whiteSpace: "nowrap",
+            fontWeight: 600,
           }}
         >
-          {level ? level.label : "No Data"}
+          {regime ? regime.label : "NO DATA"}
         </p>
       </div>
 
+      {/* USD cost — Geist Mono, large */}
       <p className="font-mono text-4xl font-bold tracking-tight text-foreground mt-1">
         {costUsd !== null ? formatUsd(costUsd) : "—"}
       </p>
       <p className="caption">per blob · last hour average</p>
+
       {feeGwei !== null && (
         <p className="caption">
           blob base fee:{" "}
