@@ -150,16 +150,15 @@ async fn wallet_summary(
                count()                               AS tx_total,
                toString(min(block_timestamp))        AS first_seen,
                toString(max(block_timestamp))        AS last_seen
-             FROM ethereum.transactions FINAL
-             WHERE is_deleted = 0
-               AND (from_address = {addr:String} OR to_address = {addr:String})"
+             FROM blob_lens.wallet_txs_by_addr FINAL
+             WHERE addr = {addr:String} AND is_deleted = 0"
         ).param("addr", addr.as_str()).fetch_optional::<TxStatsRow>(),
 
         state.ch.query(
             "SELECT toString(sum(toUInt256(r.gas_used) * toUInt256(r.effective_gas_price))) AS gas_spent_wei
-             FROM ethereum.transactions t FINAL
-             JOIN ethereum.receipts r FINAL ON t.tx_hash = r.tx_hash
-             WHERE t.is_deleted = 0 AND r.is_deleted = 0 AND t.from_address = {addr:String}"
+             FROM blob_lens.wallet_txs_by_addr w FINAL
+             JOIN ethereum.receipts r FINAL ON w.tx_hash = r.tx_hash AND r.is_deleted = 0
+             WHERE w.addr = {addr:String} AND w.is_deleted = 0 AND w.from_address = {addr:String}"
         ).param("addr", addr.as_str()).fetch_optional::<GasRow>(),
 
         state.ch.query(
@@ -270,22 +269,21 @@ async fn wallet_txs(
 
     let rows = state.ch.query(
         "SELECT
-           t.block_number,
-           toString(t.block_timestamp)   AS block_timestamp,
-           t.tx_hash,
-           t.from_address,
-           t.to_address,
-           t.value,
-           t.tx_type,
-           t.rollup,
-           if(r.success IS NULL, 1, toUInt8(r.success)) AS success,
-           if(r.gas_used IS NULL, 0, r.gas_used)            AS gas_used,
+           w.block_number,
+           toString(w.block_timestamp)   AS block_timestamp,
+           w.tx_hash,
+           w.from_address,
+           w.to_address,
+           w.value,
+           w.tx_type,
+           w.rollup,
+           if(r.success IS NULL, 1, toUInt8(r.success))                AS success,
+           if(r.gas_used IS NULL, 0, r.gas_used)                       AS gas_used,
            if(r.effective_gas_price IS NULL, 0, r.effective_gas_price) AS effective_gas_price
-         FROM ethereum.transactions t FINAL
-         LEFT JOIN ethereum.receipts r FINAL ON t.tx_hash = r.tx_hash AND r.is_deleted = 0
-         WHERE t.is_deleted = 0
-           AND (t.from_address = {addr:String} OR t.to_address = {addr:String})
-         ORDER BY t.block_number DESC
+         FROM blob_lens.wallet_txs_by_addr w FINAL
+         LEFT JOIN ethereum.receipts r FINAL ON w.tx_hash = r.tx_hash AND r.is_deleted = 0
+         WHERE w.addr = {addr:String} AND w.is_deleted = 0
+         ORDER BY w.block_number DESC
          LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
     )
     .param("addr",   addr.as_str())
