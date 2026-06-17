@@ -153,20 +153,20 @@ async fn wallet_summary(
              FROM ethereum.transactions FINAL
              WHERE is_deleted = 0
                AND (from_address = {addr:String} OR to_address = {addr:String})"
-        ).bind(("addr", addr.as_str())).fetch_optional::<TxStatsRow>(),
+        ).param("addr", addr.as_str()).fetch_optional::<TxStatsRow>(),
 
         state.ch.query(
             "SELECT toString(sum(toUInt256(r.gas_used) * toUInt256(r.effective_gas_price))) AS gas_spent_wei
              FROM ethereum.transactions t FINAL
              JOIN ethereum.receipts r FINAL ON t.tx_hash = r.tx_hash
              WHERE t.is_deleted = 0 AND r.is_deleted = 0 AND t.from_address = {addr:String}"
-        ).bind(("addr", addr.as_str())).fetch_optional::<GasRow>(),
+        ).param("addr", addr.as_str()).fetch_optional::<GasRow>(),
 
         state.ch.query(
             "SELECT uniqExact(token_address) AS token_count
              FROM ethereum.erc20_transfers
              WHERE from_address = {addr:String} OR to_address = {addr:String}"
-        ).bind(("addr", addr.as_str())).fetch_optional::<TokenCountRow>(),
+        ).param("addr", addr.as_str()).fetch_optional::<TokenCountRow>(),
 
         state.ch.query(
             "SELECT count()              AS blob_tx_count,
@@ -174,7 +174,7 @@ async fn wallet_summary(
                     uniqExact(rollup)  AS rollup_count
              FROM blob_lens.blob_transactions FINAL
              WHERE is_canonical = 1 AND from_address = {addr:String}"
-        ).bind(("addr", addr.as_str())).fetch_optional::<BlobStatsRow>(),
+        ).param("addr", addr.as_str()).fetch_optional::<BlobStatsRow>(),
 
         fetch_eth_balance(&state.reth_rpc, &addr),
 
@@ -288,9 +288,9 @@ async fn wallet_txs(
          ORDER BY t.block_number DESC
          LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
     )
-    .bind(("addr",   addr.as_str()))
-    .bind(("limit",  limit))
-    .bind(("offset", offset))
+    .param("addr",   addr.as_str())
+    .param("limit",  limit)
+    .param("offset", offset)
     .fetch_all::<TxRow>()
     .await
     .map_err(|e| { error!("wallet txs query: {e}"); StatusCode::INTERNAL_SERVER_ERROR })?;
@@ -344,7 +344,7 @@ async fn wallet_tokens(
          ORDER BY total_transfers DESC
          LIMIT 50"
     )
-    .bind(("addr", addr.as_str()))
+    .param("addr", addr.as_str())
     .fetch_all::<TokenFlowRow>()
     .await
     .map_err(|e| { error!("wallet tokens query: {e}"); StatusCode::INTERNAL_SERVER_ERROR })?;
@@ -388,7 +388,7 @@ async fn wallet_rollups(
          GROUP BY 1
          ORDER BY tx_count DESC"
     )
-    .bind(("addr", addr.as_str()))
+    .param("addr", addr.as_str())
     .fetch_all::<RollupRow>()
     .await
     .map_err(|e| { error!("wallet rollups query: {e}"); StatusCode::INTERNAL_SERVER_ERROR })?;
