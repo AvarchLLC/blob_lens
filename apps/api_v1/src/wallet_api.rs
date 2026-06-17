@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
-    routing::get,
+    http::{HeaderMap, StatusCode},
+    routing::{get, post},
     Json, Router,
 };
 use clickhouse::Client as ChClient;
@@ -402,6 +402,45 @@ async fn wallet_rollups(
     }).collect()))
 }
 
+// ── Admin: POST /api/wallet/admin/new-key ────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+pub struct NewKeyRequest {
+    pub tier:        Option<String>,
+    pub daily_limit: Option<i32>,
+    pub owner_email: Option<String>,
+}
+
+async fn admin_new_key(
+    State(state): State<Arc<WalletState>>,
+    headers: HeaderMap,
+    Json(body): Json<NewKeyRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let secret = headers
+        .get("X-Admin-Secret")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if !crate::api_auth::check_admin_secret(secret) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let tier        = body.tier.as_deref().unwrap_or("free");
+    let daily_limit = body.daily_limit.unwrap_or(100);
+    let email       = body.owner_email.as_deref();
+
+    let result = crate::api_auth::create_key(&state.pool, tier, daily_limit, email)
+        .await
+        .map_err(|e| { error!("create_key error: {e}"); StatusCode::INTERNAL_SERVER_ERROR })?;
+
+    Ok(Json(serde_json::json!({
+        "raw_key":     result.raw_key,
+        "key_prefix":  result.key_prefix,
+        "tier":        result.tier,
+        "daily_limit": result.daily_limit,
+        "note": "Store raw_key now — it cannot be recovered after this response."
+    })))
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 async fn wallet_ping() -> Json<serde_json::Value> {
@@ -411,6 +450,7 @@ async fn wallet_ping() -> Json<serde_json::Value> {
 pub fn wallet_router(state: WalletState) -> Router {
     Router::new()
         .route("/api/wallet/ping",              get(wallet_ping))
+        .route("/api/wallet/admin/new-key",     post(admin_new_key))
         .route("/api/wallet/{address}",         get(wallet_summary))
         .route("/api/wallet/{address}/txs",     get(wallet_txs))
         .route("/api/wallet/{address}/tokens",  get(wallet_tokens))
