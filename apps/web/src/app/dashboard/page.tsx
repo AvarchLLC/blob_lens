@@ -165,22 +165,12 @@ export default async function OverviewPage() {
 
       {/* ── Console Tabs ── */}
       <Tabs defaultValue="overview" className="w-full space-y-8">
-        <TabsList className="flex items-center justify-start gap-0 border-b border-[var(--border-subtle)] overflow-x-auto custom-scrollbar h-12 bg-transparent rounded-none p-0">
-          <TabsTrigger value="overview" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="market" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
-            Market Health
-          </TabsTrigger>
-          <TabsTrigger value="efficiency" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
-            Cost Efficiency
-          </TabsTrigger>
-          <TabsTrigger value="topology" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
-            Ecosystem Map
-          </TabsTrigger>
-          <TabsTrigger value="feeds" className="px-5 py-3 rounded-none text-xs font-bold uppercase tracking-widest transition-all text-text-secondary hover:text-text-primary -mb-px border-b-2 border-transparent data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none">
-            Trends & Feeds
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="market">Market Health</TabsTrigger>
+          <TabsTrigger value="efficiency">Cost Efficiency</TabsTrigger>
+          <TabsTrigger value="topology">Ecosystem Map</TabsTrigger>
+          <TabsTrigger value="feeds">Trends &amp; Feeds</TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Overview ── */}
@@ -518,13 +508,9 @@ export default async function OverviewPage() {
             {/* Live block/transaction feeds */}
             <div className="glass-card rounded-2xl overflow-hidden flex flex-col min-h-[380px]">
               <Tabs defaultValue="blocks" className="w-full h-full flex flex-col">
-                <TabsList className="flex gap-0 bg-transparent border-b border-[var(--border-subtle)] rounded-none h-11 shrink-0 p-0">
-                  <TabsTrigger value="blocks" className="flex-1 rounded-none text-xs font-bold uppercase tracking-widest -mb-px border-b-2 border-transparent text-text-secondary data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none transition-all">
-                    Recent Blocks
-                  </TabsTrigger>
-                  <TabsTrigger value="transactions" className="flex-1 rounded-none text-xs font-bold uppercase tracking-widest -mb-px border-b-2 border-transparent text-text-secondary data-[state=active]:text-primary data-[state=active]:border-primary bg-transparent shadow-none transition-all">
-                    Live Transactions
-                  </TabsTrigger>
+                <TabsList className="shrink-0">
+                  <TabsTrigger value="blocks" className="flex-1">Recent Blocks</TabsTrigger>
+                  <TabsTrigger value="transactions" className="flex-1">Live Transactions</TabsTrigger>
                 </TabsList>
                 <div className="flex-grow min-h-0">
                   <TabsContent value="blocks" className="m-0 h-[320px] overflow-y-auto custom-scrollbar">

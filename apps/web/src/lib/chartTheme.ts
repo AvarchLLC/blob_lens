@@ -66,7 +66,7 @@ export const chartTheme = {
     },
     axis: {
       axisLabel: {
-        color: "#7E9098", // Text Secondary
+        color: "#6B8A94",
         fontSize: 10,
         fontFamily: "var(--font-mono), monospace",
         margin: 8,
@@ -103,7 +103,7 @@ export const chartTheme = {
     graphic: watermarkGraphic,
     legend: {
       show: true,
-      textStyle: { color: "#7E9098", fontSize: 10 },
+      textStyle: { color: "#6B8A94", fontSize: 10 },
       itemWidth: 8,
       itemHeight: 8,
       selectedMode: true, // Allows deselecting individual L2s
@@ -161,7 +161,7 @@ export const chartTheme = {
     },
     axis: {
       axisLabel: {
-        color: "#5C7077",
+        color: "#3D6470",
         fontSize: 10,
         fontFamily: "var(--font-mono), monospace",
         margin: 8,
@@ -198,7 +198,7 @@ export const chartTheme = {
     graphic: watermarkGraphic,
     legend: {
       show: true,
-      textStyle: { color: "#5C7077", fontSize: 10 },
+      textStyle: { color: "#3D6470", fontSize: 10 },
       itemWidth: 8,
       itemHeight: 8,
       selectedMode: true,
@@ -234,13 +234,13 @@ export function createTooltipFormatter(isUsd: boolean, formatter: (v: number) =>
     const val = params[0].value;
     if (val == null) {
       return `<div style="display:flex;gap:8px;">
-        <span style="color:#8FA1A8;font-size:11px">${params[0].axisValue}</span>
+        <span style="color:#6B8A94;font-size:11px">${params[0].axisValue}</span>
         <span style="color:#1C2A30">—</span>
       </div>`;
     }
 
     return `<div style="display:flex;flex-direction:column;gap:4px;">
-      <span style="color:#8FA1A8;font-size:11px">${params[0].axisValue}</span>
+      <span style="color:#6B8A94;font-size:11px">${params[0].axisValue}</span>
       <span style="font-family:monospace;color:#00A7B5;font-weight:700">${formatter(val)}</span>
     </div>`;
   };

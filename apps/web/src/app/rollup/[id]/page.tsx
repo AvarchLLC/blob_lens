@@ -302,10 +302,10 @@ export default async function RollupPage({ params }: Props) {
             noPadding
           >
             <Tabs defaultValue="activity" className="w-full">
-              <TabsList className="flex gap-1 p-2 bg-sidebar/50 border-b border-border rounded-none h-12">
-                <TabsTrigger value="activity" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Rhythm</TabsTrigger>
-                <TabsTrigger value="fees" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Benchmarking</TabsTrigger>
-                <TabsTrigger value="transactions" className="flex-1 rounded-sm text-xs font-bold uppercase tracking-wider">Raw Feed</TabsTrigger>
+              <TabsList>
+                <TabsTrigger value="activity">Rhythm</TabsTrigger>
+                <TabsTrigger value="fees">Benchmarking</TabsTrigger>
+                <TabsTrigger value="transactions">Raw Feed</TabsTrigger>
               </TabsList>
 
               <div className="p-6">
