@@ -505,7 +505,7 @@ async fn wallet_normal_txs(
     let sql = format!(
         "SELECT
            block_number,
-           toUnixTimestamp(block_timestamp) AS block_timestamp,
+           toUInt64(toUnixTimestamp(block_timestamp)) AS block_timestamp,
            tx_hash,
            from_address,
            to_address,
@@ -581,7 +581,7 @@ async fn wallet_erc20_txs(
     let sql = format!(
         "SELECT
            block_number,
-           toUnixTimestamp(block_timestamp) AS block_timestamp,
+           toUInt64(toUnixTimestamp(block_timestamp)) AS block_timestamp,
            tx_hash,
            from_address,
            to_address,
@@ -671,7 +671,7 @@ async fn wallet_nft_txs(
     let sql = format!(
         "SELECT
            block_number,
-           toUnixTimestamp(block_timestamp) AS block_timestamp,
+           toUInt64(toUnixTimestamp(block_timestamp)) AS block_timestamp,
            tx_hash,
            address                          AS contract_address,
            coalesce(topic1, '')             AS topic1,
