@@ -66,16 +66,16 @@ export default async function BlockDetailPage({ params }: Props) {
           bg="border-primary/15 bg-primary/5"
         />
         <StatCard
-          icon={<BarChart2 className="h-4 w-4 text-blue-400" />}
+          icon={<BarChart2 className="h-4 w-4 text-primary" />}
           label="Blob Gas Used"
           value={(block.blob_gas_used / 1000).toFixed(0) + "K"}
-          bg="border-blue-500/15 bg-blue-500/5"
+          bg="border-primary/15 bg-primary/5"
         />
         <StatCard
-          icon={<Flame className="h-4 w-4 text-orange-400" />}
+          icon={<Flame className="h-4 w-4 text-status-warning" />}
           label="Base Fee"
           value={formatFee(block.blob_base_fee)}
-          bg="border-orange-500/15 bg-orange-500/5"
+          bg="border-status-warning/15 bg-status-warning/5"
         />
         <StatCard
           icon={<Activity className="h-4 w-4" style={{ color: `var(--status-${utilizationPct >= 80 ? 'critical' : utilizationPct >= 50 ? 'warning' : 'healthy'})` }} />}
@@ -178,7 +178,7 @@ function TxRow({ tx }: { tx: AddressTx }) {
         }
       </td>
       <td className="px-4 py-3 text-right">
-        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
           <Layers className="h-3 w-3" />
           {tx.num_blobs}
         </span>

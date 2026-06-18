@@ -53,7 +53,7 @@ export default async function AddressPage({ params, searchParams }: Props) {
             </span>
           )}
           {summary.whale_flagged && (
-            <span className="text-xs font-bold px-3 py-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-yellow-400">
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full border border-status-warning/40 bg-status-warning/10 text-status-warning">
               🐋 Whale Wallet
             </span>
           )}
@@ -69,10 +69,10 @@ export default async function AddressPage({ params, searchParams }: Props) {
           bg="bg-primary/5 border-primary/15"
         />
         <StatCard
-          icon={<Activity className="h-4 w-4 text-blue-400" />}
+          icon={<Activity className="h-4 w-4 text-primary" />}
           label="Top Rollup"
           value={summary.top_rollup ?? "—"}
-          bg="bg-blue-500/5 border-blue-500/15"
+          bg="bg-primary/5 border-primary/15"
         />
         <StatCard
           icon={<Clock className="h-4 w-4 text-text-secondary" />}
@@ -176,7 +176,7 @@ function TxRow({ tx }: { tx: AddressTx }) {
         }
       </td>
       <td className="px-4 py-3 text-right">
-        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
           <Layers className="h-3 w-3" />
           {tx.num_blobs}
         </span>

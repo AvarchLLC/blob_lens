@@ -21,8 +21,8 @@ async function RecentBlobsSection() {
     <div className="surface border border-border rounded-xl overflow-hidden">
       {blobs.map((tx, i) => (
         <div key={tx.tx_hash} className={`flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors ${i > 0 ? "border-t border-border" : ""}`}>
-          <div className="h-7 w-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-            <Layers className="h-3.5 w-3.5 text-blue-400" />
+          <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Layers className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <Link href={`/tx/${tx.tx_hash}`} className="font-mono text-xs text-primary hover:underline block truncate">
@@ -41,7 +41,7 @@ async function RecentBlobsSection() {
             </div>
           </div>
           <div className="text-right shrink-0 space-y-0.5">
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/15">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/15">
               {tx.num_blobs}×
             </span>
             <p className="text-[11px] text-text-secondary">{formatFee(tx.blob_base_fee)}</p>
@@ -144,9 +144,9 @@ export default function ExplorePage() {
       {/* Search type cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { icon: "🔗", label: "Transaction", hint: "Paste a 66-char 0x hash", example: "0xabc123…ef", color: "border-blue-500/15 bg-blue-500/5" },
+          { icon: "🔗", label: "Transaction", hint: "Paste a 66-char 0x hash", example: "0xabc123…ef", color: "border-primary/15 bg-primary/5" },
           { icon: "👤", label: "Address", hint: "Paste a 42-char 0x address", example: "0xd8dA…6045", color: "border-primary/15 bg-primary/5" },
-          { icon: "📦", label: "Block", hint: "Enter a block number", example: "22431084", color: "border-orange-500/15 bg-orange-500/5" },
+          { icon: "📦", label: "Block", hint: "Enter a block number", example: "22431084", color: "border-status-warning/15 bg-status-warning/5" },
         ].map(({ icon, label, hint, example, color }) => (
           <div key={label} className={`surface-elevated border rounded-xl p-5 space-y-2 ${color}`}>
             <div className="flex items-center gap-2">
