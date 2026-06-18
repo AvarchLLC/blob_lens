@@ -59,6 +59,17 @@ fn valid_eth_address(addr: &str) -> bool {
         && addr[2..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
+// Strip 0x — erc20_by_addr stores addresses without it
+fn strip_0x(addr: &str) -> &str { addr.strip_prefix("0x").unwrap_or(addr) }
+
+// Get latest block number for default range bounds
+async fn latest_block_number(ch: &ChClient) -> u64 {
+    #[derive(clickhouse::Row, Deserialize)]
+    struct N { n: u64 }
+    ch.query("SELECT max(block_number) AS n FROM ethereum.blocks")
+        .fetch_one::<N>().await.map(|r| r.n).unwrap_or(25_000_000)
+}
+
 // ── Row types for ClickHouse deserialization ──────────────────────────────────
 
 #[derive(clickhouse::Row, Deserialize)]
@@ -466,18 +477,14 @@ fn es_empty() -> Json<serde_json::Value> {
 
 #[derive(clickhouse::Row, Deserialize)]
 struct NormalTxRow {
-    block_number:        u64,
-    block_timestamp:     u64,
-    tx_hash:             String,
-    from_address:        String,
-    to_address:          String,
-    value:               String,
-    tx_type:             u8,
-    rollup:              String,
-    success:             u8,
-    gas_used:            u64,
-    effective_gas_price: u64,
-    gas_limit:           u64,
+    block_number:    u64,
+    block_timestamp: u64,
+    tx_hash:         String,
+    from_address:    String,
+    to_address:      String,
+    value:           String,
+    tx_type:         u8,
+    rollup:          String,
 }
 
 async fn wallet_normal_txs(
@@ -494,25 +501,21 @@ async fn wallet_normal_txs(
     let start  = q.start();
     let end    = q.end();
 
+    // No JOIN with ethereum.receipts — that table is ~55GB and causes OOM for active addresses.
     let sql = format!(
         "SELECT
-           w.block_number,
-           toUnixTimestamp(w.block_timestamp)              AS block_timestamp,
-           w.tx_hash,
-           w.from_address,
-           w.to_address,
-           w.value,
-           w.tx_type,
-           w.rollup,
-           if(r.success IS NULL, 1, toUInt8(r.success))                AS success,
-           if(r.gas_used IS NULL, 0, r.gas_used)                       AS gas_used,
-           if(r.effective_gas_price IS NULL, 0, r.effective_gas_price) AS effective_gas_price,
-           0                                                            AS gas_limit
-         FROM blob_lens.wallet_txs_by_addr w FINAL
-         LEFT JOIN ethereum.receipts r FINAL ON w.tx_hash = r.tx_hash AND r.is_deleted = 0
-         WHERE w.addr = {{addr:String}} AND w.is_deleted = 0
-           AND w.block_number >= {{start:UInt64}} AND w.block_number <= {{end:UInt64}}
-         ORDER BY w.block_number {order}
+           block_number,
+           toUnixTimestamp(block_timestamp) AS block_timestamp,
+           tx_hash,
+           from_address,
+           to_address,
+           value,
+           tx_type,
+           rollup
+         FROM blob_lens.wallet_txs_by_addr FINAL
+         WHERE addr = {{addr:String}} AND is_deleted = 0
+           AND block_number >= {{start:UInt64}} AND block_number <= {{end:UInt64}}
+         ORDER BY block_number {order}
          LIMIT {{limit:UInt64}} OFFSET {{offset:UInt64}}",
     );
 
@@ -529,19 +532,19 @@ async fn wallet_normal_txs(
     if rows.is_empty() { return Ok(es_empty()); }
 
     let result: Vec<_> = rows.into_iter().map(|r| serde_json::json!({
-        "blockNumber":          r.block_number.to_string(),
-        "timeStamp":            r.block_timestamp.to_string(),
-        "hash":                 r.tx_hash,
-        "from":                 r.from_address,
-        "to":                   r.to_address,
-        "value":                r.value,
-        "gas":                  r.gas_limit.to_string(),
-        "gasPrice":             r.effective_gas_price.to_string(),
-        "gasUsed":              r.gas_used.to_string(),
-        "isError":              if r.success != 0 { "0" } else { "1" },
-        "txreceipt_status":     if r.success != 0 { "1" } else { "0" },
-        "txType":               r.tx_type.to_string(),
-        "rollup":               r.rollup,
+        "blockNumber":      r.block_number.to_string(),
+        "timeStamp":        r.block_timestamp.to_string(),
+        "hash":             r.tx_hash,
+        "from":             r.from_address,
+        "to":               r.to_address,
+        "value":            r.value,
+        "gas":              "0",
+        "gasPrice":         "0",
+        "gasUsed":          "0",
+        "isError":          "0",
+        "txreceipt_status": "1",
+        "txType":           r.tx_type.to_string(),
+        "rollup":           r.rollup,
     })).collect();
 
     Ok(es_ok(serde_json::json!(result)))
@@ -592,8 +595,11 @@ async fn wallet_erc20_txs(
          LIMIT {{limit:UInt64}} OFFSET {{offset:UInt64}}",
     );
 
+    // erc20_by_addr stores addresses without 0x prefix
+    let addr_bare = strip_0x(&addr).to_string();
+
     let rows = state.ch.query(&sql)
-        .param("addr",   addr.as_str())
+        .param("addr",   addr_bare.as_str())
         .param("start",  start)
         .param("end",    end)
         .param("limit",  limit)
@@ -645,15 +651,22 @@ async fn wallet_nft_txs(
     if !valid_eth_address(&addr) { return Err(StatusCode::BAD_REQUEST); }
 
     // ERC-721 Transfer(address,address,uint256) topic0
-    let transfer_sig = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    let transfer_sig = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
     // Address padded to 32 bytes in topic: 24 zeros + 40 hex chars (without 0x)
     let padded = format!("000000000000000000000000{}", &addr[2..]);
 
     let order  = q.order().to_string();
     let limit  = q.limit();
     let offset = q.offset();
-    let start  = q.start();
-    let end    = q.end();
+
+    // Default to last 200k blocks when no range given — a full-table scan on ethereum.logs
+    // (billions of rows) causes OOM. Users who need full history must pass startblock.
+    let (start, end) = if q.startblock.is_none() && q.endblock.is_none() {
+        let head = latest_block_number(&state.ch).await;
+        (head.saturating_sub(200_000), head)
+    } else {
+        (q.start(), q.end())
+    };
 
     let sql = format!(
         "SELECT
@@ -667,9 +680,9 @@ async fn wallet_nft_txs(
            log_index
          FROM ethereum.logs
          WHERE is_deleted = 0
-           AND lower(topic0) = lower({{sig:String}})
+           AND topic0 = {{sig:String}}
            AND topic3 IS NOT NULL
-           AND (lower(topic1) = lower({{padded:String}}) OR lower(topic2) = lower({{padded:String}}))
+           AND (topic1 = {{padded:String}} OR topic2 = {{padded:String}})
            AND block_number >= {{start:UInt64}} AND block_number <= {{end:UInt64}}
          ORDER BY block_number {order}, log_index {order}
          LIMIT {{limit:UInt64}} OFFSET {{offset:UInt64}}",
