@@ -152,28 +152,62 @@ export async function getAIInsights(type?: string, limit = 10): Promise<AIInsigh
 // ── ClickHouse queries (blob data from apps/indexer) ────────────────────────
 
 export async function getOverviewStats(): Promise<OverviewStats> {
-  const result = await ch.query({
-    query: `
+  // Try ClickHouse first (full historical data), fall back to Postgres
+  try {
+    const result = await ch.query({
+      query: `
+        SELECT
+          count()                      AS total_txs,
+          sum(num_blobs)               AS total_blobs,
+          uniqExact(rollup)            AS rollup_count,
+          toString(max(block_timestamp)) AS last_indexed,
+          max(block_number)            AS last_block,
+          (
+            SELECT round(avg(blob_gas_used / multiIf(block_number >= 24833256, 2359296.0, block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2)
+            FROM blob_lens.block_blob_stats FINAL
+            WHERE is_canonical = 1
+              AND blob_count > 0
+              AND block_timestamp > now() - toIntervalHour(24)
+          ) AS avg_utilization_24h
+        FROM blob_lens.blob_transactions FINAL
+        WHERE is_canonical = 1
+      `,
+      format: "JSONEachRow",
+    });
+    const rows = await result.json<OverviewStats>();
+    if (rows[0]?.total_txs) return rows[0];
+  } catch {
+    // ClickHouse unreachable — fall through to Postgres
+  }
+
+  // Postgres fallback (api_v1 data)
+  const [counts, util] = await Promise.all([
+    sql<{ total_txs: number; total_blobs: number; rollup_count: number; last_block: number }[]>`
       SELECT
-        count()                      AS total_txs,
-        sum(num_blobs)               AS total_blobs,
-        uniqExact(rollup)            AS rollup_count,
-        toString(max(block_timestamp)) AS last_indexed,
-        max(block_number)            AS last_block,
-        (
-          SELECT round(avg(blob_gas_used / multiIf(block_number >= 24833256, 2359296.0, block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2)
-          FROM blob_lens.block_blob_stats FINAL
-          WHERE is_canonical = 1
-            AND blob_count > 0
-            AND block_timestamp > now() - toIntervalHour(24)
-        ) AS avg_utilization_24h
-      FROM blob_lens.blob_transactions FINAL
-      WHERE is_canonical = 1
+        COUNT(*)::int                          AS total_txs,
+        COALESCE(SUM(num_blobs), 0)::int       AS total_blobs,
+        COUNT(DISTINCT rollup)::int            AS rollup_count,
+        COALESCE(MAX(block_number), 0)::int    AS last_block
+      FROM blob_transactions
     `,
-    format: "JSONEachRow",
-  });
-  const rows = await result.json<OverviewStats>();
-  return rows[0];
+    sql<{ avg_utilization_24h: number }[]>`
+      SELECT ROUND(
+        AVG(utilization) * 100, 2
+      )::float AS avg_utilization_24h
+      FROM block_blob_stats
+      WHERE created_at > NOW() - INTERVAL '24 hours'
+        AND blob_count > 0
+    `,
+  ]);
+
+  return {
+    total_txs:         counts[0]?.total_txs         ?? 0,
+    total_blobs:       counts[0]?.total_blobs        ?? 0,
+    rollup_count:      counts[0]?.rollup_count       ?? 0,
+    last_block:        counts[0]?.last_block         ?? 0,
+    last_indexed:      "",
+    avg_utilization_24h: util[0]?.avg_utilization_24h ?? 0,
+  };
 }
 
 export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
