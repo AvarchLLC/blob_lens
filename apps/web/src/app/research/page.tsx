@@ -23,35 +23,36 @@ import {
 } from "@/lib/queries";
 import { BarChart3, FlaskConical, TrendingUp, Cpu, ChevronRight, Clock } from "lucide-react";
 import Link from "next/link";
+import React from "react";
 
 export const revalidate = 60;
 
 const BPO_META: Record<string, {
   eip: string; date: string; startBlock: number;
-  color: string; border: string; badge: string; dot: string; tagline: string;
+  bgStyle: React.CSSProperties; borderColor: string; badgeStyle: React.CSSProperties; dotColor: string; tagline: string;
 }> = {
   Dencun: {
     eip: "EIP-4844", date: "Mar 13, 2024", startBlock: 19_426_587,
-    color:  "from-blue-500/10 to-transparent",
-    border: "border-blue-500/20",
-    badge:  "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    dot:    "bg-blue-400",
+    bgStyle:     { background: "linear-gradient(135deg, rgba(59,130,246,0.10) 0%, transparent 100%)" },
+    borderColor: "rgba(59,130,246,0.20)",
+    badgeStyle:  { background: "rgba(59,130,246,0.10)", color: "#60A5FA", borderColor: "rgba(59,130,246,0.20)" },
+    dotColor:    "#60A5FA",
     tagline: "Birth of the blob market — 3 target / 6 max blobs per block",
   },
   Pectra: {
     eip: "EIP-7691", date: "Apr 2025", startBlock: 22_431_084,
-    color:  "from-teal-500/10 to-transparent",
-    border: "border-teal-500/20",
-    badge:  "bg-teal-500/10 text-teal-400 border-teal-500/20",
-    dot:    "bg-teal-400",
+    bgStyle:     { background: "linear-gradient(135deg, rgba(0,167,181,0.10) 0%, transparent 100%)" },
+    borderColor: "rgba(0,167,181,0.22)",
+    badgeStyle:  { background: "rgba(0,167,181,0.10)", color: "#00A7B5", borderColor: "rgba(0,167,181,0.22)" },
+    dotColor:    "#00A7B5",
     tagline: "2× blob throughput — 6 target / 9 max blobs per block",
   },
   Fusaka: {
     eip: "BPO2", date: "2025", startBlock: 24_833_256,
-    color:  "from-violet-500/10 to-transparent",
-    border: "border-violet-500/20",
-    badge:  "bg-violet-500/10 text-violet-400 border-violet-500/20",
-    dot:    "bg-violet-400",
+    bgStyle:     { background: "linear-gradient(135deg, rgba(82,102,110,0.10) 0%, transparent 100%)" },
+    borderColor: "rgba(82,102,110,0.22)",
+    badgeStyle:  { background: "rgba(82,102,110,0.10)", color: "#6B8A94", borderColor: "rgba(82,102,110,0.22)" },
+    dotColor:    "#6B8A94",
     tagline: "4× throughput from Dencun — 12 target / 18 max blobs per block",
   },
 };
@@ -61,21 +62,25 @@ function BpoEpochCard({ stat }: { stat: BpoEpochStat }) {
   const fillPct = stat.target_blobs > 0
     ? Math.min(100, (stat.avg_blobs_per_block / stat.target_blobs) * 100)
     : 0;
-  const fillColor = fillPct >= 80 ? "bg-red-400" : fillPct >= 50 ? "bg-amber-400" : "bg-emerald-400";
+  const fillColorStyle = fillPct >= 80
+    ? { backgroundColor: "var(--status-critical)" }
+    : fillPct >= 50
+      ? { backgroundColor: "var(--status-warning)" }
+      : { backgroundColor: "var(--status-healthy)" };
 
   return (
-    <div className={`rounded-2xl border ${meta.border} bg-gradient-to-br ${meta.color} p-7 flex flex-col gap-5`}>
+    <div className="rounded-2xl border p-7 flex flex-col gap-5" style={{ borderColor: meta.borderColor, ...meta.bgStyle }}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: meta.dotColor }} />
             <h3 className="text-lg font-bold text-text-primary">{stat.epoch}</h3>
           </div>
           <p className="text-[10px] text-text-secondary/50">{meta.date} · Block {stat.start_block.toLocaleString()}</p>
           <p className="text-xs text-text-secondary/60 mt-1">{meta.tagline}</p>
         </div>
-        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${meta.badge}`}>
+        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0" style={meta.badgeStyle}>
           {meta.eip}
         </span>
       </div>
@@ -102,7 +107,7 @@ function BpoEpochCard({ stat }: { stat: BpoEpochStat }) {
           <span className="font-mono font-bold text-text-primary">{fillPct.toFixed(1)}%</span>
         </div>
         <div className="h-1.5 rounded-full bg-background/60 overflow-hidden mb-1.5">
-          <div className={`h-full rounded-full ${fillColor} transition-all`} style={{ width: `${fillPct}%` }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${fillPct}%`, ...fillColorStyle }} />
         </div>
         <div className="flex items-center justify-between text-[10px] text-text-secondary/30">
           <span>0</span>
@@ -330,12 +335,12 @@ export default async function ResearchPage({
                 </p>
                 <div className="flex flex-wrap gap-4 mt-4 text-[10px] font-bold uppercase tracking-widest">
                   {[
-                    { label: "Dencun",  block: "19,426,587", eip: "EIP-4844",  color: "text-blue-400" },
-                    { label: "Pectra",  block: "22,431,084", eip: "EIP-7691",  color: "text-teal-400" },
-                    { label: "Fusaka",  block: "24,833,256", eip: "BPO2",      color: "text-violet-400" },
+                    { label: "Dencun",  block: "19,426,587", eip: "EIP-4844",  dotColor: "#60A5FA" },
+                    { label: "Pectra",  block: "22,431,084", eip: "EIP-7691",  dotColor: "#00A7B5" },
+                    { label: "Fusaka",  block: "24,833,256", eip: "BPO2",      dotColor: "#6B8A94" },
                   ].map((e) => (
                     <div key={e.label} className="flex items-center gap-1.5">
-                      <span className={`${e.color} font-mono`}>{e.label}</span>
+                      <span className="font-mono" style={{ color: e.dotColor }}>{e.label}</span>
                       <span className="text-text-secondary/30">·</span>
                       <span className="text-text-secondary/40">{e.eip}</span>
                       <span className="text-text-secondary/30">·</span>
@@ -381,14 +386,14 @@ export default async function ResearchPage({
                 </thead>
                 <tbody>
                   {[
-                    { epoch: "Dencun", eip: "EIP-4844", block: "19,426,587", target: 3, max: 6,  da: "768 KB",   fraction: "3,338,477",  dot: "bg-blue-400" },
-                    { epoch: "Pectra", eip: "EIP-7691", block: "22,431,084", target: 6, max: 9,  da: "1,152 KB", fraction: "5,007,716",  dot: "bg-teal-400" },
-                    { epoch: "Fusaka", eip: "BPO2",     block: "24,833,256", target: 12, max: 18, da: "2,304 KB", fraction: "11,684,671", dot: "bg-violet-400" },
+                    { epoch: "Dencun", eip: "EIP-4844", block: "19,426,587", target: 3, max: 6,  da: "768 KB",   fraction: "3,338,477",  dotColor: "#60A5FA" },
+                    { epoch: "Pectra", eip: "EIP-7691", block: "22,431,084", target: 6, max: 9,  da: "1,152 KB", fraction: "5,007,716",  dotColor: "#00A7B5" },
+                    { epoch: "Fusaka", eip: "BPO2",     block: "24,833,256", target: 12, max: 18, da: "2,304 KB", fraction: "11,684,671", dotColor: "#6B8A94" },
                   ].map((row, i) => (
                     <tr key={row.epoch} className={`border-b border-border/15 hover:bg-surface/30 transition-colors ${i % 2 === 0 ? "" : "bg-surface/20"}`}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${row.dot}`} />
+                          <span className="h-2 w-2 rounded-full" style={{ background: row.dotColor }} />
                           <span className="font-bold text-text-primary">{row.epoch}</span>
                         </div>
                       </td>
@@ -415,27 +420,27 @@ export default async function ResearchPage({
                 title: "Dencun → Pectra",
                 subtitle: "The supply shock",
                 body: "EIP-7691 doubled the blob target and raised the max cap, dramatically reducing fee pressure. Blob base fees dropped by orders of magnitude as the market adapted to the expanded supply.",
-                dot: "bg-teal-400",
-                border: "border-teal-500/20",
+                dotColor: "#00A7B5",
+                borderColor: "rgba(0,167,181,0.22)",
               },
               {
                 title: "Pectra → Fusaka",
                 subtitle: "Scaling with demand",
                 body: "The Fusaka BPO2 upgrade targets 12 blobs per block — 4× Dencun's original target — as rollup adoption continues to grow. The update fraction change also affects fee curve steepness.",
-                dot: "bg-violet-400",
-                border: "border-violet-500/20",
+                dotColor: "#6B8A94",
+                borderColor: "rgba(82,102,110,0.22)",
               },
               {
                 title: "What to watch",
                 subtitle: "Key signals",
                 body: "Track target fill rate per epoch. When avg blobs/block exceeds the target, fee pressure builds. A fill rate consistently above 80% of target signals upcoming congestion.",
-                dot: "bg-primary",
-                border: "border-primary/20",
+                dotColor: "var(--primary)",
+                borderColor: "var(--primary-border)",
               },
             ].map((card) => (
-              <div key={card.title} className={`rounded-xl border ${card.border} bg-surface/30 p-6`}>
+              <div key={card.title} className="rounded-xl bg-surface/30 p-6 border" style={{ borderColor: card.borderColor }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className={`h-2.5 w-2.5 rounded-full ${card.dot}`} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: card.dotColor }} />
                   <h4 className="font-bold text-sm text-text-primary">{card.title}</h4>
                 </div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary/40 mb-3">{card.subtitle}</p>
@@ -467,9 +472,9 @@ export default async function ResearchPage({
                 <h2 className="text-xl font-bold text-text-primary mb-2">All-Time History</h2>
                 <p className="text-sm text-text-secondary/70 leading-relaxed max-w-3xl">
                   Full historical view of the Ethereum DA layer from the Dencun activation (March 2024) to today.
-                  Each chart is shaded by BPO epoch — Dencun <span className="text-blue-400 font-semibold">blue</span>,
-                  Pectra <span className="text-teal-400 font-semibold">teal</span>,
-                  Fusaka <span className="text-violet-400 font-semibold">violet</span>.
+                  Each chart is shaded by BPO epoch — Dencun <span style={{ color: "#60A5FA" }} className="font-semibold">blue</span>,
+                  Pectra <span style={{ color: "#00A7B5" }} className="font-semibold">teal</span>,
+                  Fusaka <span style={{ color: "#6B8A94" }} className="font-semibold">slate</span>.
                   Use Alt + scroll or the slider to zoom in on any period.
                 </p>
               </div>

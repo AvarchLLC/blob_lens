@@ -18,6 +18,7 @@ import {
     X,
     ExternalLink,
     BookOpen,
+    Key,
     Landmark,
     Wallet,
     ShieldAlert,
@@ -164,6 +165,16 @@ const NAV_GROUPS: NavGroup[] = [
                 href: '/unknown',
                 label: 'Unknown Senders',
                 icon: Info,
+            },
+        ],
+    },
+    {
+        label: 'Developer',
+        items: [
+            {
+                href: '/wallet-360',
+                label: 'Wallet 360',
+                icon: Key,
             },
         ],
     },

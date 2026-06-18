@@ -78,7 +78,7 @@ export default async function TxDetailPage({ params }: Props) {
             {tx.rollup}
           </span>
         )}
-        <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/5 text-blue-400 font-semibold">
+        <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary font-semibold">
           <Layers className="h-3 w-3" />
           {tx.num_blobs} blob{tx.num_blobs !== 1 ? "s" : ""}
         </span>
@@ -117,8 +117,8 @@ export default async function TxDetailPage({ params }: Props) {
           {/* Execution */}
           <div className="surface-elevated border border-border rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                <Zap className="h-3.5 w-3.5 text-orange-400" />
+              <div className="h-7 w-7 rounded-lg bg-status-warning/10 border border-status-warning/20 flex items-center justify-center">
+                <Zap className="h-3.5 w-3.5 text-status-warning" />
               </div>
               <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">Execution Gas</p>
             </div>
@@ -145,8 +145,8 @@ export default async function TxDetailPage({ params }: Props) {
           {/* Blob */}
           <div className="surface-elevated border border-border rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                <Layers className="h-3.5 w-3.5 text-blue-400" />
+              <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Layers className="h-3.5 w-3.5 text-primary" />
               </div>
               <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">Blob Gas</p>
             </div>
