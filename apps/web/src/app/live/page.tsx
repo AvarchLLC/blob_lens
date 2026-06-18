@@ -38,10 +38,10 @@ export default async function LivePage() {
         interpretation="This feed is polled every 12 seconds directly from the BlobLens indexer. Switch to 'Stats' for an aggregated real-time summary of the current hour."
       >
         <Tabs defaultValue="blocks" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-surface-elevated">
+          <TabsList className="mb-6">
             <TabsTrigger value="blocks">Blocks</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="stats" className="flex items-center gap-2">
+            <TabsTrigger value="stats" className="flex items-center gap-1.5">
               <BarChart2 className="h-3.5 w-3.5" />
               Stats
             </TabsTrigger>
