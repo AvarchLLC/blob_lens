@@ -1,23 +1,13 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { Sun, Moon } from "lucide-react";
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 
-/* ─── well-known token symbols ──────────────────────────── */
+/* ─── token registry ──────────────────────────────────────────────────── */
 const TOKEN_SYMBOLS: Record<string, string> = {
   "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "WETH",
   "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "USDC",
@@ -34,115 +24,111 @@ const TOKEN_SYMBOLS: Record<string, string> = {
   "0xd533a949740bb3306d119cc777fa900ba034cd52": "CRV",
   "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2": "MKR",
   "0x111111111117dc0aa78b770fa6a738034120c302": "1INCH",
+  "0x5a98fcbea516cf06857215779fd812ca3bef1b32": "LDO",
+  "0xba100000625a3754423978a60c9317c58a424e3d": "BAL",
+  "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b": "CVX",
+  "0x853d955acef822db058eb8505911ed77f175b99e": "FRAX",
 };
-
 function tokenSymbol(addr: string): string {
   if (!addr) return "?";
   return TOKEN_SYMBOLS[addr.toLowerCase()] ?? addr.slice(2, 6).toUpperCase();
 }
 
-/* ─── types ──────────────────────────────────────────────── */
+/* ─── types ────────────────────────────────────────────────────────────── */
 interface MevStats {
-  total_sandwiches: string;
-  unique_victims: string;
-  unique_bots: string;
-  unique_pools: string;
-  first_block: string;
-  last_block: string;
-  sandwich_blocks: string;
-  total_blocks: string;
-  v3_count: string;
-  v2_count: string;
-  sushi_count: string;
-  curve_count: string;
-  dodo_count: string;
+  total_sandwiches: string; unique_victims: string; unique_bots: string;
+  unique_pools: string; first_block: string; last_block: string;
+  sandwich_blocks: string; total_blocks: string;
+  v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
 }
 interface WeekRow {
-  week: string;
-  sandwiches: string;
-  active_bots: string;
-  blocks_sandwiched: string;
-  v3_count: string;
-  v2_count: string;
-  sushi_count: string;
-  curve_count: string;
-  dodo_count: string;
-  victim_usd_total: string;
-  usd_count: string;
+  week: string; sandwiches: string; active_bots: string; blocks_sandwiched: string;
+  v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
+  victim_usd_total: string; usd_count: string; weekly_victims: string;
 }
-interface BlockPctRow {
-  week: string;
-  total_blocks: string;
-  sandwich_blocks: string;
-}
+interface BlockPctRow { week: string; total_blocks: string; sandwich_blocks: string; }
 interface BotRow {
-  sandwicher: string;
-  sandwiches: string;
-  unique_victims: string;
-  unique_pools: string;
-  first_seen_block: string;
-  last_seen_block: string;
-  total_gas_cost_usd: string;
+  sandwicher: string; sandwiches: string; unique_victims: string;
+  unique_pools: string; first_seen_block: string; last_seen_block: string; total_gas_cost_usd: string;
 }
-interface PoolRow {
-  pool: string;
-  token0: string;
-  token1: string;
-  protocol: string;
-  sandwiches: string;
-  unique_victims: string;
-  unique_bots: string;
-}
-interface PairRow {
-  token0: string;
-  token1: string;
-  protocol: string;
-  sandwiches: string;
-  unique_victims: string;
-  unique_pools: string;
-  unique_bots: string;
-  victim_usd_total: string;
-}
+interface PoolRow { pool: string; token0: string; token1: string; protocol: string; sandwiches: string; unique_victims: string; unique_bots: string; }
+interface PairRow { token0: string; token1: string; protocol: string; sandwiches: string; unique_victims: string; unique_pools: string; unique_bots: string; victim_usd_total: string; }
+interface TokenRow { token: string; sandwiches: string; unique_victims: string; unique_bots: string; }
 interface RecentRow {
-  block_number: string;
-  block_timestamp: string;
-  sandwicher: string;
-  pool: string;
-  protocol: string;
-  frontrun_tx: string;
-  frontrun_idx: string;
-  victim_tx: string;
-  victim_idx: string;
-  backrun_tx: string;
-  backrun_idx: string;
-  token0: string;
-  token1: string;
-  victim_usd: string;
+  block_number: string; block_timestamp: string; sandwicher: string; pool: string; protocol: string;
+  frontrun_tx: string; frontrun_idx: string; victim_tx: string; victim_idx: string; backrun_tx: string; backrun_idx: string;
+  token0: string; token1: string; victim_usd: string;
 }
-interface Progress {
-  last_block: string;
-  total_sandwiches: string;
-  dencun_start: number;
-}
+interface Progress { last_block: string; total_sandwiches: string; dencun_start: number; }
+type TabId = "overview" | "tokens" | "pairs" | "bots" | "pools" | "recent";
 
-/* ─── helpers ────────────────────────────────────────────── */
+/* ─── theme ─────────────────────────────────────────────────────────────── */
+type Theme = "dark" | "light";
+interface TC {
+  pageBg: string; pageText: string;
+  card: string; cardBorder: string;
+  text: string; muted: string; faint: string; veryFaint: string;
+  tableRow: string; tableBorder: string; tableHead: string;
+  tabBar: string; tabActive: string; tabInactive: string;
+  kpiBg: string; kpiBorder: string;
+  bannerBg: string; bannerBorder: string; bannerText: string; bannerSub: string; bannerBar: string; bannerBarBg: string;
+  ttBg: string; ttBorder: string; ttColor: string;
+  axis: string; grid: string;
+}
+const DARK: TC = {
+  pageBg: "bg-[#0c0c16]", pageText: "text-white",
+  card: "bg-[#13131f]", cardBorder: "border-white/[0.08]",
+  text: "text-white", muted: "text-white/50", faint: "text-white/30", veryFaint: "text-white/20",
+  tableRow: "hover:bg-white/[0.03]", tableBorder: "border-white/[0.06]", tableHead: "text-white/35",
+  tabBar: "border-white/10",
+  tabActive: "text-white border-b-2 border-pink-400 bg-white/[0.06]",
+  tabInactive: "text-white/40 hover:text-white/70",
+  kpiBg: "bg-white/[0.04]", kpiBorder: "border-white/[0.08]",
+  bannerBg: "bg-amber-500/10", bannerBorder: "border-amber-500/25",
+  bannerText: "text-amber-300", bannerSub: "text-amber-400/60",
+  bannerBar: "bg-amber-400", bannerBarBg: "bg-white/10",
+  ttBg: "#11111a", ttBorder: "#ffffff15", ttColor: "#fff",
+  axis: "#ffffff40", grid: "#ffffff08",
+};
+const LIGHT: TC = {
+  pageBg: "bg-slate-50", pageText: "text-gray-900",
+  card: "bg-white", cardBorder: "border-slate-200",
+  text: "text-gray-900", muted: "text-gray-500", faint: "text-gray-400", veryFaint: "text-gray-300",
+  tableRow: "hover:bg-slate-50", tableBorder: "border-slate-100", tableHead: "text-gray-400",
+  tabBar: "border-slate-200",
+  tabActive: "text-gray-900 border-b-2 border-pink-500 bg-slate-100",
+  tabInactive: "text-gray-400 hover:text-gray-700",
+  kpiBg: "bg-white", kpiBorder: "border-slate-200",
+  bannerBg: "bg-amber-50", bannerBorder: "border-amber-200",
+  bannerText: "text-amber-700", bannerSub: "text-amber-500",
+  bannerBar: "bg-amber-500", bannerBarBg: "bg-amber-100",
+  ttBg: "#ffffff", ttBorder: "#e2e8f0", ttColor: "#111827",
+  axis: "#9ca3af", grid: "#f1f5f9",
+};
+
+/* ─── protocol config ──────────────────────────────────────────────────── */
+const PROTO_CONFIG: Record<string, { label: string; color: string; dark: string; light: string }> = {
+  uniswap_v3:   { label: "Uni v3",  color: "#e91e8c", dark: "bg-pink-500/15 text-pink-400",    light: "bg-pink-50 text-pink-600" },
+  uniswap_v2:   { label: "Uni v2",  color: "#8b5cf6", dark: "bg-violet-500/15 text-violet-400", light: "bg-violet-50 text-violet-600" },
+  sushiswap_v2: { label: "Sushi",   color: "#f97316", dark: "bg-orange-500/15 text-orange-400", light: "bg-orange-50 text-orange-600" },
+  curve:        { label: "Curve",   color: "#10b981", dark: "bg-emerald-500/15 text-emerald-400", light: "bg-emerald-50 text-emerald-600" },
+  dodo:         { label: "DODO",    color: "#eab308", dark: "bg-yellow-500/15 text-yellow-400",  light: "bg-yellow-50 text-yellow-600" },
+};
+const CHART_COLORS = ["#e91e8c","#8b5cf6","#f97316","#10b981","#eab308","#06b6d4","#ef4444","#22c55e","#a855f7","#f43f5e","#3b82f6","#f59e0b"];
+
+/* ─── helpers ──────────────────────────────────────────────────────────── */
 const API = "/api/mev";
-async function get<T>(type: string, extra = ""): Promise<T> {
+async function apiFetch<T>(type: string, extra = ""): Promise<T> {
   const r = await fetch(`${API}?type=${type}${extra}`, { cache: "no-store" });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
-function fmt(n: string | number) {
-  return Number(n).toLocaleString();
-}
+const fmt = (n: string | number) => Number(n).toLocaleString();
 function fmtK(n: string | number) {
   const v = Number(n);
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + "M";
   if (v >= 1_000) return (v / 1_000).toFixed(1) + "K";
   return String(v);
-}
-function short(addr: string) {
-  return addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "—";
 }
 function fmtUsd(n: string | number) {
   const v = Number(n);
@@ -152,121 +138,140 @@ function fmtUsd(n: string | number) {
   if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
   return `$${v.toFixed(0)}`;
 }
-function ethTx(tx: string) { return `https://etherscan.io/tx/${tx}`; }
-function ethAddr(addr: string) { return `https://etherscan.io/address/${addr}`; }
+const short = (s: string) => s ? `${s.slice(0, 6)}…${s.slice(-4)}` : "—";
+const ethTx = (tx: string) => `https://etherscan.io/tx/${tx}`;
+const ethAddr = (a: string) => `https://etherscan.io/address/${a}`;
 
-/* ─── common chart config ────────────────────────────────── */
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    background: "#11111a",
-    border: "1px solid #ffffff18",
-    borderRadius: 8,
-    color: "#fff",
-    fontSize: 12,
-  },
-};
-const AXIS_TICK = { fill: "#ffffff55", fontSize: 11 };
-
-/* ─── protocol config ────────────────────────────────────── */
-const PROTO_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  uniswap_v3:  { label: "Uni v3",   color: "#f472b6", bg: "bg-pink-500/15 text-pink-400" },
-  uniswap_v2:  { label: "Uni v2",   color: "#a78bfa", bg: "bg-violet-500/15 text-violet-400" },
-  sushiswap_v2:{ label: "Sushi",    color: "#fb923c", bg: "bg-orange-500/15 text-orange-400" },
-  curve:       { label: "Curve",    color: "#34d399", bg: "bg-emerald-500/15 text-emerald-400" },
-  dodo:        { label: "DODO",     color: "#facc15", bg: "bg-yellow-500/15 text-yellow-400" },
-};
-
-/* ─── stat card ──────────────────────────────────────────── */
-function Kpi({
-  label,
-  value,
-  sub,
-  accent,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: string;
+/* ─── sub-components ────────────────────────────────────────────────────── */
+function Card({ tc, title, sub, children, className = "" }: {
+  tc: TC; title: string; sub?: string; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 px-5 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-        {label}
-      </p>
-      <p className={`mt-1 text-2xl font-bold tabular-nums ${accent ?? "text-white"}`}>
-        {value}
-      </p>
-      {sub && <p className="mt-0.5 text-xs text-white/35">{sub}</p>}
-    </div>
-  );
-}
-
-/* ─── card wrapper ───────────────────────────────────────── */
-function Card({
-  title,
-  children,
-  className = "",
-}: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`rounded-xl border border-white/10 bg-white/5 p-5 ${className}`}>
-      <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-white/50">
-        {title}
-      </h3>
+    <div className={`rounded-xl border ${tc.card} ${tc.cardBorder} p-5 ${className}`}>
+      <div className="mb-4">
+        <p className={`text-[13px] font-semibold ${tc.text}`}>{title}</p>
+        {sub && <p className={`text-xs mt-0.5 ${tc.faint}`}>{sub}</p>}
+      </div>
       {children}
     </div>
   );
 }
 
-/* ─── protocol badge ─────────────────────────────────────── */
-function Proto({ p }: { p: string }) {
-  const cfg = PROTO_CONFIG[p] ?? { label: p, bg: "bg-white/10 text-white/50" };
+function Kpi({ tc, label, value, sub, accent }: { tc: TC; label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${cfg.bg}`}>
+    <div className={`rounded-xl border ${tc.kpiBg} ${tc.kpiBorder} px-5 py-4`}>
+      <p className={`text-[10px] font-semibold uppercase tracking-widest ${tc.muted}`}>{label}</p>
+      <p className={`mt-1.5 text-2xl font-bold tabular-nums ${accent ?? tc.text}`}>{value}</p>
+      {sub && <p className={`mt-0.5 text-xs ${tc.faint}`}>{sub}</p>}
+    </div>
+  );
+}
+
+function Proto({ p, isDark }: { p: string; isDark: boolean }) {
+  const cfg = PROTO_CONFIG[p];
+  if (!cfg) return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isDark ? "bg-white/10 text-white/40" : "bg-gray-100 text-gray-400"}`}>
+      {p}
+    </span>
+  );
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isDark ? cfg.dark : cfg.light}`}>
       {cfg.label}
     </span>
   );
 }
 
-/* ─── main ───────────────────────────────────────────────── */
+function EmptyState({ tc, msg = "Loading…" }: { tc: TC; msg?: string }) {
+  return <div className={`flex h-44 items-center justify-center text-sm ${tc.faint}`}>{msg}</div>;
+}
+
+function TableShell({ tc, title, sub, head, children }: {
+  tc: TC; title: string; sub?: string;
+  head: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <div className={`rounded-xl border ${tc.cardBorder} ${tc.card} overflow-hidden`}>
+      <div className={`border-b ${tc.tableBorder} px-5 py-3`}>
+        <p className={`text-[13px] font-semibold ${tc.text}`}>{title}</p>
+        {sub && <p className={`text-xs ${tc.muted} mt-0.5`}>{sub}</p>}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className={`border-b ${tc.tableBorder} text-[10px] uppercase tracking-widest ${tc.tableHead}`}>{head}</tr></thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DonutCard({ tc, title, sub, data, total, className = "" }: {
+  tc: TC; title: string; sub?: string;
+  data: { name: string; value: number; fill: string }[];
+  total: number; className?: string;
+}) {
+  return (
+    <Card tc={tc} title={title} sub={sub} className={className}>
+      <div className="flex flex-col items-center gap-3">
+        <PieChart width={180} height={180}>
+          <Pie data={data} cx={87} cy={87} innerRadius={52} outerRadius={84} dataKey="value" strokeWidth={0}>
+            {data.map((e, i) => <Cell key={i} fill={e.fill} />)}
+          </Pie>
+          <Tooltip
+            contentStyle={{ background: tc.ttBg, border: `1px solid ${tc.ttBorder}`, borderRadius: 8, color: tc.ttColor, fontSize: 12 }}
+            formatter={(v: number) => [`${fmtK(v)} (${((v / total) * 100).toFixed(1)}%)`, ""]}
+          />
+        </PieChart>
+        <div className="w-full space-y-1.5 text-xs">
+          {data.map((e) => (
+            <div key={e.name} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: e.fill }} />
+                <span className={tc.muted}>{e.name}</span>
+              </div>
+              <span className={`tabular-nums font-medium ${tc.text}`}>{((e.value / total) * 100).toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/* ─── main ──────────────────────────────────────────────────────────────── */
 export default function MevClient() {
+  const [theme, setTheme] = useState<Theme>("dark");
+  const isDark = theme === "dark";
+  const tc = isDark ? DARK : LIGHT;
+
   const [stats, setStats] = useState<MevStats | null>(null);
   const [weekly, setWeekly] = useState<WeekRow[]>([]);
   const [blocksPct, setBlocksPct] = useState<BlockPctRow[]>([]);
   const [bots, setBots] = useState<BotRow[]>([]);
   const [pools, setPools] = useState<PoolRow[]>([]);
   const [pairs, setPairs] = useState<PairRow[]>([]);
+  const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [recent, setRecent] = useState<RecentRow[]>([]);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "tokens" | "bots" | "pools" | "recent">(
-    "overview"
-  );
+  const [tab, setTab] = useState<TabId>("overview");
 
   const load = useCallback(async () => {
     try {
-      const [s, w, bp, b, po, pa, r, pr] = await Promise.all([
-        get<MevStats>("stats"),
-        get<WeekRow[]>("weekly-trend", "&weeks=16"),
-        get<BlockPctRow[]>("blocks-pct", "&weeks=16"),
-        get<BotRow[]>("top-bots", "&limit=20"),
-        get<PoolRow[]>("top-pools", "&limit=20"),
-        get<PairRow[]>("top-token-pairs", "&limit=20"),
-        get<RecentRow[]>("recent", "&limit=50"),
-        get<Progress>("backfill-progress"),
+      const [s, w, bp, b, po, pa, tk, r, pr] = await Promise.all([
+        apiFetch<MevStats>("stats"),
+        apiFetch<WeekRow[]>("weekly-trend", "&weeks=16"),
+        apiFetch<BlockPctRow[]>("blocks-pct", "&weeks=16"),
+        apiFetch<BotRow[]>("top-bots", "&limit=25"),
+        apiFetch<PoolRow[]>("top-pools", "&limit=25"),
+        apiFetch<PairRow[]>("top-token-pairs", "&limit=25"),
+        apiFetch<TokenRow[]>("top-tokens", "&limit=30"),
+        apiFetch<RecentRow[]>("recent", "&limit=50"),
+        apiFetch<Progress>("backfill-progress"),
       ]);
-      setStats(s);
-      setWeekly(w);
-      setBlocksPct(bp);
-      setBots(b);
-      setPools(po);
-      setPairs(pa);
-      setRecent(r);
-      setProgress(pr);
+      setStats(s); setWeekly(w); setBlocksPct(bp); setBots(b);
+      setPools(po); setPairs(pa); setTokens(tk); setRecent(r); setProgress(pr);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -276,705 +281,532 @@ export default function MevClient() {
 
   useEffect(() => {
     load();
-    const iv = setInterval(load, 60_000);
+    const iv = setInterval(load, 30_000);
     return () => clearInterval(iv);
   }, [load]);
 
   if (loading)
     return (
-      <div className="flex h-64 items-center justify-center text-white/40 text-sm">
-        Loading MEV data…
+      <div className={`min-h-screen ${tc.pageBg} ${tc.pageText} flex items-center justify-center`}>
+        <p className={`text-sm ${tc.faint}`}>Loading MEV data…</p>
       </div>
     );
   if (error)
     return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-400 text-sm">
-        {error}
+      <div className={`min-h-screen ${tc.pageBg} p-8`}>
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-400 text-sm font-mono whitespace-pre-wrap">{error}</div>
       </div>
     );
 
-  /* ── derived ───────────────────────────────────────────── */
+  /* ── derived stats ──────────────────────────────────────────────────── */
   const pctBlocks = stats
-    ? ((Number(stats.sandwich_blocks) / Number(stats.total_blocks)) * 100).toFixed(1)
-    : "—";
-
-  const backfilling =
-    progress &&
-    stats &&
-    Number(progress.last_block) < Number(stats.last_block) - 5000;
-
-  const pct = progress && stats
-    ? Math.min(
-        100,
-        Math.floor(
-          ((Number(progress.last_block) - progress.dencun_start) /
-            (Number(stats.last_block) - progress.dencun_start)) *
-            100
-        )
-      )
+    ? ((Number(stats.sandwich_blocks) / Number(stats.total_blocks)) * 100).toFixed(1) : "—";
+  const backfilling = progress && stats && Number(progress.last_block) < Number(stats.last_block) - 5000;
+  const bfPct = progress && stats
+    ? Math.min(100, Math.floor(((Number(progress.last_block) - progress.dencun_start) / (Number(stats.last_block) - progress.dencun_start)) * 100))
     : 0;
 
-  /* ── chart data ────────────────────────────────────────── */
+  /* ── chart helpers ─────────────────────────────────────────────────── */
+  const TICK = { fill: tc.axis, fontSize: 11 };
+  const TIP = {
+    contentStyle: {
+      background: tc.ttBg, border: `1px solid ${tc.ttBorder}`,
+      borderRadius: 8, color: tc.ttColor, fontSize: 12,
+    },
+  };
+  const LEG = { color: tc.ttColor, fontSize: 12, opacity: 0.65 };
+
+  /* ── chart data ─────────────────────────────────────────────────────── */
   const weeklyData = weekly.map((r) => ({
-    week:  new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
-    v3:    Number(r.v3_count),
-    v2:    Number(r.v2_count),
-    sushi: Number(r.sushi_count),
-    curve: Number(r.curve_count),
-    dodo:  Number(r.dodo_count),
-    bots:  Number(r.active_bots),
-    blocks: Number(r.blocks_sandwiched),
-    usd:   Number(r.victim_usd_total),
-    usdPct: r.usd_count && r.sandwiches
-      ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100)
-      : 0,
+    week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+    v3: Number(r.v3_count), v2: Number(r.v2_count), sushi: Number(r.sushi_count),
+    curve: Number(r.curve_count), dodo: Number(r.dodo_count),
+    bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? 0),
+    usd: Number(r.victim_usd_total),
+    usdPct: r.usd_count && r.sandwiches ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100) : 0,
   }));
 
-  // 100% normalised protocol share for stacked area
-  const weeklyShareData = weekly.map((r) => {
-    const total = Number(r.v3_count) + Number(r.v2_count) + Number(r.sushi_count)
-                + Number(r.curve_count) + Number(r.dodo_count) || 1;
+  const shareData = weekly.map((r) => {
+    const tot = Number(r.v3_count) + Number(r.v2_count) + Number(r.sushi_count) + Number(r.curve_count) + Number(r.dodo_count) || 1;
     return {
-      week:  new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
-      v3:    +((Number(r.v3_count)    / total) * 100).toFixed(1),
-      v2:    +((Number(r.v2_count)    / total) * 100).toFixed(1),
-      sushi: +((Number(r.sushi_count) / total) * 100).toFixed(1),
-      curve: +((Number(r.curve_count) / total) * 100).toFixed(1),
-      dodo:  +((Number(r.dodo_count)  / total) * 100).toFixed(1),
+      week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      v3: +((Number(r.v3_count) / tot) * 100).toFixed(1),
+      v2: +((Number(r.v2_count) / tot) * 100).toFixed(1),
+      sushi: +((Number(r.sushi_count) / tot) * 100).toFixed(1),
+      curve: +((Number(r.curve_count) / tot) * 100).toFixed(1),
+      dodo: +((Number(r.dodo_count) / tot) * 100).toFixed(1),
     };
   });
 
-  // blocks sandwiched % per week
-  const blocksPctData = blocksPct.map((r) => ({
-    week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
-    pct: +((Number(r.sandwich_blocks) / Math.max(1, Number(r.total_blocks))) * 100).toFixed(2),
-    sw:    Number(r.sandwich_blocks),
-    total: Number(r.total_blocks),
-  }));
+  const blkData = blocksPct.map((r) => {
+    const sw = (Number(r.sandwich_blocks) / Math.max(1, Number(r.total_blocks))) * 100;
+    return {
+      week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      sandwich: +sw.toFixed(2),
+      other: +(100 - sw).toFixed(2),
+      sw: Number(r.sandwich_blocks),
+      total: Number(r.total_blocks),
+    };
+  });
 
-  const v3Total    = stats ? Number(stats.v3_count)    : 0;
-  const v2Total    = stats ? Number(stats.v2_count)    : 0;
-  const sushiTotal = stats ? Number(stats.sushi_count) : 0;
-  const curveTotal = stats ? Number(stats.curve_count) : 0;
-  const dodoTotal  = stats ? Number(stats.dodo_count)  : 0;
-  const protoTotal = v3Total + v2Total + sushiTotal + curveTotal + dodoTotal || 1;
-
+  /* ── donut data ─────────────────────────────────────────────────────── */
+  const v3T = Number(stats?.v3_count ?? 0), v2T = Number(stats?.v2_count ?? 0);
+  const sushiT = Number(stats?.sushi_count ?? 0), curveT = Number(stats?.curve_count ?? 0), dodoT = Number(stats?.dodo_count ?? 0);
+  const protoTot = v3T + v2T + sushiT + curveT + dodoT || 1;
   const protoPie = [
-    { name: "Uniswap v3", value: v3Total,    fill: "#f472b6" },
-    { name: "Uniswap v2", value: v2Total,    fill: "#a78bfa" },
-    { name: "SushiSwap",  value: sushiTotal, fill: "#fb923c" },
-    { name: "Curve",      value: curveTotal, fill: "#34d399" },
-    { name: "DODO",       value: dodoTotal,  fill: "#facc15" },
+    { name: "Uniswap v3", value: v3T, fill: "#e91e8c" },
+    { name: "Uniswap v2", value: v2T, fill: "#8b5cf6" },
+    { name: "SushiSwap",  value: sushiT, fill: "#f97316" },
+    { name: "Curve",      value: curveT, fill: "#10b981" },
+    { name: "DODO",       value: dodoT, fill: "#eab308" },
   ].filter((e) => e.value > 0);
 
-  // top-12 pairs pie (by sandwich count)
-  const pairsPieTotal = pairs.reduce((s, p) => s + Number(p.sandwiches), 0) || 1;
-  const PAIR_COLORS = [
-    "#f472b6","#a78bfa","#fb923c","#34d399","#facc15",
-    "#38bdf8","#f87171","#4ade80","#c084fc","#fb7185",
-    "#60a5fa","#fbbf24",
-  ];
+  const pairsTot = pairs.reduce((s, p) => s + Number(p.sandwiches), 0) || 1;
   const pairsPie = pairs.slice(0, 12).map((p, i) => ({
     name: `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`,
-    value: Number(p.sandwiches),
-    fill: PAIR_COLORS[i % PAIR_COLORS.length],
-    protocol: p.protocol,
+    value: Number(p.sandwiches), fill: CHART_COLORS[i % CHART_COLORS.length],
   }));
 
-  const TABS = [
+  const tokensTot = tokens.reduce((s, t) => s + Number(t.sandwiches), 0) || 1;
+  const tokensPie = tokens.slice(0, 12).map((t, i) => ({
+    name: tokenSymbol(t.token), value: Number(t.sandwiches), fill: CHART_COLORS[i % CHART_COLORS.length],
+  }));
+
+  const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "Overview" },
-    { id: "tokens",   label: "Token Pairs" },
-    { id: "bots",     label: "Top Bots" },
-    { id: "pools",    label: "Top Pools" },
+    { id: "tokens",   label: "Tokens" },
+    { id: "pairs",    label: "Token Pairs" },
+    { id: "bots",     label: "Bots" },
+    { id: "pools",    label: "Pools" },
     { id: "recent",   label: "Live Feed" },
-  ] as const;
+  ];
 
   return (
-    <div className="space-y-5">
-      {/* backfill banner */}
-      {backfilling && (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/8 px-5 py-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-amber-300">
-              Historical backfill running — {pct}% complete
-            </span>
-            <span className="text-amber-400/60 text-xs">
-              block {fmt(progress!.last_block)} / {fmt(stats?.last_block ?? "")}
-            </span>
+    <div className={`min-h-screen ${tc.pageBg} ${tc.pageText} transition-colors duration-200`}>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+
+        {/* ── header ─────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl select-none">🥪</span>
+              <div>
+                <h1 className={`text-2xl font-bold ${tc.text}`}>MEV Sandwich Tracker</h1>
+                <p className={`mt-0.5 text-sm ${tc.muted}`}>
+                  Native on-chain detection — Uniswap v2/v3, SushiSwap, Curve, DODO · all sandwiches since Dencun
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                "Source: ethereum.logs + ethereum.transactions",
+                "same-pool same-block frontrun → victim → backrun",
+                "Refreshes every 30s",
+              ].map((t) => (
+                <span key={t} className={`rounded-full border px-3 py-0.5 text-[11px] ${tc.cardBorder} ${tc.faint}`}>{t}</span>
+              ))}
+            </div>
           </div>
-          <div className="mt-2 h-1 rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-amber-400 transition-all"
-              style={{ width: `${pct}%` }}
+          <button
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className={`flex-shrink-0 rounded-full border p-2.5 transition-all ${tc.kpiBg} ${tc.kpiBorder} ${tc.muted} hover:scale-105`}
+            title="Toggle light/dark mode"
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        </div>
+
+        {/* ── backfill banner ─────────────────────────────────────────── */}
+        {backfilling && progress && stats && (
+          <div className={`rounded-xl border ${tc.bannerBorder} ${tc.bannerBg} px-5 py-3`}>
+            <div className="flex items-center justify-between text-sm">
+              <span className={`font-medium ${tc.bannerText}`}>Historical backfill running — {bfPct}% complete</span>
+              <span className={`text-xs ${tc.bannerSub}`}>block {fmt(progress.last_block)} / {fmt(stats.last_block)}</span>
+            </div>
+            <div className={`mt-2 h-1 rounded-full ${tc.bannerBarBg}`}>
+              <div className={`h-full rounded-full ${tc.bannerBar} transition-all`} style={{ width: `${bfPct}%` }} />
+            </div>
+            <p className={`mt-1.5 text-xs ${tc.bannerSub}`}>{fmt(progress.total_sandwiches)} sandwiches detected so far</p>
+          </div>
+        )}
+
+        {/* ── KPIs ────────────────────────────────────────────────────── */}
+        {stats && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <Kpi tc={tc} label="Total Sandwiches" value={fmtK(stats.total_sandwiches)} sub="since Dencun" accent="text-pink-500" />
+            <Kpi tc={tc} label="Unique Victims"   value={fmtK(stats.unique_victims)}   sub="distinct txs targeted" />
+            <Kpi tc={tc} label="MEV Bots"         value={fmt(stats.unique_bots)}        sub="unique sandwichers" accent="text-red-500" />
+            <Kpi tc={tc} label="Pools Targeted"   value={fmtK(stats.unique_pools)} />
+            <Kpi tc={tc} label="Blocks Sandwiched" value={`${pctBlocks}%`}             sub="of blocks, last 30d" accent="text-amber-500" />
+            <Kpi tc={tc} label="Rate"
+              value={`${((Number(stats.total_sandwiches) / Math.max(1, Number(stats.last_block) - Number(stats.first_block))) * 1000).toFixed(2)}/1K`}
+              sub="per 1000 blocks"
             />
           </div>
-          <p className="mt-1.5 text-xs text-amber-400/55">
-            {fmt(progress!.total_sandwiches)} sandwiches detected so far
-          </p>
+        )}
+
+        {/* ── tab bar ─────────────────────────────────────────────────── */}
+        <div className={`flex gap-0.5 border-b ${tc.tabBar}`}>
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`px-4 py-2.5 text-[13px] font-medium transition-all rounded-t-lg ${tab === t.id ? tc.tabActive : tc.tabInactive}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* KPI row */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Kpi
-            label="Total Sandwiches"
-            value={fmtK(stats.total_sandwiches)}
-            sub="since Dencun"
-            accent="text-pink-400"
-          />
-          <Kpi
-            label="Unique Victims"
-            value={fmtK(stats.unique_victims)}
-            sub="addresses targeted"
-          />
-          <Kpi
-            label="MEV Bots"
-            value={fmt(stats.unique_bots)}
-            sub="distinct sandwichers"
-            accent="text-red-400"
-          />
-          <Kpi label="Pools Targeted" value={fmtK(stats.unique_pools)} />
-          <Kpi
-            label="Blocks Sandwiched"
-            value={`${pctBlocks}%`}
-            sub="of blocks, last 30d"
-            accent="text-amber-400"
-          />
-          <Kpi
-            label="Sandwich Rate"
-            value={`${(
-              (Number(stats.total_sandwiches) /
-                Math.max(1, Number(stats.last_block) - Number(stats.first_block))) *
-              1000
-            ).toFixed(2)}/1K`}
-            sub="sandwiches per 1000 blocks"
-          />
-        </div>
-      )}
+        {/* ╔══════════════════════ OVERVIEW ══════════════════════════════╗ */}
+        {tab === "overview" && (
+          <div className="space-y-5">
 
-      {/* tab bar */}
-      <div className="flex gap-1 border-b border-white/8">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors rounded-t-lg ${
-              tab === t.id
-                ? "text-white bg-white/8 border-b-2 border-pink-400"
-                : "text-white/45 hover:text-white/75"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── OVERVIEW tab ─────────────────────────────────── */}
-      {tab === "overview" && (
-        <div className="space-y-5">
-          {/* Row 1: absolute stacked area */}
-          <Card title="Weekly Sandwiches by DEX (count)">
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={weeklyData}>
-                <defs>
-                  {[
-                    { id: "gv3",    color: "#f472b6" },
-                    { id: "gv2",    color: "#a78bfa" },
-                    { id: "gsushi", color: "#fb923c" },
-                    { id: "gcurve", color: "#34d399" },
-                    { id: "gdodo",  color: "#facc15" },
-                  ].map(({ id, color }) => (
-                    <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor={color} stopOpacity={0.45} />
-                      <stop offset="100%" stopColor={color} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
-                <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
-                <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
-                <Tooltip {...TOOLTIP_STYLE} />
-                <Legend wrapperStyle={{ color: "#ffffff80", fontSize: 12 }} />
-                <Area type="monotone" dataKey="v3"    name="Uniswap v3" stackId="1" stroke="#f472b6" fill="url(#gv3)"    strokeWidth={2} />
-                <Area type="monotone" dataKey="v2"    name="Uniswap v2" stackId="1" stroke="#a78bfa" fill="url(#gv2)"    strokeWidth={2} />
-                <Area type="monotone" dataKey="sushi" name="SushiSwap"  stackId="1" stroke="#fb923c" fill="url(#gsushi)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="curve" name="Curve"      stackId="1" stroke="#34d399" fill="url(#gcurve)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="dodo"  name="DODO"       stackId="1" stroke="#facc15" fill="url(#gdodo)"  strokeWidth={1.5} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Card>
-
-          {/* Row 2: 100% share area + donut */}
-          <div className="grid gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <Card title="Sandwiched Transactions per Protocol — % Share">
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={weeklyShareData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
-                    <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
-                    <YAxis
-                      tick={AXIS_TICK}
-                      tickLine={false}
-                      axisLine={false}
-                      domain={[0, 100]}
-                      tickFormatter={(v) => `${v}%`}
-                    />
-                    <Tooltip
-                      {...TOOLTIP_STYLE}
-                      formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name]}
-                    />
-                    <Legend wrapperStyle={{ color: "#ffffff80", fontSize: 12 }} />
-                    <Area type="monotone" dataKey="v3"    name="Uniswap v3" stackId="1" stroke="#f472b6" fill="#f472b640" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="v2"    name="Uniswap v2" stackId="1" stroke="#a78bfa" fill="#a78bfa40" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="sushi" name="SushiSwap"  stackId="1" stroke="#fb923c" fill="#fb923c40" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="curve" name="Curve"      stackId="1" stroke="#34d399" fill="#34d39940" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="dodo"  name="DODO"       stackId="1" stroke="#facc15" fill="#facc1540" strokeWidth={1.5} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Card>
-            </div>
-
-            <Card title="Protocol Split (all time)">
-              <div className="flex flex-col items-center gap-4">
-                <PieChart width={160} height={160}>
-                  <Pie
-                    data={protoPie}
-                    cx={75}
-                    cy={75}
-                    innerRadius={45}
-                    outerRadius={75}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {protoPie.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    {...TOOLTIP_STYLE}
-                    formatter={(v: number) => [
-                      `${fmtK(v)} (${((v / protoTotal) * 100).toFixed(1)}%)`,
-                      "",
-                    ]}
-                  />
-                </PieChart>
-                <div className="space-y-1.5 text-sm w-full">
-                  {protoPie.map((e) => (
-                    <div key={e.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: e.fill }} />
-                        <span className="text-white/70">{e.name}</span>
-                      </div>
-                      <span className="tabular-nums text-white/90 font-medium">
-                        {((e.value / protoTotal) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Row 3: USD volume (if data available) */}
-          {weeklyData.some((r) => r.usd > 0) && (
-            <Card title="Weekly Sandwiched Volume (USD — stablecoin + WETH pairs)">
-              <div className="mb-2 flex items-center gap-2 text-xs text-white/35">
-                <span>Coverage: {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% of sandwiches priced in latest week</span>
-                <span>·</span>
-                <span>USDC/USDT/DAI/WETH pairs only</span>
-              </div>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={weeklyData} barSize={18}>
+            {/* absolute stacked area */}
+            <Card tc={tc} title="Sandwiched Transactions" sub="ethereum, Weekly">
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={weeklyData}>
                   <defs>
-                    <linearGradient id="gusd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor="#34d399" stopOpacity={0.7} />
-                      <stop offset="100%" stopColor="#34d399" stopOpacity={0.2} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
-                  <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
-                  <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
-                  <Tooltip
-                    {...TOOLTIP_STYLE}
-                    formatter={(v: number) => [fmtUsd(v), "Victim Volume (USD)"]}
-                  />
-                  <Bar dataKey="usd" name="Victim Volume" fill="url(#gusd)" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-
-          {/* Row 4: bots weekly + blocks sandwiched % */}
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Card title="Active Sandwich Bots per Week">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weeklyData} barSize={14}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
-                  <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
-                  <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} />
-                  <Tooltip {...TOOLTIP_STYLE} />
-                  <Bar dataKey="bots" name="Active Bots" fill="#f87171" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card title="Portion of Blocks with Sandwich Trades (% weekly)">
-              {blocksPctData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={blocksPctData}>
-                    <defs>
-                      <linearGradient id="gblockpct" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%"   stopColor="#38bdf8" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                    {[["gv3","#e91e8c"],["gv2","#8b5cf6"],["gs","#f97316"],["gc","#10b981"],["gd","#eab308"]].map(([id,c]) => (
+                      <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stopColor={c} stopOpacity={0.55} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.04} />
                       </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
-                    <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
-                    <YAxis
-                      tick={AXIS_TICK}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `${v}%`}
-                    />
-                    <Tooltip
-                      {...TOOLTIP_STYLE}
-                      formatter={(v: number, _: string, props: { payload?: { sw?: number; total?: number } }) => [
-                        `${v}% (${fmt(props.payload?.sw ?? 0)} / ${fmt(props.payload?.total ?? 0)} blocks)`,
-                        "Blocks sandwiched",
-                      ]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="pct"
-                      name="% Blocks Sandwiched"
-                      stroke="#38bdf8"
-                      fill="url(#gblockpct)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex h-48 items-center justify-center text-white/25 text-sm">
-                  Loading block data…
-                </div>
-              )}
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* ── TOKEN PAIRS tab ─────────────────────────────── */}
-      {tab === "tokens" && (
-        <div className="space-y-5">
-          {/* pie + legend */}
-          {pairsPie.length > 0 && (
-            <div className="grid gap-5 lg:grid-cols-3">
-              <Card title="Top 12 Sandwiched Token Pairs" className="lg:col-span-1">
-                <div className="flex flex-col items-center gap-3">
-                  <PieChart width={200} height={200}>
-                    <Pie
-                      data={pairsPie}
-                      cx={95}
-                      cy={95}
-                      outerRadius={90}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {pairsPie.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      {...TOOLTIP_STYLE}
-                      formatter={(v: number) => [
-                        `${fmtK(v)} (${((v / pairsPieTotal) * 100).toFixed(1)}%)`,
-                        "",
-                      ]}
-                    />
-                  </PieChart>
-                  <div className="w-full space-y-1 text-xs">
-                    {pairsPie.map((e) => (
-                      <div key={e.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: e.fill }} />
-                          <span className="text-white/70 truncate max-w-[100px]">{e.name}</span>
-                        </div>
-                        <span className="tabular-nums text-white/80">
-                          {((e.value / pairsPieTotal) * 100).toFixed(1)}%
-                        </span>
-                      </div>
                     ))}
-                  </div>
-                </div>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                  <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
+                  <Tooltip {...TIP} />
+                  <Legend wrapperStyle={LEG} />
+                  <Area type="monotone" dataKey="v3"    name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="url(#gv3)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="v2"    name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="url(#gv2)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="sushi" name="SushiSwap"  stackId="1" stroke="#f97316" fill="url(#gs)"  strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="curve" name="Curve"      stackId="1" stroke="#10b981" fill="url(#gc)"  strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="dodo"  name="DODO"       stackId="1" stroke="#eab308" fill="url(#gd)"  strokeWidth={1.5} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            {/* 100% share + protocol donut */}
+            <div className="grid gap-5 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <Card tc={tc} title="Sandwiched Transactions per Protocol" sub="ethereum, % share, Weekly">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={shareData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                      <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip {...TIP} formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name]} />
+                      <Legend wrapperStyle={LEG} />
+                      <Area type="monotone" dataKey="v3"    name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="#e91e8c30" strokeWidth={1.5} />
+                      <Area type="monotone" dataKey="v2"    name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="#8b5cf630" strokeWidth={1.5} />
+                      <Area type="monotone" dataKey="sushi" name="SushiSwap"  stackId="1" stroke="#f97316" fill="#f9731630" strokeWidth={1.5} />
+                      <Area type="monotone" dataKey="curve" name="Curve"      stackId="1" stroke="#10b981" fill="#10b98130" strokeWidth={1.5} />
+                      <Area type="monotone" dataKey="dodo"  name="DODO"       stackId="1" stroke="#eab308" fill="#eab30830" strokeWidth={1.5} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </Card>
+              </div>
+              <DonutCard tc={tc} title="Protocol Split" sub="all-time" data={protoPie} total={protoTot} />
+            </div>
+
+            {/* victim addresses + blocks % */}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Card tc={tc} title="Sandwiched DEX Trading Addresses" sub="ethereum, Weekly (unique victim txs)">
+                {weeklyData.some((r) => r.victims > 0) ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={weeklyData}>
+                      <defs>
+                        <linearGradient id="gvic" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%"   stopColor="#f87171" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#f87171" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                      <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
+                      <Tooltip {...TIP} formatter={(v: number) => [fmtK(v), "Unique victim txs"]} />
+                      <Area type="monotone" dataKey="victims" name="Victim Txs" stroke="#f87171" fill="url(#gvic)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : <EmptyState tc={tc} msg="Available after backfill" />}
               </Card>
 
-              {/* summary note */}
-              <div className="lg:col-span-2 flex flex-col justify-center gap-3">
-                <div className="rounded-xl border border-white/8 bg-white/3 p-4 text-sm text-white/60">
-                  <p className="font-semibold text-white/80 mb-1">Coverage note</p>
-                  <p>74.7% of sandwiched pools are mapped to token pairs — these are pools created after
-                  Dencun (Mar 2024) whose factory events are in our archive. Older pools show as "unknown"
-                  in the table below.</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-wide text-white/40">Total pairs detected</p>
-                    <p className="mt-1 text-xl font-bold text-white">{fmt(pairs.length)}+</p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-wide text-white/40">Top pair sandwiches</p>
-                    <p className="mt-1 text-xl font-bold text-pink-400">
-                      {pairs[0] ? fmt(pairs[0].sandwiches) : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <Card tc={tc} title="Portion of Blocks with Sandwich Trades" sub="ethereum, % weekly">
+                {blkData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={blkData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                      <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip
+                        {...TIP}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(v: number, name: string, entry: any) =>
+                          name === "Sandwich"
+                            ? [`${v}%  (${fmt(entry.payload?.sw ?? 0)} / ${fmt(entry.payload?.total ?? 0)} blocks)`, "Blocks w/ sandwich"]
+                            : [`${v}%`, "Other blocks"]
+                        }
+                      />
+                      <Legend wrapperStyle={LEG} />
+                      <Area type="monotone" dataKey="other"    name="Other"    stackId="1" stroke="#10b981" fill="#10b98125" strokeWidth={1} />
+                      <Area type="monotone" dataKey="sandwich" name="Sandwich" stackId="1" stroke="#f43f5e" fill="#f43f5e55" strokeWidth={1.5} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : <EmptyState tc={tc} />}
+              </Card>
             </div>
-          )}
 
-          {/* full table */}
-          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/8 text-[11px] uppercase tracking-wide text-white/40">
-                  <th className="px-4 py-3 text-left">#</th>
-                  <th className="px-4 py-3 text-left">Token Pair</th>
-                  <th className="px-4 py-3 text-left">Protocol</th>
-                  <th className="px-4 py-3 text-right">Sandwiches</th>
-                  <th className="px-4 py-3 text-right">Share</th>
-                  <th className="px-4 py-3 text-right">Victim Vol</th>
-                  <th className="px-4 py-3 text-right">Victims</th>
-                  <th className="px-4 py-3 text-right">Bots</th>
-                </tr>
-              </thead>
-              <tbody>
+            {/* bots weekly + USD */}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Card tc={tc} title="Sandwich Bots" sub="ethereum, Weekly (active bots)">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={weeklyData} barSize={14}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} />
+                    <Tooltip {...TIP} />
+                    <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={[3,3,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+
+              <Card tc={tc} title="Weekly Victim Volume (USD)" sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}>
+                {weeklyData.some((r) => r.usd > 0) ? (
+                  <>
+                    <p className={`mb-2 text-xs ${tc.faint}`}>
+                      {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% priced in latest week
+                    </p>
+                    <ResponsiveContainer width="100%" height={170}>
+                      <BarChart data={weeklyData} barSize={14}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                        <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                        <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
+                        <Tooltip {...TIP} formatter={(v: number) => [fmtUsd(v), "Victim Volume"]} />
+                        <Bar dataKey="usd" name="Victim USD" fill="#34d399" radius={[3,3,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </>
+                ) : <EmptyState tc={tc} msg="No USD data yet" />}
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* ╔══════════════════════ TOKENS ════════════════════════════════╗ */}
+        {tab === "tokens" && (
+          <div className="grid gap-5 lg:grid-cols-3">
+            <DonutCard tc={tc} title="Sandwiched Tokens" sub="ethereum, Top 12" data={tokensPie} total={tokensTot} />
+            <div className="lg:col-span-2">
+              <TableShell
+                tc={tc} title="Sandwiched Tokens" sub="ethereum — token appears in either leg of the sandwich"
+                head={
+                  <>
+                    <th className="px-4 py-3 text-left w-8">#</th>
+                    <th className="px-4 py-3 text-left">Token</th>
+                    <th className="px-4 py-3 text-right">Sandwiches</th>
+                    <th className="px-4 py-3 text-right">Share</th>
+                    <th className="px-4 py-3 text-right">Victims</th>
+                    <th className="px-4 py-3 text-right">Bots</th>
+                  </>
+                }
+              >
+                {tokens.map((t, i) => (
+                  <tr key={t.token} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                    <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className={`font-semibold ${tc.text}`}>{tokenSymbol(t.token)}</span>
+                        <span className={`text-xs font-mono ${tc.faint}`}>{short(t.token)}</span>
+                      </div>
+                    </td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${tc.text}`}>{fmt(t.sandwiches)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(t.sandwiches) / tokensTot) * 100).toFixed(1)}%</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_victims)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_bots)}</td>
+                  </tr>
+                ))}
+              </TableShell>
+            </div>
+          </div>
+        )}
+
+        {/* ╔══════════════════════ PAIRS ═════════════════════════════════╗ */}
+        {tab === "pairs" && (
+          <div className="grid gap-5 lg:grid-cols-3">
+            <DonutCard tc={tc} title="Sandwiched Token Pairs" sub="ethereum, Top 12" data={pairsPie} total={pairsTot} />
+            <div className="lg:col-span-2">
+              <TableShell
+                tc={tc} title="Sandwiched Token Pairs" sub="ethereum · 74.7% pool coverage (post-Dencun factory events)"
+                head={
+                  <>
+                    <th className="px-4 py-3 text-left w-8">#</th>
+                    <th className="px-4 py-3 text-left">Token Pair</th>
+                    <th className="px-4 py-3 text-left">DEX</th>
+                    <th className="px-4 py-3 text-right">Sandwiches</th>
+                    <th className="px-4 py-3 text-right">Share</th>
+                    <th className="px-4 py-3 text-right">Victim Vol</th>
+                    <th className="px-4 py-3 text-right">Victims</th>
+                    <th className="px-4 py-3 text-right">Bots</th>
+                  </>
+                }
+              >
                 {pairs.map((p, i) => {
-                  const sym0 = tokenSymbol(p.token0);
-                  const sym1 = tokenSymbol(p.token1);
-                  const pairTotal = pairs.reduce((s, r) => s + Number(r.sandwiches), 0) || 1;
+                  const tot = pairs.reduce((s, r) => s + Number(r.sandwiches), 0) || 1;
                   return (
-                    <tr
-                      key={`${p.token0}-${p.token1}-${i}`}
-                      className="border-b border-white/5 hover:bg-white/4 transition-colors"
-                    >
-                      <td className="px-4 py-2.5 text-white/25 tabular-nums">{i + 1}</td>
-                      <td className="px-4 py-2.5">
-                        <span className="font-semibold text-white">{sym0}/{sym1}</span>
-                      </td>
-                      <td className="px-4 py-2.5"><Proto p={p.protocol} /></td>
-                      <td className="px-4 py-2.5 text-right tabular-nums font-medium text-white">
-                        {fmt(p.sandwiches)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-white/50">
-                        {((Number(p.sandwiches) / pairTotal) * 100).toFixed(1)}%
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-emerald-400 font-medium">
-                        {fmtUsd(p.victim_usd_total)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                        {fmt(p.unique_victims)}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                        {fmt(p.unique_bots)}
-                      </td>
+                    <tr key={`${p.token0}-${p.token1}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                      <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+                      <td className={`px-4 py-2.5 font-semibold ${tc.text}`}>{tokenSymbol(p.token0)}/{tokenSymbol(p.token1)}</td>
+                      <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${tc.text}`}>{fmt(p.sandwiches)}</td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(p.sandwiches) / tot) * 100).toFixed(1)}%</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-medium text-emerald-500">{fmtUsd(p.victim_usd_total)}</td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableShell>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── BOTS tab ─────────────────────────────────────── */}
-      {tab === "bots" && (
-        <div className="space-y-5">
-          {/* bots weekly bar chart */}
-          <Card title="Unique Active Bots per Week">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={weeklyData} barSize={16}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
-                <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
-                <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} />
-                <Tooltip {...TOOLTIP_STYLE} />
-                <Bar dataKey="bots" name="Unique Bots" fill="#f87171" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-
-          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/8 text-[11px] uppercase tracking-wide text-white/40">
-                  <th className="px-4 py-3 text-left">#</th>
+        {/* ╔══════════════════════ BOTS ══════════════════════════════════╗ */}
+        {tab === "bots" && (
+          <div className="space-y-5">
+            <Card tc={tc} title="Active Sandwich Bots" sub="ethereum, Weekly">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={weeklyData} barSize={14}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                  <YAxis tick={TICK} tickLine={false} axisLine={false} />
+                  <Tooltip {...TIP} />
+                  <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={[3,3,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+            <TableShell
+              tc={tc} title="Top Sandwich Bots" sub="ethereum, all-time, ranked by sandwich count"
+              head={
+                <>
+                  <th className="px-4 py-3 text-left w-8">#</th>
                   <th className="px-4 py-3 text-left">Address</th>
                   <th className="px-4 py-3 text-right">Sandwiches</th>
                   <th className="px-4 py-3 text-right">Victims</th>
-                  <th className="px-4 py-3 text-right">Gas Cost</th>
-                  <th className="px-4 py-3 text-right">First / Last Block</th>
+                  <th className="px-4 py-3 text-right">Gas Cost (USD)</th>
+                  <th className="px-4 py-3 text-right">Pools</th>
+                  <th className="px-4 py-3 text-right">Active Range</th>
+                </>
+              }
+            >
+              {bots.map((b, i) => (
+                <tr key={b.sandwicher} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                  <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+                  <td className="px-4 py-2.5 font-mono">
+                    <a href={ethAddr(b.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 transition-colors">
+                      {short(b.sandwicher)}
+                    </a>
+                  </td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${tc.text}`}>{fmt(b.sandwiches)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_victims)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-medium text-orange-500">{fmtUsd(b.total_gas_cost_usd)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_pools)}</td>
+                  <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${tc.faint}`}>{fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {bots.map((b, i) => (
-                  <tr
-                    key={b.sandwicher}
-                    className="border-b border-white/5 hover:bg-white/4 transition-colors"
-                  >
-                    <td className="px-4 py-2.5 text-white/25 tabular-nums">{i + 1}</td>
-                    <td className="px-4 py-2.5 font-mono">
-                      <a
-                        href={ethAddr(b.sandwicher)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-400 hover:text-red-300 transition-colors"
-                      >
-                        {short(b.sandwicher)}
-                      </a>
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-white">
-                      {fmt(b.sandwiches)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                      {fmt(b.unique_victims)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-orange-400 font-medium">
-                      {fmtUsd(b.total_gas_cost_usd)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-xs text-white/35 tabular-nums">
-                      {fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </TableShell>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── POOLS tab ────────────────────────────────────── */}
-      {tab === "pools" && (
-        <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8 text-[11px] uppercase tracking-wide text-white/40">
-                <th className="px-4 py-3 text-left">#</th>
+        {/* ╔══════════════════════ POOLS ═════════════════════════════════╗ */}
+        {tab === "pools" && (
+          <TableShell
+            tc={tc} title="Top Sandwiched Pools" sub="ethereum, all-time, ranked by sandwich count"
+            head={
+              <>
+                <th className="px-4 py-3 text-left w-8">#</th>
                 <th className="px-4 py-3 text-left">Pool</th>
                 <th className="px-4 py-3 text-left">Pair</th>
-                <th className="px-4 py-3 text-left">Protocol</th>
+                <th className="px-4 py-3 text-left">DEX</th>
                 <th className="px-4 py-3 text-right">Sandwiches</th>
                 <th className="px-4 py-3 text-right">Victims</th>
                 <th className="px-4 py-3 text-right">Bots</th>
+              </>
+            }
+          >
+            {pools.map((p, i) => (
+              <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+                <td className="px-4 py-2.5 font-mono">
+                  <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors`}>{short(p.pool)}</a>
+                </td>
+                <td className={`px-4 py-2.5 font-semibold ${tc.text}`}>
+                  {p.token0 && p.token1
+                    ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`
+                    : <span className={tc.veryFaint}>unknown</span>}
+                </td>
+                <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
+                <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${tc.text}`}>{fmt(p.sandwiches)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
               </tr>
-            </thead>
-            <tbody>
-              {pools.map((p, i) => {
-                const sym0 = p.token0 ? tokenSymbol(p.token0) : "?";
-                const sym1 = p.token1 ? tokenSymbol(p.token1) : "?";
-                const hasPair = p.token0 && p.token1;
-                return (
-                  <tr
-                    key={p.pool}
-                    className="border-b border-white/5 hover:bg-white/4 transition-colors"
-                  >
-                    <td className="px-4 py-2.5 text-white/25 tabular-nums">{i + 1}</td>
-                    <td className="px-4 py-2.5 font-mono">
-                      <a
-                        href={ethAddr(p.pool)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-white/70 hover:text-pink-400 transition-colors"
-                      >
-                        {short(p.pool)}
-                      </a>
-                    </td>
-                    <td className="px-4 py-2.5 font-semibold text-white/90">
-                      {hasPair ? `${sym0}/${sym1}` : <span className="text-white/30">unknown</span>}
-                    </td>
-                    <td className="px-4 py-2.5"><Proto p={p.protocol} /></td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-white">
-                      {fmt(p.sandwiches)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                      {fmt(p.unique_victims)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                      {fmt(p.unique_bots)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </TableShell>
+        )}
 
-      {/* ── LIVE FEED tab ────────────────────────────────── */}
-      {tab === "recent" && (
-        <div className="rounded-xl border border-white/10 bg-white/5 overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-white/8 text-[10px] uppercase tracking-wide text-white/40">
+        {/* ╔══════════════════════ LIVE FEED ═════════════════════════════╗ */}
+        {tab === "recent" && (
+          <TableShell
+            tc={tc} title="Live Sandwich Feed" sub="50 most recent · auto-refreshes every 30s"
+            head={
+              <>
                 <th className="px-3 py-3 text-left">Block</th>
                 <th className="px-3 py-3 text-left">Bot</th>
                 <th className="px-3 py-3 text-left">Pair</th>
-                <th className="px-3 py-3 text-left">Protocol</th>
+                <th className="px-3 py-3 text-left">DEX</th>
                 <th className="px-3 py-3 text-right">Victim $</th>
-                <th className="px-3 py-3 text-left">Frontrun #</th>
-                <th className="px-3 py-3 text-left">Victim #</th>
-                <th className="px-3 py-3 text-left">Backrun #</th>
+                <th className="px-3 py-3 text-left">Frontrun</th>
+                <th className="px-3 py-3 text-left">Victim</th>
+                <th className="px-3 py-3 text-left">Backrun</th>
+              </>
+            }
+          >
+            {recent.map((r, i) => (
+              <tr key={`${r.frontrun_tx}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors text-xs`}>
+                <td className={`px-3 py-2.5 tabular-nums ${tc.muted}`}>{fmt(r.block_number)}</td>
+                <td className="px-3 py-2.5 font-mono">
+                  <a href={ethAddr(r.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400">{short(r.sandwicher)}</a>
+                </td>
+                <td className={`px-3 py-2.5 font-semibold ${tc.text}`}>
+                  {r.token0 && r.token1 ? `${tokenSymbol(r.token0)}/${tokenSymbol(r.token1)}` : short(r.pool)}
+                </td>
+                <td className="px-3 py-2.5"><Proto p={r.protocol} isDark={isDark} /></td>
+                <td className="px-3 py-2.5 text-right tabular-nums">
+                  {Number(r.victim_usd) > 0
+                    ? <span className="text-emerald-500 font-medium">{fmtUsd(r.victim_usd)}</span>
+                    : <span className={tc.veryFaint}>—</span>}
+                </td>
+                <td className="px-3 py-2.5 font-mono">
+                  <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400">
+                    {short(r.frontrun_tx)}<span className={`ml-1 ${tc.veryFaint}`}>#{r.frontrun_idx}</span>
+                  </a>
+                </td>
+                <td className="px-3 py-2.5 font-mono">
+                  <a href={ethTx(r.victim_tx)} target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:text-yellow-400">
+                    {short(r.victim_tx)}<span className={`ml-1 ${tc.veryFaint}`}>#{r.victim_idx}</span>
+                  </a>
+                </td>
+                <td className="px-3 py-2.5 font-mono">
+                  <a href={ethTx(r.backrun_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400">
+                    {short(r.backrun_tx)}<span className={`ml-1 ${tc.veryFaint}`}>#{r.backrun_idx}</span>
+                  </a>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {recent.map((r, i) => {
-                const sym0 = r.token0 ? tokenSymbol(r.token0) : "?";
-                const sym1 = r.token1 ? tokenSymbol(r.token1) : "?";
-                const hasPair = r.token0 && r.token1;
-                return (
-                  <tr
-                    key={`${r.frontrun_tx}-${i}`}
-                    className="border-b border-white/5 hover:bg-white/4 transition-colors"
-                  >
-                    <td className="px-3 py-2 tabular-nums text-white/55">
-                      {fmt(r.block_number)}
-                    </td>
-                    <td className="px-3 py-2 font-mono">
-                      <a href={ethAddr(r.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300">
-                        {short(r.sandwicher)}
-                      </a>
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-white/85">
-                      {hasPair ? `${sym0}/${sym1}` : short(r.pool)}
-                    </td>
-                    <td className="px-3 py-2"><Proto p={r.protocol} /></td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {Number(r.victim_usd) > 0
-                        ? <span className="text-emerald-400 font-medium">{fmtUsd(r.victim_usd)}</span>
-                        : <span className="text-white/20">—</span>
-                      }
-                    </td>
-                    <td className="px-3 py-2 font-mono">
-                      <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300">
-                        {short(r.frontrun_tx)}<span className="text-white/30 ml-1">#{r.frontrun_idx}</span>
-                      </a>
-                    </td>
-                    <td className="px-3 py-2 font-mono">
-                      <a href={ethTx(r.victim_tx)} target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:text-yellow-300">
-                        {short(r.victim_tx)}<span className="text-white/30 ml-1">#{r.victim_idx}</span>
-                      </a>
-                    </td>
-                    <td className="px-3 py-2 font-mono">
-                      <a href={ethTx(r.backrun_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
-                        {short(r.backrun_tx)}<span className="text-white/30 ml-1">#{r.backrun_idx}</span>
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </TableShell>
+        )}
+
+      </div>
     </div>
   );
 }

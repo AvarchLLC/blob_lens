@@ -110,7 +110,8 @@ export async function GET(req: NextRequest) {
           countIf(s.protocol='curve')              AS curve_count,
           countIf(s.protocol='dodo')               AS dodo_count,
           round(sum(${victimUsdSql()}))            AS victim_usd_total,
-          countIf(${victimUsdSql()} > 0)           AS usd_count
+          countIf(${victimUsdSql()} > 0)           AS usd_count,
+          countDistinct(s.victim_tx)               AS weekly_victims
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         WHERE s.block_timestamp >= now() - INTERVAL ${weeks} WEEK
@@ -220,6 +221,30 @@ export async function GET(req: NextRequest) {
         FROM all_weeks a
         LEFT JOIN sw_weeks s ON a.week = s.week
         ORDER BY a.week ASC
+      `);
+      return NextResponse.json(rows);
+    }
+
+    if (type === "top-tokens") {
+      const limit = Number(req.nextUrl.searchParams.get("limit") ?? "30");
+      const rows = await ch(`
+        SELECT
+          token,
+          count()                    AS sandwiches,
+          countDistinct(victim_tx)   AS unique_victims,
+          countDistinct(sandwicher)  AS unique_bots
+        FROM (
+          SELECT token0 AS token, victim_tx, sandwicher
+          FROM blob_lens.mev_sandwiches FINAL
+          WHERE token0 != ''
+          UNION ALL
+          SELECT token1 AS token, victim_tx, sandwicher
+          FROM blob_lens.mev_sandwiches FINAL
+          WHERE token1 != ''
+        )
+        GROUP BY token
+        ORDER BY sandwiches DESC
+        LIMIT ${limit}
       `);
       return NextResponse.json(rows);
     }
