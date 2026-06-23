@@ -37,7 +37,12 @@ export async function GET(req: NextRequest) {
             countDistinct(sandwicher)        AS unique_bots,
             countDistinct(pool)              AS unique_pools,
             min(block_number)                AS first_block,
-            max(block_number)                AS last_block
+            max(block_number)                AS last_block,
+            countIf(protocol='uniswap_v3')   AS v3_count,
+            countIf(protocol='uniswap_v2')   AS v2_count,
+            countIf(protocol='sushiswap_v2') AS sushi_count,
+            countIf(protocol='curve')        AS curve_count,
+            countIf(protocol='dodo')         AS dodo_count
           FROM blob_lens.mev_sandwiches FINAL
         `),
         ch(`
@@ -59,12 +64,15 @@ export async function GET(req: NextRequest) {
       const weeks = Number(req.nextUrl.searchParams.get("weeks") ?? "16");
       const rows = await ch(`
         SELECT
-          toStartOfWeek(block_timestamp)   AS week,
-          count()                          AS sandwiches,
-          countDistinct(sandwicher)        AS active_bots,
-          countDistinct(block_number)      AS blocks_sandwiched,
-          countIf(protocol='uniswap_v3')   AS v3_count,
-          countIf(protocol='uniswap_v2')   AS v2_count
+          toStartOfWeek(block_timestamp)         AS week,
+          count()                                AS sandwiches,
+          countDistinct(sandwicher)              AS active_bots,
+          countDistinct(block_number)            AS blocks_sandwiched,
+          countIf(protocol='uniswap_v3')         AS v3_count,
+          countIf(protocol='uniswap_v2')         AS v2_count,
+          countIf(protocol='sushiswap_v2')       AS sushi_count,
+          countIf(protocol='curve')              AS curve_count,
+          countIf(protocol='dodo')               AS dodo_count
         FROM blob_lens.mev_sandwiches FINAL
         WHERE block_timestamp >= now() - INTERVAL ${weeks} WEEK
         GROUP BY week

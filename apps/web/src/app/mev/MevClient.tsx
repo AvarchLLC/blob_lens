@@ -51,6 +51,11 @@ interface MevStats {
   last_block: string;
   sandwich_blocks: string;
   total_blocks: string;
+  v3_count: string;
+  v2_count: string;
+  sushi_count: string;
+  curve_count: string;
+  dodo_count: string;
 }
 interface WeekRow {
   week: string;
@@ -59,6 +64,9 @@ interface WeekRow {
   blocks_sandwiched: string;
   v3_count: string;
   v2_count: string;
+  sushi_count: string;
+  curve_count: string;
+  dodo_count: string;
 }
 interface BotRow {
   sandwicher: string;
@@ -293,17 +301,26 @@ export default function MevClient() {
     }),
     v3: Number(r.v3_count),
     v2: Number(r.v2_count),
+    sushi: Number(r.sushi_count),
+    curve: Number(r.curve_count),
+    dodo: Number(r.dodo_count),
     bots: Number(r.active_bots),
     blocks: Number(r.blocks_sandwiched),
   }));
 
-  const v2Total = weekly.reduce((s, r) => s + Number(r.v2_count), 0);
-  const v3Total = weekly.reduce((s, r) => s + Number(r.v3_count), 0);
-  const total = v2Total + v3Total;
+  const v3Total = stats ? Number(stats.v3_count) : weekly.reduce((s, r) => s + Number(r.v3_count), 0);
+  const v2Total = stats ? Number(stats.v2_count) : weekly.reduce((s, r) => s + Number(r.v2_count), 0);
+  const sushiTotal = stats ? Number(stats.sushi_count) : 0;
+  const curveTotal = stats ? Number(stats.curve_count) : 0;
+  const dodoTotal = stats ? Number(stats.dodo_count) : 0;
+  const protoTotal = v3Total + v2Total + sushiTotal + curveTotal + dodoTotal || 1;
   const protoPie = [
     { name: "Uniswap v3", value: v3Total, fill: "#f472b6" },
     { name: "Uniswap v2", value: v2Total, fill: "#a78bfa" },
-  ];
+    { name: "SushiSwap", value: sushiTotal, fill: "#fb923c" },
+    { name: "Curve", value: curveTotal, fill: "#34d399" },
+    { name: "DODO", value: dodoTotal, fill: "#facc15" },
+  ].filter((e) => e.value > 0);
 
   const TABS = [
     { id: "overview", label: "Overview" },
@@ -402,42 +419,33 @@ export default function MevClient() {
         <div className="grid gap-5 lg:grid-cols-3">
           {/* main area chart — full width */}
           <div className="lg:col-span-3">
-            <Card title="Weekly Sandwich Count — Uniswap v2 vs v3 (16 weeks)">
+            <Card title="Weekly Sandwich Count by DEX (16 weeks)">
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={weeklyData}>
                   <defs>
-                    <linearGradient id="gv3" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f472b6" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#f472b6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gv2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-                    </linearGradient>
+                    {[
+                      { id: "gv3", color: "#f472b6" },
+                      { id: "gv2", color: "#a78bfa" },
+                      { id: "gsushi", color: "#fb923c" },
+                      { id: "gcurve", color: "#34d399" },
+                      { id: "gdodo", color: "#facc15" },
+                    ].map(({ id, color }) => (
+                      <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={color} stopOpacity={0.45} />
+                        <stop offset="100%" stopColor={color} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
                   <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
                   <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
                   <Tooltip {...TOOLTIP_STYLE} />
                   <Legend wrapperStyle={{ color: "#ffffff80", fontSize: 12 }} />
-                  <Area
-                    type="monotone"
-                    dataKey="v3"
-                    name="Uniswap v3"
-                    stackId="1"
-                    stroke="#f472b6"
-                    fill="url(#gv3)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="v2"
-                    name="Uniswap v2"
-                    stackId="1"
-                    stroke="#a78bfa"
-                    fill="url(#gv2)"
-                    strokeWidth={2}
-                  />
+                  <Area type="monotone" dataKey="v3"    name="Uniswap v3"  stackId="1" stroke="#f472b6" fill="url(#gv3)"    strokeWidth={2} />
+                  <Area type="monotone" dataKey="v2"    name="Uniswap v2"  stackId="1" stroke="#a78bfa" fill="url(#gv2)"    strokeWidth={2} />
+                  <Area type="monotone" dataKey="sushi" name="SushiSwap"   stackId="1" stroke="#fb923c" fill="url(#gsushi)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="curve" name="Curve"       stackId="1" stroke="#34d399" fill="url(#gcurve)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="dodo"  name="DODO"        stackId="1" stroke="#facc15" fill="url(#gdodo)"  strokeWidth={1.5} />
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
@@ -478,7 +486,7 @@ export default function MevClient() {
                 <Tooltip
                   {...TOOLTIP_STYLE}
                   formatter={(v: number) => [
-                    `${fmtK(v)} (${((v / total) * 100).toFixed(1)}%)`,
+                    `${fmtK(v)} (${((v / protoTotal) * 100).toFixed(1)}%)`,
                     "",
                   ]}
                 />
@@ -494,7 +502,7 @@ export default function MevClient() {
                       <span className="text-white/70">{e.name}</span>
                     </div>
                     <span className="tabular-nums text-white/90 font-medium">
-                      {((e.value / total) * 100).toFixed(1)}%
+                      {((e.value / protoTotal) * 100).toFixed(1)}%
                     </span>
                   </div>
                 ))}
