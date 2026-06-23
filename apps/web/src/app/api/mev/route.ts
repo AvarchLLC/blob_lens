@@ -145,9 +145,9 @@ export async function GET(req: NextRequest) {
       const rows = await ch(`
         SELECT
           s.pool,
-          coalesce(nullIf(s.token0,''), pt.token0) AS token0,
-          coalesce(nullIf(s.token1,''), pt.token1) AS token1,
-          any(s.protocol)                          AS protocol,
+          coalesce(nullIf(s.token0,''), any(pt.token0)) AS token0,
+          coalesce(nullIf(s.token1,''), any(pt.token1)) AS token1,
+          any(s.protocol)                               AS protocol,
           count()                                  AS sandwiches,
           countDistinct(s.victim_tx)               AS unique_victims,
           countDistinct(s.sandwicher)              AS unique_bots
