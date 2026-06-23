@@ -155,6 +155,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(rows);
     }
 
+    if (type === "blocks-pct") {
+      const weeks = Number(req.nextUrl.searchParams.get("weeks") ?? "16");
+      const rows = await ch(`
+        WITH sw_weeks AS (
+          SELECT toStartOfWeek(block_timestamp) AS week,
+                 countDistinct(block_number)    AS sw_blocks
+          FROM blob_lens.mev_sandwiches FINAL
+          WHERE block_timestamp >= now() - INTERVAL ${weeks} WEEK
+          GROUP BY week
+        ),
+        all_weeks AS (
+          SELECT toStartOfWeek(timestamp) AS week, count() AS total_blocks
+          FROM ethereum.blocks FINAL
+          WHERE timestamp >= now() - INTERVAL ${weeks} WEEK AND is_deleted = 0
+          GROUP BY week
+        )
+        SELECT a.week, a.total_blocks, coalesce(s.sw_blocks, 0) AS sandwich_blocks
+        FROM all_weeks a
+        LEFT JOIN sw_weeks s ON a.week = s.week
+        ORDER BY a.week ASC
+      `);
+      return NextResponse.json(rows);
+    }
+
     if (type === "backfill-progress") {
       const [prog, total] = await Promise.all([
         ch(`SELECT source, last_block, updated_at FROM blob_lens.mev_backfill_progress FINAL WHERE source = 'mev_sandwich'`),
