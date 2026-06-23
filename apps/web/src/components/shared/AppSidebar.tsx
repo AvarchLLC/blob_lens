@@ -23,6 +23,7 @@ import {
     Wallet,
     ShieldAlert,
     ShieldCheck,
+    Sandwich,
     Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -175,6 +176,11 @@ const NAV_GROUPS: NavGroup[] = [
                 href: '/wallet-360',
                 label: 'Wallet 360',
                 icon: Key,
+            },
+            {
+                href: '/mev',
+                label: 'MEV Sandwiches',
+                icon: Sandwich,
             },
         ],
     },
