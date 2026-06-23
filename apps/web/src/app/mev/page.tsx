@@ -14,8 +14,8 @@ export default function MevPage() {
             <div>
               <h1 className="text-2xl font-bold text-white">MEV Sandwich Tracker</h1>
               <p className="mt-0.5 text-sm text-white/50">
-                Native on-chain detection from our own archive node — Uniswap v2 &amp; v3,
-                all sandwiches since Dencun (EIP-4844)
+                Native on-chain detection — Uniswap v2/v3, SushiSwap, Curve, DODO.
+                All sandwiches since Dencun (EIP-4844)
               </p>
             </div>
           </div>
