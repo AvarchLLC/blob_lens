@@ -79,7 +79,7 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
   return <>{formatNumber(count)}{suffix}</>;
 }
 
-// BPO upgrade history — teal for Pectra (live, important), neutral slate for Fusaka
+// BPO upgrade history — purple for Pectra (live, important), neutral slate for Fusaka
 const BPO_UPGRADES = [
   {
     name: "Dencun",
@@ -103,10 +103,10 @@ const BPO_UPGRADES = [
     target: 6,
     max: 9,
     tagline: "2× blob throughput",
-    bgStyle: { background: "linear-gradient(135deg, rgba(0,167,181,0.12) 0%, transparent 100%)" },
-    borderColor: "rgba(0,167,181,0.22)",
-    badgeStyle: { background: "rgba(0,167,181,0.10)", color: "#00A7B5", borderColor: "rgba(0,167,181,0.22)" },
-    dotColor: "#00A7B5",
+    bgStyle: { background: "linear-gradient(135deg, rgba(139,92,246,0.12) 0%, transparent 100%)" },
+    borderColor: "rgba(139,92,246,0.22)",
+    badgeStyle: { background: "rgba(139,92,246,0.10)", color: "#8B5CF6", borderColor: "rgba(139,92,246,0.22)" },
+    dotColor: "#8B5CF6",
     footerNote: null,
   },
   {
@@ -142,9 +142,9 @@ const USER_TYPES = [
     description: "Study market regimes, BPO upgrade impact, and 90-day utilization patterns. Understand how Dencun → Pectra → Fusaka reshaped the DA landscape.",
     href: "/research",
     cta: "Open Research",
-    gradientStyle: { background: "linear-gradient(135deg, rgba(0,167,181,0.10) 0%, transparent 100%)" },
-    iconColor: "#00A7B5",
-    iconBgStyle: { background: "rgba(0,167,181,0.10)" },
+    gradientStyle: { background: "linear-gradient(135deg, rgba(139,92,246,0.10) 0%, transparent 100%)" },
+    iconColor: "#8B5CF6",
+    iconBgStyle: { background: "rgba(139,92,246,0.10)" },
   },
   {
     icon: Zap,
@@ -513,7 +513,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
             </motion.div>
             <motion.div variants={fadeUp} className="relative group">
               <div className="absolute -inset-6 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-700"
-                style={{ background: "radial-gradient(ellipse, rgba(0,167,181,0.12) 0%, transparent 70%)" }} />
+                style={{ background: "radial-gradient(ellipse, rgba(139,92,246,0.12) 0%, transparent 70%)" }} />
               <div className="relative rounded-2xl overflow-hidden border border-border/50 shadow-2xl">
                 <img src="/bloblens.png" alt="BlobLens Dashboard" className="w-full" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background/30 to-transparent" />

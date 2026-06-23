@@ -9,14 +9,18 @@ export function useScroll(threshold: number) {
     }, [threshold]);
 
     React.useEffect(() => {
-        window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
-    }, [onScroll]);
+        const handleScroll = () => {
+            setScrolled(window.scrollY > threshold);
+        };
 
-    // check on mount
-    React.useEffect(() => {
-        onScroll();
-    }, [onScroll]);
+        const frameId = requestAnimationFrame(handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        return () => {
+            cancelAnimationFrame(frameId);
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [threshold]);
 
     return scrolled;
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Averia_Serif_Libre, Geist_Mono, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
+import { Lora, Geist_Mono, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
 import { AppShell } from "@/components/shared/AppShell";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import "./globals.css";
@@ -21,10 +21,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const averiaSerif = Averia_Serif_Libre({
-  variable: "--font-averia",
+const lora = Lora({
+  variable: "--font-lora",
   subsets: ["latin"],
-  weight: ["300", "400", "700"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://bloblens.com";
@@ -112,7 +112,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${plusJakartaSans.variable} ${geistMono.variable} ${averiaSerif.variable} antialiased`}
+      className={`${spaceGrotesk.variable} ${plusJakartaSans.variable} ${geistMono.variable} ${lora.variable} antialiased`}
       suppressHydrationWarning
     >
       <body className="h-screen bg-background text-foreground overflow-hidden" suppressHydrationWarning>

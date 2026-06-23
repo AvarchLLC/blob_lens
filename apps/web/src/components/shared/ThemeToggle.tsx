@@ -9,7 +9,10 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   // avoid hydration mismatch
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frameId);
+  }, []);
   if (!mounted) return <div className="h-8 w-8" />;
 
   const isDark = theme === "dark";

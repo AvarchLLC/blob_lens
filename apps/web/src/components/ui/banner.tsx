@@ -83,11 +83,11 @@ export function Banner({
   const globalKey = id ? `nd-banner-${id}` : null;
 
   useEffect(() => {
-    if (globalKey) {
-      setOpen(localStorage.getItem(globalKey) !== "true");
-      if (localStorage.getItem(globalKey) === "true") {
-        document.documentElement.classList.add(globalKey);
-      }
+    if (!globalKey) return;
+    const isClosed = localStorage.getItem(globalKey) === "true";
+    if (isClosed) {
+      setOpen(false);
+      document.documentElement.classList.add(globalKey);
     }
   }, [globalKey]);
 
