@@ -153,11 +153,27 @@ Rollup attribution (`src/rollup_registry.rs`) checks `from`/`to` against hardcod
 | `/rwa` | 60s | Real-world asset token tracker |
 | `/eth-liquidity` | 3600s | ETH supply distribution by category |
 | `/unknown` | 60s | Unattributed blob senders |
+| `/mev` | 30s | MEV sandwich tracker — protocol breakdown, USD volume, bots, pools, live feed |
 
 **ClickHouse tables (blob_lens database — written by apps/indexer):**
 - `blob_transactions` — one row per Type-3 tx; `ReplacingMergeTree(version)` on `(block_number, tx_hash)`; always query with `FINAL WHERE is_canonical = 1`
 - `block_blob_stats` — one row per block; same engine/pattern
 - `sync_progress` — backfill cursor (`source='backfill'`, `last_block`)
+
+**ClickHouse tables — MEV sandwich pipeline (blob_lens database):**
+- `mev_sandwiches` — one row per detected sandwich; `ReplacingMergeTree(version)` on `(block_number, frontrun_tx, victim_tx, backrun_tx)`; always query `FINAL`
+  - Core: `block_number`, `block_timestamp`, `sandwicher`, `pool`, `protocol` (uniswap_v3/v2/sushiswap_v2/curve/dodo)
+  - Transaction triple: `frontrun_tx/idx`, `victim_tx/idx`, `backrun_tx/idx`
+  - Denormalized pool info (avoids JOIN): `token0`, `token1`, `fee_tier`
+  - Victim swap amounts (raw ABI slots as UInt256): `victim_data0`, `victim_data1`
+    - v2: `data0=amount0In`, `data1=amount1In`; positive slot = victim's input token
+    - v3: `data0=amount0` (int256 as UInt256), `data1=amount1`; if value ≥ 2^255 it's negative (token flows out)
+  - Frontrun amounts: `fr_data0/1/2/3` (all 4 ABI slots for profit estimation)
+  - Backrun amounts: `br_data0/1/2/3`
+  - Gas costs from receipts: `frontrun_gas_used`, `frontrun_eff_gas_px`, `backrun_gas_used`, `backrun_eff_gas_px`
+- `mev_backfill_progress` — cursor for MEV backfill (`source='mev_sandwich'`, `last_block`)
+- `pool_tokens` — DEX pool → token mapping; `ReplacingMergeTree()` on `pool`; columns: `pool`, `token0`, `token1`, `protocol`, `fee_tier`, `factory`; ~250k pools populated from factory events
+- `eth_daily_price` — daily ETH/USD closing price; `ReplacingMergeTree()` on `date`; 831 days from 2024-03-13; sourced from Kraken API + hardcoded Dencun-era prices
 
 **PostgreSQL tables queried by the frontend (written by apps/api_v1):**
 - `blob_transactions` — one row per EIP-4844 tx: `tx_hash`, `block_number`, `from_address`, `rollup`, `num_blobs`, `max_fee_per_blob_gas` (VARCHAR), `blob_base_fee` (BIGINT), `blob_hashes` (text[]), `bytes_used`, `fullness_ratio`, `is_ghost_blob`, `created_at`
@@ -172,6 +188,15 @@ Rollup attribution (`src/rollup_registry.rs`) checks `from`/`to` against hardcod
 - `ai_insights` — AI-generated weekly analysis records
 
 **API routes** (all `force-dynamic`):
+- `GET /api/mev?type=` — MEV sandwich data from ClickHouse; types:
+  - `stats` — totals: sandwich count, unique victims/bots/pools, per-protocol breakdown, % blocks sandwiched
+  - `weekly-trend&weeks=N` — weekly count + active bots + blocks sandwiched + per-protocol counts + `victim_usd_total`
+  - `top-bots&limit=N` — ranked by sandwich count + `total_gas_cost_usd`
+  - `top-pools&limit=N` — ranked pools with COALESCE(s.token0, pt.token0) fallback
+  - `top-token-pairs&limit=N` — uses denormalized token0/token1 from mev_sandwiches + `victim_usd_total`
+  - `recent&limit=N` — latest sandwiches with `victim_usd` per row
+  - `blocks-pct&weeks=N` — weekly sandwich_blocks / total_blocks (requires `ethereum.blocks` scan)
+  - `backfill-progress` — current backfill cursor + total sandwich count
 - `GET /api/health` — DB liveness
 - `GET /api/blobs` — latest 20 transactions
 - `GET /api/blocks` — latest 20 blocks with blob stats
@@ -184,6 +209,87 @@ Rollup attribution (`src/rollup_registry.rs`) checks `from`/`to` against hardcod
 - `GET /api/alerts` — active regime alerts
 - `GET /api/l1-fee` — L1 cost comparisons
 - `GET /api/whale-watch` — whale wallet data
+
+## MEV sandwich detection pipeline
+
+### Detection logic
+
+Same-pool same-block sandwich pattern: `a (bot frontrun) → b (victim) → c (bot backrun)` where `a.from == c.from != b.from` and `a.tx_idx < b.tx_idx < c.tx_idx`.
+
+Runs as a bash backfill script on ba-data (`/tmp/mev_backfill_v2.sh`), processes 10k-block chunks, progress in `mev_backfill_progress`. Safe to kill and resume — `ReplacingMergeTree` keeps latest version per key.
+
+### Swap event signatures detected
+
+| Protocol | Topic0 | Notes |
+|---|---|---|
+| Uniswap v3 | `0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67` | `Swap(address,address,int256,int256,uint160,uint128,int24)` |
+| Uniswap v2 (+ forks) | `0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822` | `Swap(address,uint256,uint256,uint256,uint256,address)` |
+| Curve CryptoSwap | `0xb2e76ae99761dc136e598d4a629bb347eccb9532a5f8bbd72e18467c3c34cc98` | `TokenExchange(...)` |
+| DODO | `0xc2c0245e056d5fb095f04cd6373bc770802ebd1e6c918eb78fdef843cdb37b0f` | `DODOSwap(...)` |
+
+SushiSwap uses the same event as Uniswap v2 — differentiated by factory address in `pool_tokens`.
+
+### Pool → token mapping (pool_tokens table)
+
+Populated from factory `PairCreated`/`PoolCreated` events in `ethereum.logs`:
+- Uniswap v2 PairCreated topic0: `0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9`; `token0=substring(topic1,27)`, `token1=substring(topic2,27)`, `pool=substring(data,27,40)`
+- Uniswap v3 PoolCreated topic0: `0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118`; `pool=substring(data,91,40)`
+- SushiSwap factory: `0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac` (same PairCreated event as v2)
+- Coverage: ~74.7% of sandwiched pools (only pools created after Dencun are in our log data range)
+
+### USD volume computation
+
+Defined in `apps/web/src/app/api/mev/route.ts` as `victimUsdSql()` TypeScript helper. Logic (applied at query time with a LEFT JOIN on `eth_daily_price`):
+
+1. Check if `token0` is USDC/USDT → `victim_data0 / 1e6` (if `victim_data0 < 2^255`, i.e., positive)
+2. Check if `token0` is DAI → `victim_data0 / 1e18`
+3. Check if `token0` is WETH → `victim_data0 / 1e18 * eth_price`
+4. Repeat for `token1` / `victim_data1`
+5. Otherwise → 0 (unknown token, no pricing)
+
+The `2^255` threshold: for v3, `victim_data0` stores a signed int256 as UInt256 (two's complement). Values ≥ 2^255 have the high bit set = negative = token flows OUT (not the victim's input). For v2, amounts are always unsigned uint256, so the check is always true.
+
+### Backfill script
+
+Location on ba-data: `/tmp/mev_backfill_v2.sh`. Key query structure:
+
+```sql
+WITH swaps AS (
+    SELECT l.block_number AS blk_num, l.tx_index AS tx_idx, l.tx_hash, l.address AS pool,
+           t.from_address AS from_addr, t.block_timestamp AS blk_ts,
+           l.data AS swap_data,
+           coalesce(pt.token0,'') AS tk0, coalesce(pt.token1,'') AS tk1, coalesce(pt.fee_tier,0) AS fee_t,
+           coalesce(toUInt64(r.gas_used),0) AS gas_used, coalesce(toUInt64(r.effective_gas_price),0) AS eff_gas_px,
+           multiIf(...) AS proto
+    FROM ethereum.logs l
+    JOIN ethereum.transactions t ON l.tx_hash=t.tx_hash AND l.block_number=t.block_number AND t.is_deleted=0
+    LEFT JOIN blob_lens.pool_tokens pt FINAL ON l.address=pt.pool
+    LEFT JOIN ethereum.receipts r ON l.tx_hash=r.tx_hash AND l.block_number=r.block_number AND r.is_deleted=0
+    WHERE l.block_number BETWEEN $CUR AND $BATCH_END AND l.is_deleted=0
+      AND l.topic0 IN (/* 4 swap event signatures */)
+),
+swap_txs AS (SELECT blk_num, tx_hash, min(tx_idx) AS tx_idx, pool, any(...) FROM swaps GROUP BY blk_num, tx_hash, pool)
+-- Sandwich triple self-join on swap_txs
+-- Amount decoding: reinterpretAsUInt256(reverse(unhex(substring(l.data, 3, 64))))
+-- data field in ethereum.logs has 0x prefix; first 32 bytes at substring(data,3,64), second at (67,64), etc.
+```
+
+### ethereum.* tables (discovered schema)
+
+These live in the `ethereum` database on ClickHouse (ba-data), written by the Reth ExEx:
+
+- `ethereum.logs` — `block_number`, `tx_hash`, `tx_index`, `log_index`, `address`, `topic0/1/2/3`, `data` (hex WITH `0x` prefix), `is_deleted`
+- `ethereum.transactions` — `block_number`, `tx_hash`, `tx_index`, `from_address`, `to_address`, `gas_price (Nullable(UInt128))`, `max_fee_per_gas (Nullable(UInt128))`, `max_priority_fee (Nullable(UInt128))`, `gas_limit`, `value`, `input`, `is_deleted`
+- `ethereum.receipts` — `block_number`, `tx_hash`, `tx_index`, `gas_used (UInt64)`, `effective_gas_price (UInt64)`, `cumulative_gas_used`, `success`, `blob_gas_used`, `blob_gas_price`, `is_deleted`
+- `ethereum.blocks` — `number`, `hash`, `timestamp`, `miner`, `gas_limit`, `gas_used`, `base_fee_per_gas`, `is_deleted`
+
+**Critical note:** `ethereum.logs.data` is stored WITH the `0x` prefix. To decode ABI-encoded 32-byte slots:
+```sql
+reinterpretAsUInt256(reverse(unhex(substring(data, 3, 64))))   -- slot 0 (bytes 0-31)
+reinterpretAsUInt256(reverse(unhex(substring(data, 67, 64))))  -- slot 1 (bytes 32-63)
+reinterpretAsUInt256(reverse(unhex(substring(data, 131, 64)))) -- slot 2 (bytes 64-95)
+reinterpretAsUInt256(reverse(unhex(substring(data, 195, 64)))) -- slot 3 (bytes 96-127)
+```
 
 ## Next.js 16 gotchas
 

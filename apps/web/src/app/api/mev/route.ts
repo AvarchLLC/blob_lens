@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const CH_URL = process.env.CLICKHOUSE_URL ?? "";
+const CH_URL  = process.env.CLICKHOUSE_URL  ?? "";
 const CH_USER = process.env.CLICKHOUSE_USER ?? "";
 const CH_PASS = process.env.CLICKHOUSE_PASSWORD ?? "";
 
@@ -17,13 +17,49 @@ async function ch(sql: string) {
   if (!res.ok) throw new Error(await res.text());
   const text = await res.text();
   if (!text.trim()) return [];
-  return text
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
+  return text.trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
 }
 
+/* ── USD helpers ───────────────────────────────────────────────────────────── */
+// UInt256 values from v3 int256 amounts: >= 2^255 = negative (token flows OUT)
+// For v2: victim_data0/1 are always non-negative uint256 (amount0In / amount1In)
+const HALF_U256 = "57896044618658097711785492504343953926634992332820282019728792003956564819968";
+
+// Addresses lowercase
+const USDC = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+const USDT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
+const DAI  = "0x6b175474e89094c44da98b954eedeac495271d0f";
+const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+
+// SQL expression for victim USD. Requires:
+//   s = alias for mev_sandwiches
+//   p = alias for eth_daily_price joined ON toDate(s.block_timestamp) = p.date
+function victimUsdSql(s = "s", p = "p"): string {
+  return `multiIf(
+    lower(${s}.token0) IN ('${USDC}','${USDT}') AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
+      toFloat64(${s}.victim_data0) / 1000000.0,
+    lower(${s}.token0) = '${DAI}' AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
+      toFloat64(${s}.victim_data0) / 1e18,
+    lower(${s}.token0) = '${WETH}' AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
+      toFloat64(${s}.victim_data0) / 1e18 * coalesce(${p}.price_usd, 2000.0),
+    lower(${s}.token1) IN ('${USDC}','${USDT}') AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
+      toFloat64(${s}.victim_data1) / 1000000.0,
+    lower(${s}.token1) = '${DAI}' AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
+      toFloat64(${s}.victim_data1) / 1e18,
+    lower(${s}.token1) = '${WETH}' AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
+      toFloat64(${s}.victim_data1) / 1e18 * coalesce(${p}.price_usd, 2000.0),
+    0.0
+  )`;
+}
+
+// SQL expression for bot gas cost in USD (frontrun + backrun receipts)
+function gasCostUsdSql(s = "s", p = "p"): string {
+  return `(toFloat64(${s}.frontrun_gas_used) * toFloat64(${s}.frontrun_eff_gas_px) +
+           toFloat64(${s}.backrun_gas_used)  * toFloat64(${s}.backrun_eff_gas_px)) / 1e18
+          * coalesce(${p}.price_usd, 2000.0)`;
+}
+
+/* ── handler ───────────────────────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get("type") ?? "stats";
 
@@ -56,7 +92,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         ...(main[0] ?? {}),
         sandwich_blocks: pct[0]?.sandwich_blocks ?? "0",
-        total_blocks: pct[0]?.total_blocks ?? "0",
+        total_blocks:    pct[0]?.total_blocks    ?? "0",
       });
     }
 
@@ -64,17 +100,20 @@ export async function GET(req: NextRequest) {
       const weeks = Number(req.nextUrl.searchParams.get("weeks") ?? "16");
       const rows = await ch(`
         SELECT
-          toStartOfWeek(block_timestamp)         AS week,
-          count()                                AS sandwiches,
-          countDistinct(sandwicher)              AS active_bots,
-          countDistinct(block_number)            AS blocks_sandwiched,
-          countIf(protocol='uniswap_v3')         AS v3_count,
-          countIf(protocol='uniswap_v2')         AS v2_count,
-          countIf(protocol='sushiswap_v2')       AS sushi_count,
-          countIf(protocol='curve')              AS curve_count,
-          countIf(protocol='dodo')               AS dodo_count
-        FROM blob_lens.mev_sandwiches FINAL
-        WHERE block_timestamp >= now() - INTERVAL ${weeks} WEEK
+          toStartOfWeek(s.block_timestamp)         AS week,
+          count()                                  AS sandwiches,
+          countDistinct(s.sandwicher)              AS active_bots,
+          countDistinct(s.block_number)            AS blocks_sandwiched,
+          countIf(s.protocol='uniswap_v3')         AS v3_count,
+          countIf(s.protocol='uniswap_v2')         AS v2_count,
+          countIf(s.protocol='sushiswap_v2')       AS sushi_count,
+          countIf(s.protocol='curve')              AS curve_count,
+          countIf(s.protocol='dodo')               AS dodo_count,
+          round(sum(${victimUsdSql()}))            AS victim_usd_total,
+          countIf(${victimUsdSql()} > 0)           AS usd_count
+        FROM blob_lens.mev_sandwiches s FINAL
+        LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
+        WHERE s.block_timestamp >= now() - INTERVAL ${weeks} WEEK
         GROUP BY week
         ORDER BY week ASC
       `);
@@ -85,14 +124,16 @@ export async function GET(req: NextRequest) {
       const limit = Number(req.nextUrl.searchParams.get("limit") ?? "20");
       const rows = await ch(`
         SELECT
-          sandwicher,
-          count()                          AS sandwiches,
-          countDistinct(victim_tx)         AS unique_victims,
-          countDistinct(pool)              AS unique_pools,
-          min(block_number)                AS first_seen_block,
-          max(block_number)                AS last_seen_block
-        FROM blob_lens.mev_sandwiches FINAL
-        GROUP BY sandwicher
+          s.sandwicher,
+          count()                             AS sandwiches,
+          countDistinct(s.victim_tx)          AS unique_victims,
+          countDistinct(s.pool)               AS unique_pools,
+          min(s.block_number)                 AS first_seen_block,
+          max(s.block_number)                 AS last_seen_block,
+          round(sum(${gasCostUsdSql()}))      AS total_gas_cost_usd
+        FROM blob_lens.mev_sandwiches s FINAL
+        LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
+        GROUP BY s.sandwicher
         ORDER BY sandwiches DESC
         LIMIT ${limit}
       `);
@@ -104,15 +145,15 @@ export async function GET(req: NextRequest) {
       const rows = await ch(`
         SELECT
           s.pool,
-          any(p.token0)                    AS token0,
-          any(p.token1)                    AS token1,
-          any(s.protocol)                  AS protocol,
-          count()                          AS sandwiches,
-          countDistinct(s.victim_tx)       AS unique_victims,
-          countDistinct(s.sandwicher)      AS unique_bots
+          coalesce(nullIf(s.token0,''), pt.token0) AS token0,
+          coalesce(nullIf(s.token1,''), pt.token1) AS token1,
+          any(s.protocol)                          AS protocol,
+          count()                                  AS sandwiches,
+          countDistinct(s.victim_tx)               AS unique_victims,
+          countDistinct(s.sandwicher)              AS unique_bots
         FROM blob_lens.mev_sandwiches s FINAL
-        LEFT JOIN blob_lens.pool_tokens p FINAL ON s.pool = p.pool
-        GROUP BY s.pool
+        LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
+        GROUP BY s.pool, s.token0, s.token1
         ORDER BY sandwiches DESC
         LIMIT ${limit}
       `);
@@ -123,16 +164,18 @@ export async function GET(req: NextRequest) {
       const limit = Number(req.nextUrl.searchParams.get("limit") ?? "20");
       const rows = await ch(`
         SELECT
-          p.token0,
-          p.token1,
-          p.protocol,
-          count()                          AS sandwiches,
-          countDistinct(s.victim_tx)       AS unique_victims,
-          countDistinct(s.sandwicher)      AS unique_bots,
-          countDistinct(s.pool)            AS unique_pools
+          s.token0,
+          s.token1,
+          any(s.protocol)                          AS protocol,
+          count()                                  AS sandwiches,
+          countDistinct(s.victim_tx)               AS unique_victims,
+          countDistinct(s.sandwicher)              AS unique_bots,
+          countDistinct(s.pool)                    AS unique_pools,
+          round(sum(${victimUsdSql()}))            AS victim_usd_total
         FROM blob_lens.mev_sandwiches s FINAL
-        JOIN blob_lens.pool_tokens p FINAL ON s.pool = p.pool
-        GROUP BY p.token0, p.token1, p.protocol
+        LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
+        WHERE s.token0 != '' AND s.token1 != ''
+        GROUP BY s.token0, s.token1
         ORDER BY sandwiches DESC
         LIMIT ${limit}
       `);
@@ -145,10 +188,12 @@ export async function GET(req: NextRequest) {
         SELECT
           s.block_number, s.block_timestamp, s.sandwicher, s.pool, s.protocol,
           s.frontrun_tx, s.frontrun_idx, s.victim_tx, s.victim_idx, s.backrun_tx, s.backrun_idx,
-          coalesce(p.token0, '') AS token0,
-          coalesce(p.token1, '') AS token1
+          coalesce(nullIf(s.token0,''), pt.token0, '') AS token0,
+          coalesce(nullIf(s.token1,''), pt.token1, '') AS token1,
+          round(${victimUsdSql()})                     AS victim_usd
         FROM blob_lens.mev_sandwiches s FINAL
-        LEFT JOIN blob_lens.pool_tokens p FINAL ON s.pool = p.pool
+        LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
+        LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         ORDER BY s.block_number DESC
         LIMIT ${limit}
       `);

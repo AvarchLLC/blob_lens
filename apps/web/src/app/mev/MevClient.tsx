@@ -67,6 +67,8 @@ interface WeekRow {
   sushi_count: string;
   curve_count: string;
   dodo_count: string;
+  victim_usd_total: string;
+  usd_count: string;
 }
 interface BlockPctRow {
   week: string;
@@ -80,6 +82,7 @@ interface BotRow {
   unique_pools: string;
   first_seen_block: string;
   last_seen_block: string;
+  total_gas_cost_usd: string;
 }
 interface PoolRow {
   pool: string;
@@ -98,6 +101,7 @@ interface PairRow {
   unique_victims: string;
   unique_pools: string;
   unique_bots: string;
+  victim_usd_total: string;
 }
 interface RecentRow {
   block_number: string;
@@ -113,6 +117,7 @@ interface RecentRow {
   backrun_idx: string;
   token0: string;
   token1: string;
+  victim_usd: string;
 }
 interface Progress {
   last_block: string;
@@ -138,6 +143,14 @@ function fmtK(n: string | number) {
 }
 function short(addr: string) {
   return addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "—";
+}
+function fmtUsd(n: string | number) {
+  const v = Number(n);
+  if (!v) return "—";
+  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(2)}B`;
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
+  if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
 }
 function ethTx(tx: string) { return `https://etherscan.io/tx/${tx}`; }
 function ethAddr(addr: string) { return `https://etherscan.io/address/${addr}`; }
@@ -303,7 +316,7 @@ export default function MevClient() {
 
   /* ── chart data ────────────────────────────────────────── */
   const weeklyData = weekly.map((r) => ({
-    week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+    week:  new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
     v3:    Number(r.v3_count),
     v2:    Number(r.v2_count),
     sushi: Number(r.sushi_count),
@@ -311,6 +324,10 @@ export default function MevClient() {
     dodo:  Number(r.dodo_count),
     bots:  Number(r.active_bots),
     blocks: Number(r.blocks_sandwiched),
+    usd:   Number(r.victim_usd_total),
+    usdPct: r.usd_count && r.sandwiches
+      ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100)
+      : 0,
   }));
 
   // 100% normalised protocol share for stacked area
@@ -559,7 +576,36 @@ export default function MevClient() {
             </Card>
           </div>
 
-          {/* Row 3: bots weekly + blocks sandwiched % */}
+          {/* Row 3: USD volume (if data available) */}
+          {weeklyData.some((r) => r.usd > 0) && (
+            <Card title="Weekly Sandwiched Volume (USD — stablecoin + WETH pairs)">
+              <div className="mb-2 flex items-center gap-2 text-xs text-white/35">
+                <span>Coverage: {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% of sandwiches priced in latest week</span>
+                <span>·</span>
+                <span>USDC/USDT/DAI/WETH pairs only</span>
+              </div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklyData} barSize={18}>
+                  <defs>
+                    <linearGradient id="gusd" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor="#34d399" stopOpacity={0.7} />
+                      <stop offset="100%" stopColor="#34d399" stopOpacity={0.2} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" />
+                  <XAxis dataKey="week" tick={AXIS_TICK} tickLine={false} />
+                  <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(v: number) => [fmtUsd(v), "Victim Volume (USD)"]}
+                  />
+                  <Bar dataKey="usd" name="Victim Volume" fill="url(#gusd)" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
+          {/* Row 4: bots weekly + blocks sandwiched % */}
           <div className="grid gap-5 lg:grid-cols-2">
             <Card title="Active Sandwich Bots per Week">
               <ResponsiveContainer width="100%" height={200}>
@@ -697,8 +743,8 @@ export default function MevClient() {
                   <th className="px-4 py-3 text-left">Protocol</th>
                   <th className="px-4 py-3 text-right">Sandwiches</th>
                   <th className="px-4 py-3 text-right">Share</th>
+                  <th className="px-4 py-3 text-right">Victim Vol</th>
                   <th className="px-4 py-3 text-right">Victims</th>
-                  <th className="px-4 py-3 text-right">Pools</th>
                   <th className="px-4 py-3 text-right">Bots</th>
                 </tr>
               </thead>
@@ -723,11 +769,11 @@ export default function MevClient() {
                       <td className="px-4 py-2.5 text-right tabular-nums text-white/50">
                         {((Number(p.sandwiches) / pairTotal) * 100).toFixed(1)}%
                       </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                        {fmt(p.unique_victims)}
+                      <td className="px-4 py-2.5 text-right tabular-nums text-emerald-400 font-medium">
+                        {fmtUsd(p.victim_usd_total)}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                        {fmt(p.unique_pools)}
+                        {fmt(p.unique_victims)}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
                         {fmt(p.unique_bots)}
@@ -765,7 +811,7 @@ export default function MevClient() {
                   <th className="px-4 py-3 text-left">Address</th>
                   <th className="px-4 py-3 text-right">Sandwiches</th>
                   <th className="px-4 py-3 text-right">Victims</th>
-                  <th className="px-4 py-3 text-right">Pools</th>
+                  <th className="px-4 py-3 text-right">Gas Cost</th>
                   <th className="px-4 py-3 text-right">First / Last Block</th>
                 </tr>
               </thead>
@@ -792,8 +838,8 @@ export default function MevClient() {
                     <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
                       {fmt(b.unique_victims)}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-white/65">
-                      {fmt(b.unique_pools)}
+                    <td className="px-4 py-2.5 text-right tabular-nums text-orange-400 font-medium">
+                      {fmtUsd(b.total_gas_cost_usd)}
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs text-white/35 tabular-nums">
                       {fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}
@@ -873,6 +919,7 @@ export default function MevClient() {
                 <th className="px-3 py-3 text-left">Bot</th>
                 <th className="px-3 py-3 text-left">Pair</th>
                 <th className="px-3 py-3 text-left">Protocol</th>
+                <th className="px-3 py-3 text-right">Victim $</th>
                 <th className="px-3 py-3 text-left">Frontrun #</th>
                 <th className="px-3 py-3 text-left">Victim #</th>
                 <th className="px-3 py-3 text-left">Backrun #</th>
@@ -900,6 +947,12 @@ export default function MevClient() {
                       {hasPair ? `${sym0}/${sym1}` : short(r.pool)}
                     </td>
                     <td className="px-3 py-2"><Proto p={r.protocol} /></td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {Number(r.victim_usd) > 0
+                        ? <span className="text-emerald-400 font-medium">{fmtUsd(r.victim_usd)}</span>
+                        : <span className="text-white/20">—</span>
+                      }
+                    </td>
                     <td className="px-3 py-2 font-mono">
                       <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300">
                         {short(r.frontrun_tx)}<span className="text-white/30 ml-1">#{r.frontrun_idx}</span>
