@@ -57,10 +57,10 @@ export default async function RWAPage() {
         title="Tokenized Asset Leaderboard"
         description="Live pricing and market capitalization for tokenized RWAs on Ethereum."
       >
-        <div className="overflow-x-auto border border-border rounded-xl bg-surface">
+        <div className="cosmic-card p-0 overflow-hidden">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-background/50 border-b border-border">
+              <tr className="bg-background/50 border-b border-dotted border-border">
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Asset</th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Symbol</th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Price (USD)</th>
@@ -69,7 +69,7 @@ export default async function RWAPage() {
                 <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Chain</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/30">
+            <tbody className="divide-y divide-dotted divide-border/50">
               {tokens.map((token) => (
                 <tr key={token.id} className="group hover:bg-surface-elevated transition-colors">
                   <td className="px-6 py-4">
@@ -107,7 +107,7 @@ export default async function RWAPage() {
         </div>
       </PageSection>
       
-      <div className="mt-12 p-8 border border-primary/20 bg-primary/5 rounded-xl">
+      <div className="mt-12 cosmic-card">
         <div className="flex items-start gap-4">
           <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <TrendingUp className="h-5 w-5 text-primary" />

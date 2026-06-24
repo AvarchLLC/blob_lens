@@ -24,7 +24,10 @@ export function FloatingNav() {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = React.useState(false);
-    React.useEffect(() => setMounted(true), []);
+    React.useEffect(() => {
+        const handle = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(handle);
+    }, []);
 
     // Lock body scroll when mobile menu is open
     React.useEffect(() => {
@@ -33,7 +36,10 @@ export function FloatingNav() {
     }, [open]);
 
     // Close mobile menu on route change
-    React.useEffect(() => { setOpen(false); }, [pathname]);
+    React.useEffect(() => {
+        const handle = requestAnimationFrame(() => setOpen(false));
+        return () => cancelAnimationFrame(handle);
+    }, [pathname]);
 
     const isDark = theme !== 'light';
 
@@ -50,7 +56,7 @@ export function FloatingNav() {
                         'bg-[#09090b]/90 supports-[backdrop-filter]:bg-[#09090b]/70 backdrop-blur-xl',
                         'border-[#2e2e33]',
                         'md:mt-4 md:max-w-4xl md:mb-4',
-                        'md:shadow-[0_0_0_1px_rgba(0,223,129,0.07),0_8px_32px_rgba(0,0,0,0.6)]',
+                        'md:shadow-[0_0_0_1px_rgba(139,92,246,0.08),0_8px_32px_rgba(0,0,0,0.6)]',
                     ]
                     : [
                         // At top: transparent full bar with bottom separator
@@ -75,13 +81,13 @@ export function FloatingNav() {
                         width={28}
                         height={28}
                         priority
-                        className="drop-shadow-[0_0_8px_rgba(0,223,129,0.45)]"
+                        className="drop-shadow-[0_0_8px_rgba(139,92,246,0.45)]"
                     />
                     <span className="wordmark text-[1.05rem] leading-none">
                         BlobLens
                     </span>
                 </Link>
-
+ 
                 {/* Desktop nav */}
                 <div className="hidden items-center gap-1 md:flex">
                     {NAV.map(({ href, label }) => {
@@ -100,10 +106,10 @@ export function FloatingNav() {
                         );
                     })}
                 </div>
-
+ 
                 {/* Right — LIVE + theme toggle */}
                 <div className="hidden items-center gap-2 md:flex">
-                    <div className="green-badge">
+                    <div className="px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md text-[10px] font-bold text-primary flex items-center gap-1">
                         <span className="pulse-dot" />
                         LIVE
                     </div>
@@ -117,7 +123,7 @@ export function FloatingNav() {
                         </button>
                     )}
                 </div>
-
+ 
                 {/* Mobile hamburger */}
                 <button
                     onClick={() => setOpen(!open)}
@@ -127,7 +133,7 @@ export function FloatingNav() {
                     <MenuToggleIcon open={open} className="size-5" duration={300} />
                 </button>
             </nav>
-
+ 
             {/* ── Mobile overlay ── */}
             <div
                 className={cn(
@@ -155,20 +161,20 @@ export function FloatingNav() {
                                     className={cn(
                                         'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors',
                                         active
-                                            ? 'bg-[#00df81]/10 text-[#00df81] border border-[#00df81]/20'
+                                            ? 'bg-primary/10 text-primary border border-primary/20'
                                             : 'text-[#a1a1aa] hover:bg-[#18181b] hover:text-[#fafafa] border border-transparent',
                                     )}
                                 >
-                                    {active && <span className="w-1.5 h-1.5 rounded-full bg-[#00df81] shrink-0" />}
+                                    {active && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                                     {label}
                                 </Link>
                             );
                         })}
                     </div>
-
+ 
                     {/* Bottom strip — LIVE + theme */}
                     <div className="flex items-center justify-between border-t border-[#27272a] pt-4">
-                        <div className="green-badge">
+                        <div className="px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md text-[10px] font-bold text-primary flex items-center gap-1">
                             <span className="pulse-dot" />
                             LIVE · mainnet
                         </div>

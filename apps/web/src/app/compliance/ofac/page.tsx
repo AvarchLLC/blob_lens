@@ -22,7 +22,7 @@ export default async function OFACPage() {
       </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-        <div className="lg:col-span-2 p-8 border border-border bg-surface rounded-xl flex flex-col justify-center">
+        <div className="lg:col-span-2 cosmic-card flex flex-col justify-center">
           <div className="flex items-start gap-4 mb-6">
             <div className="h-10 w-10 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-center shrink-0">
               <Scale className="h-5 w-5 text-destructive" />
@@ -47,7 +47,7 @@ export default async function OFACPage() {
           </div>
         </div>
 
-        <div className="p-8 border border-primary/20 bg-primary/5 rounded-xl">
+        <div className="cosmic-card bg-primary/5">
            <div className="flex items-center gap-2 mb-4">
              <Search className="h-4 w-4 text-primary" />
              <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Compliance Check</h3>
@@ -66,10 +66,10 @@ export default async function OFACPage() {
         title="Sanctioned Wallet Inventory"
         description="Detailed list of restricted Ethereum addresses and their associated risk profiles."
       >
-        <div className="overflow-x-auto border border-border rounded-xl bg-surface">
+        <div className="cosmic-card p-0 overflow-hidden">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-background/50 border-b border-border">
+              <tr className="bg-background/50 border-b border-dotted border-border">
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Entity / Address</th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Source</th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Severity</th>
@@ -77,7 +77,7 @@ export default async function OFACPage() {
                 <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Added Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/30">
+            <tbody className="divide-y divide-dotted divide-border/50">
               {sanctions.map((s) => (
                 <tr key={s.id} className="group hover:bg-surface-elevated transition-colors">
                   <td className="px-6 py-4">
@@ -124,7 +124,7 @@ export default async function OFACPage() {
         </div>
       </PageSection>
 
-      <div className="mt-12 p-8 border border-border bg-surface rounded-xl flex items-start gap-4">
+      <div className="mt-12 cosmic-card flex items-start gap-4">
         <div className="h-10 w-10 rounded-lg bg-surface-elevated border border-border flex items-center justify-center shrink-0">
           <Info className="h-5 w-5 text-text-secondary" />
         </div>

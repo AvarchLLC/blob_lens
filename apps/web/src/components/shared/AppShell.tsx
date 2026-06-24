@@ -20,8 +20,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col flex-1 min-w-0 bg-background overflow-hidden">
         <AppNavbar />
 
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="max-w-[1600px] mx-auto p-6 md:p-10">
+        <main className="flex-1 overflow-y-auto custom-scrollbar cosmic-grid-bg">
+          <div className="max-w-[1600px] mx-auto p-4 sm:p-6 md:p-10">
             {children}
             <Footer />
           </div>

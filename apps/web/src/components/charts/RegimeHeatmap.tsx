@@ -73,76 +73,78 @@ export function RegimeHeatmap({ data }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <div className="flex flex-col justify-between py-0.5" style={{ minWidth: "52px" }}>
-          {days.map((dayOffset) => (
-            <span key={dayOffset} className="caption leading-none" style={{ fontSize: "0.625rem" }}>
-              {dayLabel(now, dayOffset)}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex-1">
-          <TooltipProvider delayDuration={80}>
-            <div
-              className="grid gap-[3px]"
-              style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: "repeat(7, 14px)" }}
-            >
-              {grid.map((cell, i) => {
-                const color = cell.regime ? regimeCell[cell.regime] : "#111827";
-                const label = cell.regime ? regimeLabel[cell.regime] : null;
-                const dateStr = new Date(cell.ts).toLocaleString("en-US", {
-                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-                });
-
-                return (
-                  <Tooltip key={i}>
-                    <TooltipTrigger asChild>
-                      <button
-                        className="w-full rounded-sm focus:outline-none"
-                        style={{
-                          height: "14px",
-                          backgroundColor: color,
-                          opacity: cell.regime ? 0.88 : 1,
-                          border: "none",
-                          cursor: "default",
-                        }}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="px-3 py-2 space-y-1 max-w-[200px]">
-                      <p className="font-mono text-[11px] text-muted-foreground">{dateStr}</p>
-                      {label ? (
-                        <>
-                          <p className="text-xs font-semibold" style={{ color }}>
-                            {label}
-                          </p>
-                          <p className="font-mono text-[10px] text-muted-foreground">
-                            {cell.maxBlobs} blobs/block · {cell.utilization.toFixed(1)}% util
-                          </p>
-                          <p className="font-mono text-[10px] text-muted-foreground">
-                            {cell.avgFeeGwei} gwei avg fee
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-[11px] text-muted-foreground/50">No data</p>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
-          </TooltipProvider>
-
-          <div className="relative mt-1" style={{ height: "14px" }}>
-            {[0, 6, 12, 18, 23].map((h) => (
-              <span
-                key={h}
-                className="absolute caption"
-                style={{ left: `${(h / 23) * 100}%`, transform: "translateX(-50%)", fontSize: "0.575rem" }}
-              >
-                {h}h
+      <div className="w-full overflow-x-auto scrollbar-none pb-2">
+        <div className="flex gap-2 min-w-[580px] sm:min-w-0">
+          <div className="flex flex-col justify-between py-0.5" style={{ minWidth: "52px" }}>
+            {days.map((dayOffset) => (
+              <span key={dayOffset} className="caption leading-none" style={{ fontSize: "0.625rem" }}>
+                {dayLabel(now, dayOffset)}
               </span>
             ))}
+          </div>
+
+          <div className="flex-1">
+            <TooltipProvider delayDuration={80}>
+              <div
+                className="grid gap-[3px]"
+                style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: "repeat(7, 14px)" }}
+              >
+                {grid.map((cell, i) => {
+                  const color = cell.regime ? regimeCell[cell.regime] : "#111827";
+                  const label = cell.regime ? regimeLabel[cell.regime] : null;
+                  const dateStr = new Date(cell.ts).toLocaleString("en-US", {
+                    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                  });
+
+                  return (
+                    <Tooltip key={i}>
+                      <TooltipTrigger asChild>
+                        <button
+                          className="w-full rounded-sm focus:outline-none"
+                          style={{
+                            height: "14px",
+                            backgroundColor: color,
+                            opacity: cell.regime ? 0.88 : 1,
+                            border: "none",
+                            cursor: "default",
+                          }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="px-3 py-2 space-y-1 max-w-[200px]">
+                        <p className="font-mono text-[11px] text-muted-foreground">{dateStr}</p>
+                        {label ? (
+                          <>
+                            <p className="text-xs font-semibold" style={{ color }}>
+                              {label}
+                            </p>
+                            <p className="font-mono text-[10px] text-muted-foreground">
+                              {cell.maxBlobs} blobs/block · {cell.utilization.toFixed(1)}% util
+                            </p>
+                            <p className="font-mono text-[10px] text-muted-foreground">
+                              {cell.avgFeeGwei} gwei avg fee
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground/50">No data</p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
+
+            <div className="relative mt-1" style={{ height: "14px" }}>
+              {[0, 6, 12, 18, 23].map((h) => (
+                <span
+                  key={h}
+                  className="absolute caption"
+                  style={{ left: `${(h / 23) * 100}%`, transform: "translateX(-50%)", fontSize: "0.575rem" }}
+                >
+                  {h}h
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>

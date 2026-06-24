@@ -41,10 +41,10 @@ const BPO_META: Record<string, {
   },
   Pectra: {
     eip: "EIP-7691", date: "Apr 2025", startBlock: 22_431_084,
-    bgStyle:     { background: "linear-gradient(135deg, rgba(0,167,181,0.10) 0%, transparent 100%)" },
-    borderColor: "rgba(0,167,181,0.22)",
-    badgeStyle:  { background: "rgba(0,167,181,0.10)", color: "#00A7B5", borderColor: "rgba(0,167,181,0.22)" },
-    dotColor:    "#00A7B5",
+    bgStyle:     { background: "linear-gradient(135deg, rgba(139,92,246,0.10) 0%, transparent 100%)" },
+    borderColor: "rgba(139,92,246,0.22)",
+    badgeStyle:  { background: "rgba(139,92,246,0.10)", color: "#8B5CF6", borderColor: "rgba(139,92,246,0.22)" },
+    dotColor:    "#8B5CF6",
     tagline: "2× blob throughput — 6 target / 9 max blobs per block",
   },
   Fusaka: {
@@ -336,7 +336,7 @@ export default async function ResearchPage({
                 <div className="flex flex-wrap gap-4 mt-4 text-[10px] font-bold uppercase tracking-widest">
                   {[
                     { label: "Dencun",  block: "19,426,587", eip: "EIP-4844",  dotColor: "#60A5FA" },
-                    { label: "Pectra",  block: "22,431,084", eip: "EIP-7691",  dotColor: "#00A7B5" },
+                    { label: "Pectra",  block: "22,431,084", eip: "EIP-7691",  dotColor: "#8B5CF6" },
                     { label: "Fusaka",  block: "24,833,256", eip: "BPO2",      dotColor: "#6B8A94" },
                   ].map((e) => (
                     <div key={e.label} className="flex items-center gap-1.5">
@@ -387,7 +387,7 @@ export default async function ResearchPage({
                 <tbody>
                   {[
                     { epoch: "Dencun", eip: "EIP-4844", block: "19,426,587", target: 3, max: 6,  da: "768 KB",   fraction: "3,338,477",  dotColor: "#60A5FA" },
-                    { epoch: "Pectra", eip: "EIP-7691", block: "22,431,084", target: 6, max: 9,  da: "1,152 KB", fraction: "5,007,716",  dotColor: "#00A7B5" },
+                    { epoch: "Pectra", eip: "EIP-7691", block: "22,431,084", target: 6, max: 9,  da: "1,152 KB", fraction: "5,007,716",  dotColor: "#8B5CF6" },
                     { epoch: "Fusaka", eip: "BPO2",     block: "24,833,256", target: 12, max: 18, da: "2,304 KB", fraction: "11,684,671", dotColor: "#6B8A94" },
                   ].map((row, i) => (
                     <tr key={row.epoch} className={`border-b border-border/15 hover:bg-surface/30 transition-colors ${i % 2 === 0 ? "" : "bg-surface/20"}`}>
@@ -420,8 +420,8 @@ export default async function ResearchPage({
                 title: "Dencun → Pectra",
                 subtitle: "The supply shock",
                 body: "EIP-7691 doubled the blob target and raised the max cap, dramatically reducing fee pressure. Blob base fees dropped by orders of magnitude as the market adapted to the expanded supply.",
-                dotColor: "#00A7B5",
-                borderColor: "rgba(0,167,181,0.22)",
+                dotColor: "#8B5CF6",
+                borderColor: "rgba(139,92,246,0.22)",
               },
               {
                 title: "Pectra → Fusaka",
@@ -472,8 +472,8 @@ export default async function ResearchPage({
                 <h2 className="text-xl font-bold text-text-primary mb-2">All-Time History</h2>
                 <p className="text-sm text-text-secondary/70 leading-relaxed max-w-3xl">
                   Full historical view of the Ethereum DA layer from the Dencun activation (March 2024) to today.
-                  Each chart is shaded by BPO epoch — Dencun <span style={{ color: "#60A5FA" }} className="font-semibold">blue</span>,
-                  Pectra <span style={{ color: "#00A7B5" }} className="font-semibold">teal</span>,
+                  Each BPO daily record is shaded by BPO epoch — Dencun <span style={{ color: "#60A5FA" }} className="font-semibold">blue</span>,
+                  Pectra <span style={{ color: "#8B5CF6" }} className="font-semibold">purple</span>,
                   Fusaka <span style={{ color: "#6B8A94" }} className="font-semibold">slate</span>.
                   Use Alt + scroll or the slider to zoom in on any period.
                 </p>

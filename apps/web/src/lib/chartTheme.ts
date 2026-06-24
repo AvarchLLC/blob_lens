@@ -36,17 +36,18 @@ export const chartTheme = {
   dark: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "var(--surface-elevated)",
-      borderColor: "var(--border)",
+      backgroundColor: "rgba(16, 16, 30, 0.95)",
+      borderColor: "rgba(139, 92, 246, 0.4)",
       borderWidth: 1,
-      borderRadius: 8,
+      borderType: "dashed",
+      borderRadius: 0,
       padding: [10, 14],
       textStyle: {
-        color: "var(--text-primary)",
-        fontSize: 12,
+        color: "#F5F3FF",
+        fontSize: 11,
         fontFamily: "var(--font-mono), monospace",
       },
-      extraCssText: "backdrop-filter: blur(8px);",
+      extraCssText: "backdrop-filter: blur(8px); box-shadow: 0 0 15px rgba(139, 92, 246, 0.1); border-style: dashed !important;",
       axisPointer: {
         lineStyle: {
           color: "rgba(139, 92, 246, 0.2)",
@@ -131,17 +132,18 @@ export const chartTheme = {
   light: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "var(--surface-elevated)",
-      borderColor: "var(--border)",
+      backgroundColor: "rgba(255, 255, 255, 0.96)",
+      borderColor: "rgba(124, 58, 237, 0.4)",
       borderWidth: 1,
-      borderRadius: 8,
+      borderType: "dashed",
+      borderRadius: 0,
       padding: [10, 14],
       textStyle: {
-        color: "var(--text-primary)",
-        fontSize: 12,
+        color: "#0E0C1B",
+        fontSize: 11,
         fontFamily: "var(--font-mono), monospace",
       },
-      extraCssText: "backdrop-filter: blur(8px);",
+      extraCssText: "backdrop-filter: blur(8px); box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08); border-style: dashed !important;",
       axisPointer: {
         lineStyle: {
           color: "rgba(124, 58, 237, 0.2)",

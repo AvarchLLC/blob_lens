@@ -22,15 +22,15 @@ export function BlobSparkline({ points }: Props) {
         type: "line" as const,
         data: values,
         smooth: 0.4,
-        lineStyle: { color: "#00A7B5", width: 1.5 },
+        lineStyle: { color: "#8B5CF6", width: 1.5 },
         symbol: "none",
         areaStyle: {
           color: {
             type: "linear",
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(0, 167, 181, 0.15)" },
-              { offset: 1, color: "rgba(0, 167, 181, 0)" },
+              { offset: 0, color: "rgba(139, 92, 246, 0.15)" },
+              { offset: 1, color: "rgba(139, 92, 246, 0)" },
             ],
           },
         },
