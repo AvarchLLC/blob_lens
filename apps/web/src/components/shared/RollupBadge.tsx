@@ -11,7 +11,7 @@ export function RollupBadge({ rollup, linkable = false }: Props) {
   const icon = rollupIcon(rollup);
   const color = rollupColor(rollup);
   const cls =
-    "inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-elevated px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/20";
+    "inline-flex items-center gap-1.5 rounded-sm border border-border bg-surface-elevated px-2 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/20";
 
   const indicator = isUnknown ? (
     <span className="inline-block text-text-secondary/60 text-[0.65rem] leading-none shrink-0 font-medium">?</span>
