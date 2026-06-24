@@ -206,7 +206,12 @@ export function AppSidebar() {
     const pathname = usePathname();
 
     // Close mobile menu on route change
-    useEffect(() => { setMobileOpen(false); }, [pathname]);
+    useEffect(() => {
+        const handle = requestAnimationFrame(() => {
+            setMobileOpen(false);
+        });
+        return () => cancelAnimationFrame(handle);
+    }, [pathname]);
 
     // Lock body scroll when mobile menu is open
     useEffect(() => {
@@ -421,8 +426,11 @@ function NavItemRow({
     // Auto-expand children when on the route
     const [childrenOpen, setChildrenOpen] = useState(isActive);
     useEffect(() => {
-        if (isActive) setChildrenOpen(true);
-        else setChildrenOpen(false);
+        const handle = requestAnimationFrame(() => {
+            if (isActive) setChildrenOpen(true);
+            else setChildrenOpen(false);
+        });
+        return () => cancelAnimationFrame(handle);
     }, [isActive]);
 
     return (

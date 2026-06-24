@@ -103,7 +103,7 @@ export function AppNavbar() {
           <div className={cn(
             'relative w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all duration-200',
             searchFocused
-              ? 'bg-surface-elevated border-primary/40 shadow-[0_0_0_3px_rgba(0,167,181,0.07)]'
+              ? 'bg-surface-elevated border-primary/40 shadow-[0_0_0_3px_rgba(139,92,246,0.07)]'
               : 'bg-surface/50 border-border/40 hover:border-border/70 hover:bg-surface/80'
           )}>
             <Search className={cn(

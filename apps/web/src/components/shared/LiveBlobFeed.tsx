@@ -66,7 +66,7 @@ export function LiveBlobFeed() {
                 <RollupBadge rollup={b.rollup ?? 'UNKNOWN'} />
               </td>
               <td className="px-6 py-4 text-right">
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/5 border border-primary/10">
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none bg-primary/5 border border-primary/20">
                    <span className="font-mono text-[10px] font-bold text-primary">{b.num_blobs}</span>
                 </div>
               </td>

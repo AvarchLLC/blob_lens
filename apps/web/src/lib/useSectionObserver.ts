@@ -47,11 +47,13 @@ export function useSectionObserver(sectionIds: string[]) {
       }
     );
 
+    const currentRatioMap = ratioMap.current;
+
     elements.forEach((el) => observer.observe(el));
 
     return () => {
       observer.disconnect();
-      ratioMap.current.clear();
+      currentRatioMap.clear();
     };
   }, [sectionIds]);
 

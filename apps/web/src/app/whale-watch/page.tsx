@@ -70,10 +70,10 @@ export default async function WhaleWatchPage() {
         title="Top Ethereum Holders"
         description="Ranking of wallets by ETH balance, including labeled entities and unknown whales."
       >
-        <div className="overflow-x-auto border border-border rounded-xl bg-surface">
+        <div className="cosmic-card p-0 overflow-hidden">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-background/50 border-b border-border">
+              <tr className="bg-background/50 border-b border-dotted border-border">
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Rank</th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Entity / Address</th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Category</th>
@@ -82,7 +82,7 @@ export default async function WhaleWatchPage() {
                 <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Last Updated</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/30">
+            <tbody className="divide-y divide-dotted divide-border/50">
               {whales.map((whale, index) => (
                 <tr key={whale.id} className="group hover:bg-surface-elevated transition-colors">
                   <td className="px-6 py-4 font-mono text-xs text-text-secondary opacity-40">
@@ -132,7 +132,7 @@ export default async function WhaleWatchPage() {
         </div>
       </PageSection>
       
-      <div className="mt-12 p-8 border border-border bg-surface rounded-xl">
+      <div className="mt-12 cosmic-card">
         <div className="flex items-start gap-4">
           <div className="h-10 w-10 rounded-lg bg-surface-elevated border border-border flex items-center justify-center shrink-0">
             <Search className="h-5 w-5 text-text-secondary" />

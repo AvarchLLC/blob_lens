@@ -13,17 +13,26 @@ const REFRESH_MS = Number(process.env.NEXT_PUBLIC_MARKET_REFRESH_MS ?? 12000);
 
 function UtilizationBar({ pct }: { pct: number }) {
   const clamped = Math.min(100, Math.max(0, pct));
+  const activeBlocks = Math.round((clamped / 100) * 5);
   const color =
-    clamped >= 90 ? "var(--status-critical)" : clamped >= 60 ? "var(--status-warning)" : clamped >= 30 ? "var(--status-healthy)" : "var(--status-neutral)";
+    clamped >= 90 ? "text-status-critical bg-status-critical" : clamped >= 60 ? "text-status-warning bg-status-warning" : clamped >= 30 ? "text-status-healthy bg-status-healthy" : "text-text-secondary bg-text-secondary";
+  
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-surface-elevated">
-        <div
-          className="absolute left-0 top-0 h-full rounded-full transition-all"
-          style={{ width: `${clamped}%`, backgroundColor: color }}
-        />
+    <div className="flex items-center gap-2 font-mono">
+      <div className="flex gap-0.5 select-none">
+        {Array.from({ length: 5 }).map((_, idx) => {
+          const isActive = idx < activeBlocks;
+          return (
+            <div
+              key={idx}
+              className={`h-2 w-2.5 rounded-none border-t border-b border-black/25 ${
+                isActive ? `${color} shadow-[0_0_2px_currentColor]` : "bg-text-secondary/15"
+              }`}
+            />
+          );
+        })}
       </div>
-      <span className="w-10 text-right font-mono text-[10px] font-bold" style={{ color }}>
+      <span className="w-8 text-right text-[10px] font-bold" style={{ color: clamped >= 90 ? "var(--status-critical)" : clamped >= 60 ? "var(--status-warning)" : clamped >= 30 ? "var(--status-healthy)" : "var(--text-secondary)" }}>
         {clamped.toFixed(0)}%
       </span>
     </div>
@@ -99,12 +108,12 @@ export function BlockFeed() {
               <td className="px-6 py-4">
                 <div className="flex -space-x-1.5 overflow-hidden group-hover:space-x-1 transition-all duration-300">
                   {b.rollups?.slice(0, 5).map((r, i) => (
-                    <div key={i} className="ring-2 ring-surface rounded-full transition-transform hover:scale-110 hover:z-10">
+                    <div key={i} className="transition-transform hover:scale-105 hover:z-10">
                       <RollupBadge rollup={r} />
                     </div>
                   ))}
                   {b.rollups?.length > 5 && (
-                    <div className="flex items-center justify-center h-5 w-5 rounded-full bg-surface-elevated border border-border text-[9px] font-bold text-text-secondary">
+                    <div className="flex items-center justify-center h-5 px-1 bg-surface-elevated border border-border text-[8px] font-bold text-text-secondary font-mono rounded-none select-none">
                       +{b.rollups.length - 5}
                     </div>
                   )}

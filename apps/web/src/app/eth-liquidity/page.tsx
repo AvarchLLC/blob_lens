@@ -3,7 +3,6 @@ import { PageHeader, PageSection } from "@/components/shared/PageHeader";
 import { formatNumber } from "@/lib/utils";
 import { formatUsd } from "@/lib/ethPrice";
 import { getETHLiquidity } from "@/lib/queries";
-import { Card, CardContent } from "@/components/ui/card";
 import { ETHDistributionDonut } from "@/components/charts/ETHDistributionDonut";
 import { BarChart3, Database, ShieldCheck, Wallet } from "lucide-react";
 
@@ -61,14 +60,14 @@ export default async function ETHLiquidityPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
         <div className="lg:col-span-5 h-[400px]">
-          <Card className="h-full bg-surface border-border overflow-hidden">
-            <div className="p-6 border-b border-border bg-sidebar/50">
+          <div className="cosmic-card h-full overflow-hidden p-0">
+            <div className="p-6 border-b border-dotted border-border bg-sidebar/50">
                <h3 className="text-xs font-bold uppercase tracking-widest text-text-secondary">Sector Allocation</h3>
             </div>
-            <CardContent className="h-[320px] p-0">
+            <div className="h-[320px] p-0">
                <ETHDistributionDonut data={snapshots} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="lg:col-span-7">
@@ -78,17 +77,17 @@ export default async function ETHLiquidityPage() {
             description="Detailed balances and valuations per liquidity category."
             interpretation="Concentration in 'Staked' indicates high long-term security commitment, while high 'CEX' balances suggest potential sell-side liquidity or retail activity."
           >
-            <div className="overflow-x-auto border border-border rounded-xl bg-surface">
+            <div className="cosmic-card p-0 overflow-hidden">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-background/50 border-b border-border">
+                  <tr className="bg-background/50 border-b border-dotted border-border">
                     <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Category</th>
                     <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">ETH Balance</th>
                     <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">USD Value</th>
                     <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">Wallets</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/30">
+                <tbody className="divide-y divide-dotted divide-border/50">
                   {snapshots.map((s) => (
                     <tr key={s.category} className="group hover:bg-surface-elevated transition-colors">
                       <td className="px-6 py-4 text-xs font-bold text-text-primary capitalize">
@@ -113,33 +112,29 @@ export default async function ETHLiquidityPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-         <Card className="bg-surface border-border">
-            <CardContent className="p-8">
-               <div className="flex items-center gap-4 mb-4">
-                  <div className="h-10 w-10 rounded-lg bg-status-healthy/10 flex items-center justify-center border border-status-healthy/20">
-                     <Database className="h-5 w-5 text-status-healthy" />
-                  </div>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Staking Dominance</h3>
+         <div className="cosmic-card">
+            <div className="flex items-center gap-4 mb-4">
+               <div className="h-10 w-10 rounded-lg bg-status-healthy/10 flex items-center justify-center border border-status-healthy/20">
+                  <Database className="h-5 w-5 text-status-healthy" />
                </div>
-               <p className="text-xs text-text-secondary leading-relaxed">
-                  Monitoring the balance between liquid ETH and staked ETH is critical for understanding Ethereum&apos;s economic security. As the staking ratio increases, the circulating supply of ETH effectively decreases, impacting the fee market dynamics indexed by BlobLens.
-               </p>
-            </CardContent>
-         </Card>
+               <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Staking Dominance</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+               Monitoring the balance between liquid ETH and staked ETH is critical for understanding Ethereum&apos;s economic security. As the staking ratio increases, the circulating supply of ETH effectively decreases, impacting the fee market dynamics indexed by BlobLens.
+            </p>
+         </div>
 
-         <Card className="bg-surface border-border">
-            <CardContent className="p-8">
-               <div className="flex items-center gap-4 mb-4">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                     <BarChart3 className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Exchange Liquidity</h3>
+         <div className="cosmic-card">
+            <div className="flex items-center gap-4 mb-4">
+               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <BarChart3 className="h-5 w-5 text-primary" />
                </div>
-               <p className="text-xs text-text-secondary leading-relaxed">
-                  Low exchange balances often precede volatility as the depth of available liquidity on centralized venues thins. We track major CEX hot wallets to provide a real-time proxy for retail and institutional trade readiness.
-               </p>
-            </CardContent>
-         </Card>
+               <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Exchange Liquidity</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+               Low exchange balances often precede volatility as the depth of available liquidity on centralized venues thins. We track major CEX hot wallets to provide a real-time proxy for retail and institutional trade readiness.
+            </p>
+         </div>
       </div>
     </div>
   );

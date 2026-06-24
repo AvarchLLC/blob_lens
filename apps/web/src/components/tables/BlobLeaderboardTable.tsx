@@ -101,6 +101,15 @@ function EfficiencyScore({ score }: { score: number }) {
   );
 }
 
+function SortIcon({ k, sortKey, sortDir }: { k: SortKey; sortKey: SortKey; sortDir: "asc" | "desc" }) {
+  if (sortKey !== k) return null;
+  return sortDir === "desc" ? (
+    <ArrowDown className="ml-1 inline h-2.5 w-2.5 text-primary" />
+  ) : (
+    <ArrowUp className="ml-1 inline h-2.5 w-2.5 text-primary" />
+  );
+}
+
 export function BlobLeaderboardTable({ rows, sparklines }: Props) {
   const router = useRouter();
   const ethUsd = useEthPrice();
@@ -132,15 +141,6 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
       setSortDir("desc");
     }
   }
-
-  const SortIcon = ({ k }: { k: SortKey }) =>
-    sortKey === k ? (
-      sortDir === "desc" ? (
-        <ArrowDown className="ml-1 inline h-2.5 w-2.5 text-primary" />
-      ) : (
-        <ArrowUp className="ml-1 inline h-2.5 w-2.5 text-primary" />
-      )
-    ) : null;
 
   const th =
     "px-6 py-4 text-left text-[10px] font-bold text-text-secondary uppercase tracking-wider cursor-pointer select-none hover:text-primary transition-colors";
@@ -177,12 +177,12 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
             <tr className="bg-background/50 border-b border-border">
               <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">#</th>
               <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary min-w-[200px]">Rollup</th>
-              <th className={th} onClick={() => toggleSort("total_blobs")}>Blobs <SortIcon k="total_blobs" /></th>
-              <th className={th} onClick={() => toggleSort("tx_count")}>TXs <SortIcon k="tx_count" /></th>
-              <th className={th} onClick={() => toggleSort("efficiency_score")}>Efficiency <SortIcon k="efficiency_score" /></th>
-              <th className={th} onClick={() => toggleSort("coordination_score")}>Coordination <SortIcon k="coordination_score" /></th>
-              <th className={th} onClick={() => toggleSort("avg_fullness_pct")}>Fullness <SortIcon k="avg_fullness_pct" /></th>
-              <th className={th} onClick={() => toggleSort("cost_per_byte_eth")}>Cost/KB <SortIcon k="cost_per_byte_eth" /></th>
+              <th className={th} onClick={() => toggleSort("total_blobs")}>Blobs <SortIcon k="total_blobs" sortKey={sortKey} sortDir={sortDir} /></th>
+              <th className={th} onClick={() => toggleSort("tx_count")}>TXs <SortIcon k="tx_count" sortKey={sortKey} sortDir={sortDir} /></th>
+              <th className={th} onClick={() => toggleSort("efficiency_score")}>Efficiency <SortIcon k="efficiency_score" sortKey={sortKey} sortDir={sortDir} /></th>
+              <th className={th} onClick={() => toggleSort("coordination_score")}>Coordination <SortIcon k="coordination_score" sortKey={sortKey} sortDir={sortDir} /></th>
+              <th className={th} onClick={() => toggleSort("avg_fullness_pct")}>Fullness <SortIcon k="avg_fullness_pct" sortKey={sortKey} sortDir={sortDir} /></th>
+              <th className={th} onClick={() => toggleSort("cost_per_byte_eth")}>Cost/KB <SortIcon k="cost_per_byte_eth" sortKey={sortKey} sortDir={sortDir} /></th>
               <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">24H Trend</th>
               <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-text-secondary">Action</th>
             </tr>

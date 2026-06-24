@@ -31,8 +31,8 @@ interface Props {
 const ENCODING_COLOR: Record<string, string> = {
   "OP-Stack (channel frames)": "#10B981",
   "Arbitrum (compressed batch)": "#3B82F6",
-  "zlib compressed": "#00A7B5",
-  "zstd compressed": "#2DD4DE",
+  "zlib compressed": "#8B5CF6",
+  "zstd compressed": "#A78BFA",
   "Sparse (mostly empty)": "#6B7280",
   "Unknown / raw": "#9CA3AF",
 };

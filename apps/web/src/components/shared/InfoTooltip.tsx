@@ -18,7 +18,7 @@ export function InfoTooltip({ content, side = "top", className }: InfoTooltipPro
         <TooltipTrigger asChild>
           <span
             className={cn(
-              "inline-flex shrink-0 items-center justify-center rounded-full text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-150 focus-visible:outline-none cursor-help",
+              "inline-flex shrink-0 items-center justify-center p-0.5 border border-dashed border-transparent hover:border-primary/40 hover:bg-primary/5 text-text-tertiary hover:text-primary transition-all duration-150 rounded-none focus-visible:outline-none cursor-help",
               className
             )}
             aria-label="Show information"

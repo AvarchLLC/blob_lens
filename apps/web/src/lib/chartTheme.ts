@@ -26,7 +26,7 @@ export const watermarkGraphic = [
     style: {
       text: 'BlobLens',
       font: 'bold 13px system-ui, sans-serif',
-      fill: 'rgba(0, 167, 181, 0.09)',
+      fill: 'rgba(139, 92, 246, 0.09)',
       textAlign: 'center',
     }
   }
@@ -36,24 +36,25 @@ export const chartTheme = {
   dark: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "var(--surface-elevated)",
-      borderColor: "var(--border)",
+      backgroundColor: "rgba(16, 16, 30, 0.95)",
+      borderColor: "rgba(139, 92, 246, 0.4)",
       borderWidth: 1,
-      borderRadius: 8,
+      borderType: "dashed",
+      borderRadius: 0,
       padding: [10, 14],
       textStyle: {
-        color: "var(--text-primary)",
-        fontSize: 12,
+        color: "#F5F3FF",
+        fontSize: 11,
         fontFamily: "var(--font-mono), monospace",
       },
-      extraCssText: "backdrop-filter: blur(8px);",
+      extraCssText: "backdrop-filter: blur(8px); box-shadow: 0 0 15px rgba(139, 92, 246, 0.1); border-style: dashed !important;",
       axisPointer: {
         lineStyle: {
-          color: "rgba(0, 167, 181, 0.2)",
+          color: "rgba(139, 92, 246, 0.2)",
           width: 1,
         },
         shadowStyle: {
-          color: "rgba(0, 167, 181, 0.05)",
+          color: "rgba(139, 92, 246, 0.05)",
         },
       },
     },
@@ -66,7 +67,7 @@ export const chartTheme = {
     },
     axis: {
       axisLabel: {
-        color: "#6B8A94",
+        color: "#8E8EA8",
         fontSize: 10,
         fontFamily: "var(--font-mono), monospace",
         margin: 8,
@@ -86,7 +87,7 @@ export const chartTheme = {
       },
     },
     lineStyle: {
-      color: "#00A7B5", // Primary Teal
+      color: "#8B5CF6", // Primary Purple
       width: 2,
     },
     areaGradient: {
@@ -96,14 +97,14 @@ export const chartTheme = {
       x2: 0,
       y2: 1,
       colorStops: [
-        { offset: 0, color: "rgba(0, 167, 181, 0.20)" },
-        { offset: 1, color: "rgba(0, 167, 181, 0.02)" },
+        { offset: 0, color: "rgba(139, 92, 246, 0.20)" },
+        { offset: 1, color: "rgba(139, 92, 246, 0.02)" },
       ],
     },
     graphic: watermarkGraphic,
     legend: {
       show: true,
-      textStyle: { color: "#6B8A94", fontSize: 10 },
+      textStyle: { color: "#8E8EA8", fontSize: 10 },
       itemWidth: 8,
       itemHeight: 8,
       selectedMode: true, // Allows deselecting individual L2s
@@ -123,32 +124,33 @@ export const chartTheme = {
         height: 20,
         bottom: 5,
         borderColor: 'transparent',
-        fillerColor: 'rgba(0, 167, 181, 0.05)',
-        handleStyle: { color: 'rgba(0, 167, 181, 0.3)' }
+        fillerColor: 'rgba(139, 92, 246, 0.05)',
+        handleStyle: { color: 'rgba(139, 92, 246, 0.3)' }
       }
     ]
   },
   light: {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "var(--surface-elevated)",
-      borderColor: "var(--border)",
+      backgroundColor: "rgba(255, 255, 255, 0.96)",
+      borderColor: "rgba(124, 58, 237, 0.4)",
       borderWidth: 1,
-      borderRadius: 8,
+      borderType: "dashed",
+      borderRadius: 0,
       padding: [10, 14],
       textStyle: {
-        color: "var(--text-primary)",
-        fontSize: 12,
+        color: "#0E0C1B",
+        fontSize: 11,
         fontFamily: "var(--font-mono), monospace",
       },
-      extraCssText: "backdrop-filter: blur(8px);",
+      extraCssText: "backdrop-filter: blur(8px); box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08); border-style: dashed !important;",
       axisPointer: {
         lineStyle: {
-          color: "rgba(0, 138, 150, 0.2)",
+          color: "rgba(124, 58, 237, 0.2)",
           width: 1,
         },
         shadowStyle: {
-          color: "rgba(0, 138, 150, 0.05)",
+          color: "rgba(124, 58, 237, 0.05)",
         },
       },
     },
@@ -161,7 +163,7 @@ export const chartTheme = {
     },
     axis: {
       axisLabel: {
-        color: "#3D6470",
+        color: "#58547A",
         fontSize: 10,
         fontFamily: "var(--font-mono), monospace",
         margin: 8,
@@ -181,7 +183,7 @@ export const chartTheme = {
       },
     },
     lineStyle: {
-      color: "#008A96",
+      color: "#7C3AED",
       width: 2,
     },
     areaGradient: {
@@ -191,14 +193,14 @@ export const chartTheme = {
       x2: 0,
       y2: 1,
       colorStops: [
-        { offset: 0, color: "rgba(0, 138, 150, 0.15)" },
-        { offset: 1, color: "rgba(0, 138, 150, 0.02)" },
+        { offset: 0, color: "rgba(124, 58, 237, 0.15)" },
+        { offset: 1, color: "rgba(124, 58, 237, 0.02)" },
       ],
     },
     graphic: watermarkGraphic,
     legend: {
       show: true,
-      textStyle: { color: "#3D6470", fontSize: 10 },
+      textStyle: { color: "#58547A", fontSize: 10 },
       itemWidth: 8,
       itemHeight: 8,
       selectedMode: true,
@@ -218,8 +220,8 @@ export const chartTheme = {
         height: 20,
         bottom: 5,
         borderColor: 'transparent',
-        fillerColor: 'rgba(0, 138, 150, 0.05)',
-        handleStyle: { color: 'rgba(0, 138, 150, 0.3)' }
+        fillerColor: 'rgba(124, 58, 237, 0.05)',
+        handleStyle: { color: 'rgba(124, 58, 237, 0.3)' }
       }
     ]
   },
@@ -234,14 +236,14 @@ export function createTooltipFormatter(isUsd: boolean, formatter: (v: number) =>
     const val = params[0].value;
     if (val == null) {
       return `<div style="display:flex;gap:8px;">
-        <span style="color:#6B8A94;font-size:11px">${params[0].axisValue}</span>
-        <span style="color:#1C2A30">—</span>
+        <span style="color:#8E8EA8;font-size:11px">${params[0].axisValue}</span>
+        <span style="color:#1C1C34">—</span>
       </div>`;
     }
 
     return `<div style="display:flex;flex-direction:column;gap:4px;">
-      <span style="color:#6B8A94;font-size:11px">${params[0].axisValue}</span>
-      <span style="font-family:monospace;color:#00A7B5;font-weight:700">${formatter(val)}</span>
+      <span style="color:#8E8EA8;font-size:11px">${params[0].axisValue}</span>
+      <span style="font-family:monospace;color:#8B5CF6;font-weight:700">${formatter(val)}</span>
     </div>`;
   };
 }

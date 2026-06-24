@@ -47,7 +47,7 @@ export function PageHeader({ meta, title, summary, children, className }: PageHe
       </div>
       
       {/* Section Divider */}
-      <div className="border-t border-border mt-6" />
+      <div className="cosmic-divider-h mt-6" />
     </div>
   );
 }
@@ -96,14 +96,14 @@ export function PageSection({
       </div>
       
       <div className={cn(
-        "surface bg-surface border border-border rounded-md flex-1",
+        "surface bg-surface border border-dashed border-border-dotted rounded-xl flex-1 transition-colors duration-300 hover:border-primary/20",
         !noPadding && "p-6"
       )}>
         {children}
       </div>
       
       {interpretation && (
-        <div className="mt-3 flex gap-3 p-4 bg-primary/5 border border-primary/10 rounded-md">
+        <div className="mt-3 flex gap-3 p-4 bg-primary/5 border border-dashed border-primary-border rounded-xl">
           <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
             <span className="text-[10px] font-bold text-primary">i</span>
           </div>
