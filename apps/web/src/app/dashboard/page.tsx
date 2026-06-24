@@ -18,6 +18,9 @@ import { RollupBadge } from "@/components/shared/RollupBadge";
 import { RollupShareCard } from "@/components/shared/RollupShareCard";
 import { RegimeAlertPanel } from "@/components/shared/RegimeAlertPanel";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
+import { CopySectionLink } from "@/components/shared/CopySectionLink";
+import { DashboardScrollHandler } from "@/components/shared/DashboardScrollHandler";
+import { ChartCardFooter } from "@/components/shared/ChartCardFooter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEthPrice } from "@/lib/ethPrice";
 import {
@@ -38,10 +41,11 @@ export const revalidate = 60;
 export default async function OverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ window?: string }>;
+  searchParams: Promise<{ window?: string; tab?: string }>;
 }) {
   const params = await searchParams;
   const window = params.window ?? "24h";
+  const activeTab = params.tab ?? "overview";
   
   let hours = 24;
   if (window === "365d") {
@@ -53,6 +57,10 @@ export default async function OverviewPage({
   } else if (window === "7d") {
     hours = 168;
   }
+
+  const heatmapDays = window === "365d" ? 30 : window === "90d" ? 30 : window === "30d" ? 30 : window === "7d" ? 7 : 7;
+  const periodLabel = window === "365d" ? "365d" : window === "90d" ? "90d" : window === "30d" ? "30d" : window === "7d" ? "7d" : "30d";
+  const periodDaysText = window === "365d" ? "365 days" : window === "90d" ? "90 days" : window === "30d" ? "30 days" : window === "7d" ? "7 days" : "30 days";
 
   const [leaderboard, market, dailyRollups, ethUsd, rollupFeeData, networkGraph, sparklines, forecast] = await Promise.all([
     getLeaderboard(hours).catch(() => []),
@@ -221,7 +229,7 @@ export default async function OverviewPage({
       </div>
 
       {/* ── Console Tabs ── */}
-      <Tabs defaultValue="overview" className="w-full space-y-8">
+      <Tabs defaultValue={activeTab} className="w-full space-y-8">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="market">Market Health</TabsTrigger>
@@ -234,26 +242,39 @@ export default async function OverviewPage({
         <TabsContent value="overview" className="m-0 space-y-8 animate-page-in">
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
             {/* Left: Current Fee Gauge */}
-            <div className="xl:col-span-4">
-              <div className="cosmic-card h-full flex flex-col justify-center items-center">
-                <div className="flex items-center gap-1.5 mb-2 self-start">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Current Fee Gauge</span>
-                  <InfoTooltip content="Real-time EIP-4844 blob base fee. High fees indicate heavy blob space demand, driving up rollup DA costs." side="right" />
+            <div className="xl:col-span-4" id="fee-gauge">
+              <div className="cosmic-card h-full flex flex-col justify-between items-stretch relative group/card">
+                <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                  <CopySectionLink sectionId="fee-gauge" tab="overview" />
                 </div>
-                <BlobFeeGauge latestFeeWei={latestFeeWei} ethUsd={ethUsd} />
+                <div className="flex flex-col items-center justify-center flex-grow">
+                  <div className="flex items-center gap-1.5 mb-2 self-start">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Current Fee Gauge</span>
+                    <InfoTooltip content="Real-time EIP-4844 blob base fee. High fees indicate heavy blob space demand, driving up rollup DA costs." side="right" />
+                  </div>
+                  <BlobFeeGauge latestFeeWei={latestFeeWei} ethUsd={ethUsd} />
+                </div>
+                <ChartCardFooter />
               </div>
             </div>
 
             {/* Right: Mini Leaderboard */}
-            <div className="xl:col-span-8">
-              <div className="cosmic-card h-full flex flex-col justify-between">
+            <div className="xl:col-span-8" id="leaderboard-mini">
+              <div className="cosmic-card h-full flex flex-col justify-between relative group/card">
+                <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                  <CopySectionLink sectionId="leaderboard-mini" tab="overview" />
+                </div>
                 <EfficiencyLeaderboardMini leaderboard={leaderboard} sparklines={sparklines} />
+                <ChartCardFooter />
               </div>
             </div>
           </div>
 
           {/* Historical Blob Cost Hero Chart - full width for maximum breathing room */}
-          <div className="cosmic-card">
+          <div className="cosmic-card relative group/card" id="historical-cost-selector">
+            <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+              <CopySectionLink sectionId="historical-cost-selector" tab="overview" />
+            </div>
             <div className="mb-3">
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary mb-1 block">Economics</span>
               <div className="flex items-center gap-2">
@@ -270,13 +291,7 @@ export default async function OverviewPage({
                 ethUsd={ethUsd ?? undefined}
               />
             </div>
-            {/* Chart Footer */}
-            <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/30">
-              <span className="text-[10px] font-bold text-text-secondary/40 tracking-wider uppercase">bloblens.com</span>
-              <span className="text-[10px] font-mono text-text-secondary/40">
-                Updated {new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
-              </span>
-            </div>
+            <ChartCardFooter />
           </div>
 
           {/* Live action recommendation card */}
@@ -320,20 +335,27 @@ export default async function OverviewPage({
 
         {/* ── Tab 2: Market Health ── */}
         <TabsContent value="market" className="m-0 space-y-8 animate-page-in">
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
-            {/* Regime Heatmap */}
-            <div className="xl:col-span-8 cosmic-card">
-              <div className="flex items-center gap-1.5 mb-4">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">{window === "30d" ? "30d" : "7d"} Regime Classification (Hour × Day)</h3>
-                <InfoTooltip content="Classifies blob fee market conditions hourly based on block fullness. Helps identify typical congestion hours and optimal posting windows." side="right" />
-              </div>
-              <div className="min-h-[280px]">
-                <RegimeHeatmap data={market} />
-              </div>
+          {/* Regime Heatmap - full width */}
+          <div className="cosmic-card relative group/card" id="regime-heatmap">
+            <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+              <CopySectionLink sectionId="regime-heatmap" tab="market" />
             </div>
+            <div className="flex items-center gap-1.5 mb-4">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Regime Classification ({heatmapDays}d · Hour × Day)</h3>
+              <InfoTooltip content="Classifies blob fee market conditions hourly based on block fullness. Helps identify typical congestion hours and optimal posting windows." side="right" />
+            </div>
+            <div className="min-h-[180px]">
+              <RegimeHeatmap data={market} daysCount={heatmapDays} />
+            </div>
+            <ChartCardFooter />
+          </div>
 
-            {/* Congestion Forecast */}
-            <div className="xl:col-span-4 cosmic-card">
+          {/* Congestion Forecast - full width */}
+          <div className="cosmic-card relative group/card flex flex-col justify-between" id="congestion-forecast">
+            <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+              <CopySectionLink sectionId="congestion-forecast" tab="market" />
+            </div>
+            <div>
               <div className="flex items-center gap-1.5 mb-4">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">4-12 Slot Congestion Forecast</h3>
                 <InfoTooltip content="Forecasts potential market congestion and fee spikes over the next 4 to 12 slots using live mempool metrics." side="right" />
@@ -341,9 +363,10 @@ export default async function OverviewPage({
               {forecast && forecast.current_fee_wei > 0 ? (
                 <CongestionForecast data={forecast} />
               ) : (
-                <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs min-h-[200px]">Insufficient data for forecast.</div>
+                <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs min-h-[120px]">Insufficient data for forecast.</div>
               )}
             </div>
+            <ChartCardFooter />
           </div>
 
           {/* Regime Webhook Alert Panel (Pillar 2 / Alert Hook) */}
@@ -360,7 +383,10 @@ export default async function OverviewPage({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Blobs per Block */}
-            <div className="cosmic-card flex flex-col min-h-[380px]">
+            <div className="cosmic-card flex flex-col min-h-[380px] relative group/card" id="demand-density">
+              <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                <CopySectionLink sectionId="demand-density" tab="market" />
+              </div>
               <div className="flex items-center gap-1.5 mb-4">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Demand Density (Blobs per Block)</h3>
                 <InfoTooltip content="Shows the frequency distribution of blobs per block. More blocks with 6 blobs signals an active congestion regime." side="right" />
@@ -368,9 +394,13 @@ export default async function OverviewPage({
               <div className="flex-1">
                 <BlobsPerBlockChart data={marketSnapshot} />
               </div>
+              <ChartCardFooter />
             </div>
             {/* Utilization Trend */}
-            <div className="cosmic-card flex flex-col min-h-[380px]">
+            <div className="cosmic-card flex flex-col min-h-[380px] relative group/card" id="slot-utilization">
+              <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                <CopySectionLink sectionId="slot-utilization" tab="market" />
+              </div>
               <div className="flex items-center gap-1.5 mb-4">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Slot Utilization Trend</h3>
                 <InfoTooltip content="Tracks average blob slot utilization over time. Consistent usage above the 50% target (3 blobs/block) escalates fees exponentially." side="right" />
@@ -378,6 +408,7 @@ export default async function OverviewPage({
               <div className="flex-1">
                 <BlobUtilizationChart data={market} />
               </div>
+              <ChartCardFooter />
             </div>
           </div>
         </TabsContent>
@@ -385,7 +416,10 @@ export default async function OverviewPage({
         {/* ── Tab 3: Cost Efficiency ── */}
         <TabsContent value="efficiency" className="m-0 space-y-8 animate-page-in">
           {/* Full ranks efficiency table */}
-          <div className="cosmic-card">
+          <div className="cosmic-card relative group/card" id="efficiency-leaderboard">
+            <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+              <CopySectionLink sectionId="efficiency-leaderboard" tab="efficiency" />
+            </div>
             <div className="mb-4">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-text-primary tracking-tight">Ecosystem Cost-Efficiency Leaderboard</h3>
@@ -394,11 +428,15 @@ export default async function OverviewPage({
               <p className="text-xs text-text-secondary opacity-70">Ranking all active rollups by their combined packing density and timing performance compared to the network baseline.</p>
             </div>
             <EfficiencyComparisonTable leaderboard={leaderboard} networkAvgGwei={networkAvgGwei} />
+            <ChartCardFooter />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Efficiency Scatterplot */}
-            <div className="cosmic-card min-h-[460px] flex flex-col">
+            <div className="cosmic-card min-h-[460px] flex flex-col relative group/card" id="efficiency-scatterplot">
+              <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                <CopySectionLink sectionId="efficiency-scatterplot" tab="efficiency" />
+              </div>
               <div className="flex items-center gap-1.5 mb-4">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Efficiency Diagnostics (Packing vs Timing)</h3>
                 <InfoTooltip content="Compares packing score (how well rollups fill their blobs) vs timing score (how well they avoid fee surges). Top-right is optimal." side="right" />
@@ -406,17 +444,22 @@ export default async function OverviewPage({
               <div className="flex-grow min-h-[360px]">
                 <EfficiencyScatterplot data={leaderboard} />
               </div>
+              <ChartCardFooter />
             </div>
 
             {/* Rollup Share Donut */}
-            <div className="cosmic-card flex flex-col min-h-[460px]">
+            <div className="cosmic-card flex flex-col min-h-[460px] relative group/card" id="volume-share">
+              <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                <CopySectionLink sectionId="volume-share" tab="efficiency" />
+              </div>
               <div className="flex items-center gap-1.5 mb-4">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Rollup Volume Market Share</h3>
                 <InfoTooltip content="Percentage breakdown of total blob volume submitted by each rollup. Helps visualize DA market dominance." side="right" />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 flex flex-col justify-between">
                 <RollupShareCard initialData={leaderboard} />
               </div>
+              <ChartCardFooter />
             </div>
           </div>
 
@@ -470,7 +513,10 @@ export default async function OverviewPage({
 
         {/* ── Tab 4: Ecosystem Map ── */}
         <TabsContent value="topology" className="m-0 space-y-8 animate-page-in">
-          <div className="cosmic-card">
+          <div className="cosmic-card relative group/card" id="co-occurrence-map">
+            <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+              <CopySectionLink sectionId="co-occurrence-map" tab="topology" />
+            </div>
             <div className="mb-4">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-text-primary tracking-tight">Rollup Ecosystem Co-Occurrence Map</h3>
@@ -523,42 +569,45 @@ export default async function OverviewPage({
                 Node size represents blob volume. Edge thickness shows co-occurrence frequency. Glow color indicates efficiency tier. Drag nodes and scroll to zoom.
               </p>
             </div>
+            <ChartCardFooter />
           </div>
         </TabsContent>
 
         {/* ── Tab 5: Trends & Feeds ── */}
         <TabsContent value="feeds" className="m-0 space-y-8 animate-page-in">
           {/* Stacked area daily volume chart (30d) - full width */}
-          <div className="cosmic-card">
+          <div className="cosmic-card relative group/card" id="ecosystem-volume">
+            <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+              <CopySectionLink sectionId="ecosystem-volume" tab="feeds" />
+            </div>
             <div className="mb-4">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-text-primary tracking-tight">Ecosystem Volume (30d)</h3>
+                <h3 className="text-lg font-bold text-text-primary tracking-tight">Ecosystem Volume ({periodLabel})</h3>
                 <InfoTooltip content="Stacked volume chart showing daily counts of blobs posted per rollup, showing macro trends in throughput." side="right" />
               </div>
-              <p className="text-xs text-text-secondary opacity-70">Daily blob volume distribution stacked per rollup over the last 30 days.</p>
+              <p className="text-xs text-text-secondary opacity-70">Daily blob volume distribution stacked per rollup over the last {periodDaysText}.</p>
             </div>
             <div className="h-[380px]">
               <RollupVolumeAreaChart data={dailyRollups} />
             </div>
-            <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/30">
-              <span className="text-[10px] font-bold text-text-secondary/40 tracking-wider uppercase">bloblens.com</span>
-              <span className="text-[10px] font-mono text-text-secondary/40">
-                Updated {new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
-              </span>
-            </div>
+            <ChartCardFooter />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Cost Heatmap */}
             {ethUsd != null && (
-              <div className="cosmic-card flex flex-col min-h-[380px]">
+              <div className="cosmic-card flex flex-col min-h-[380px] relative group/card" id="cost-heatmap">
+                <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                  <CopySectionLink sectionId="cost-heatmap" tab="feeds" />
+                </div>
                 <div className="flex items-center gap-1.5 mb-4">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Cost Heatmap (7d × 24h)</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">Cost Heatmap ({heatmapDays}d × 24h)</h3>
                   <InfoTooltip content="Visualizes the average USD fee of posting a blob by hour and day of week. Highlights cheaper times to schedule batch submissions." side="right" />
                 </div>
                 <div className="flex-grow flex items-center justify-center min-h-[280px]">
-                  <CostHeatmap data={market} ethUsd={ethUsd} />
+                  <CostHeatmap data={market} ethUsd={ethUsd} daysCount={heatmapDays} />
                 </div>
+                <ChartCardFooter />
               </div>
             )}
 
@@ -608,6 +657,7 @@ export default async function OverviewPage({
            </div>
         </div>
       </div>
+      <DashboardScrollHandler />
     </div>
   );
 }

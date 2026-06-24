@@ -38,9 +38,9 @@ function dayLabel(now: Date, dayOffset: number): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }
 
-export function RegimeHeatmap({ data }: Props) {
+export function RegimeHeatmap({ data, daysCount = 7 }: Props & { daysCount?: number }) {
   const now = new Date();
-  const days = [6, 5, 4, 3, 2, 1, 0];
+  const days = Array.from({ length: daysCount }, (_, i) => daysCount - 1 - i);
 
   const grid: GridCell[] = [];
   for (const dayOffset of days) {
@@ -87,7 +87,7 @@ export function RegimeHeatmap({ data }: Props) {
             <TooltipProvider delayDuration={80}>
               <div
                 className="grid gap-[3px]"
-                style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: "repeat(7, 14px)" }}
+                style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: `repeat(${daysCount}, 14px)` }}
               >
                 {grid.map((cell, i) => {
                   const color = cell.regime ? regimeCell[cell.regime] : "#111827";
@@ -151,7 +151,7 @@ export function RegimeHeatmap({ data }: Props) {
 
       {/* Legend */}
       <div className="flex items-center gap-4 flex-wrap">
-        <p className="caption">24h × 7d regime heatmap</p>
+        <p className="caption">24h × {daysCount}d regime heatmap</p>
         <div className="flex items-center gap-3 ml-auto flex-wrap">
           {[
             { label: "Quiet",     color: "#3D4F6B" },

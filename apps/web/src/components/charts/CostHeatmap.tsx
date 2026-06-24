@@ -35,7 +35,7 @@ function dayLabel(now: Date, dayOffset: number): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }
 
-export function CostHeatmap({ data, ethUsd }: Props) {
+export function CostHeatmap({ data, ethUsd, daysCount = 7 }: Props & { daysCount?: number }) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -46,7 +46,7 @@ export function CostHeatmap({ data, ethUsd }: Props) {
   const emptyColor = isDark ? "#111827" : "#E2E8F0";
 
   const now = new Date();
-  const days = [6, 5, 4, 3, 2, 1, 0];
+  const days = Array.from({ length: daysCount }, (_, i) => daysCount - 1 - i);
 
   const grid: GridCell[] = [];
   for (const dayOffset of days) {
@@ -91,7 +91,7 @@ export function CostHeatmap({ data, ethUsd }: Props) {
             <TooltipProvider delayDuration={80}>
               <div
                 className="grid gap-[3px]"
-                style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: "repeat(7, 14px)" }}
+                style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gridTemplateRows: `repeat(${daysCount}, 14px)` }}
               >
                 {grid.map((cell, i) => {
                   const color = cell.usd !== null ? costColor(cell.usd, isDark) : emptyColor;
@@ -153,7 +153,7 @@ export function CostHeatmap({ data, ethUsd }: Props) {
       </div>
 
       <div className="flex items-center gap-4 flex-wrap">
-        <p className="text-[10px] text-text-secondary opacity-60">Cost per blob (USD) · 7d × 24h</p>
+        <p className="text-[10px] text-text-secondary opacity-60">Cost per blob (USD) · {daysCount}d × 24h</p>
         <div className="flex items-center gap-3 ml-auto flex-wrap">
           {[
             { color: isDark ? "#1E2D45" : "#1A3A4A", label: "< $0.0001" },
