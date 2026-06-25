@@ -23,7 +23,7 @@ export function RollupMetricLineChart({ data, mode, ethUsd }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-[280px] w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   if (!data.length)
     return <p className="py-8 text-center text-[0.6875rem] text-text-secondary opacity-50 italic">No historical metrics data</p>;

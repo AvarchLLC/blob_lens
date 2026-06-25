@@ -25,7 +25,7 @@ export function TopWhalesBarChart({ data }: Props) {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="flex-1 w-full min-h-[320px] animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+    return <div className="h-[340px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
   }
 
   // Filter out consensus deposit contract to keep active wallet scales readable
@@ -153,7 +153,7 @@ export function TopWhalesBarChart({ data }: Props) {
   };
 
   return (
-    <div className="flex-1 w-full min-h-[320px] h-full">
+    <div className="w-full h-[340px]">
       <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: "svg" }} />
     </div>
   );

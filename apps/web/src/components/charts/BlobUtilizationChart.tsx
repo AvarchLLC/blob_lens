@@ -20,7 +20,7 @@ export function BlobUtilizationChart({ data }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   if (!data.length)
     return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;

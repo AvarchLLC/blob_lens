@@ -233,8 +233,8 @@ export default async function DaInsightsPage({
       >
         <div className="space-y-8">
           <div>
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">Regime Heatmap (24h × 7d)</h4>
-            {market.length ? <RegimeHeatmap data={market} /> : <Empty />}
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">Regime Heatmap (24h × {Math.min(days, 7)}d)</h4>
+            {market.length ? <RegimeHeatmap data={market} daysCount={Math.min(days, 7)} /> : <Empty />}
           </div>
           <div className="border-t border-dashed border-border/20 pt-8">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">Regime Timeline</h4>

@@ -32,7 +32,7 @@ export function HistoricalBlobCostChart({ data }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-[380px] w-full animate-pulse bg-surface-elevated rounded-lg" />;
+  if (!mounted) return <div className="h-[380px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
   if (!data.length) return <p className="py-8 text-center text-xs text-text-secondary/40 italic">No historical data</p>;
 
   const isDark = theme !== "light";

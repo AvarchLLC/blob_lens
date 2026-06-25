@@ -88,7 +88,10 @@ export function SubmissionTimingHeatmap({ data }: Props) {
     animation: false,
   };
 
-  if (!mounted) return <div className="h-64 animate-pulse rounded bg-border/20" />;
+  if (!mounted) {
+    const estimatedHeight = Math.max(200, rollups.length * 36 + 80);
+    return <div className="w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" style={{ height: `${estimatedHeight}px` }} />;
+  }
 
   return (
     <ReactECharts

@@ -130,7 +130,7 @@ export default async function MarketPage({
             className="flex-1"
           >
             <div className="flex-1 w-full min-h-[300px]">
-              <RegimeHeatmap data={market} />
+              <RegimeHeatmap data={market} daysCount={Math.min(days, 7)} />
             </div>
           </PageSection>
         </div>
@@ -145,7 +145,7 @@ export default async function MarketPage({
             className="flex-1"
           >
             <div className="space-y-4">
-              <RegimeAlertPanel />
+              <RegimeAlertPanel borderless={true} />
             </div>
           </PageSection>
         </div>

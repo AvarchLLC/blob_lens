@@ -246,7 +246,7 @@ export default async function ResearchPage({
                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
                         Market Share by Volume (30d)
                       </h4>
-                      <div className="h-[300px] flex items-center justify-center">
+                      <div className="h-[350px] flex items-center justify-center">
                         <RollupShareDonut data={leaderboard30d} />
                       </div>
                     </div>

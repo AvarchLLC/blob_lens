@@ -35,7 +35,7 @@ export function L1vsBlobFeeChart({ blobData, l1Data, ethUsd }: Props) {
   const isDark = theme !== "light";
   const chartTheme = getChartTheme(isDark);
 
-  if (!mounted) return <div className="h-[300px]" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   // Build lookup: hour-key → l1 base fee gwei
   const l1Map = new Map<string, number>();

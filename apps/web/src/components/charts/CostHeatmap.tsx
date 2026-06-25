@@ -40,7 +40,15 @@ export function CostHeatmap({ data, ethUsd, daysCount = 7 }: Props & { daysCount
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) {
+    const estimatedHeight = daysCount * 17 + 60;
+    return (
+      <div 
+        className="w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" 
+        style={{ height: `${estimatedHeight}px` }}
+      />
+    );
+  }
 
   const isDark = theme !== "light";
   const emptyColor = isDark ? "#111827" : "#E2E8F0";

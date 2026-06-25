@@ -17,7 +17,7 @@ export function RollupShareDonut({ data }: Props) {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="h-[300px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+    return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
   }
 
   if (!data.length) {
@@ -129,5 +129,5 @@ export function RollupShareDonut({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "300px", width: "100%" }} opts={{ renderer: "svg" }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: "svg" }} />;
 }
