@@ -3,6 +3,7 @@
 import { BlobSparkline } from "@/components/charts/BlobSparkline";
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Button } from "@/components/ui/button";
+import { ChartCardFooter } from "@/components/shared/ChartCardFooter";
 import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
 import { useEthPrice } from "@/lib/useEthPrice";
 import { formatNumber } from "@/lib/utils";
@@ -21,11 +22,11 @@ function FullnessBar({ pct }: { pct: number | null }) {
   const clamped = Math.min(100, Math.max(0, pct));
   const color = clamped >= 70 ? "var(--status-healthy)" : clamped >= 40 ? "var(--status-warning)" : "var(--status-critical)";
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1 w-12 overflow-hidden rounded-full bg-surface-elevated">
-        <div className="h-full rounded-full transition-all" style={{ width: `${clamped}%`, backgroundColor: color }} />
+    <div className="flex items-center gap-2 font-mono">
+      <div className="h-1.5 w-12 bg-background border border-border/30 rounded-none overflow-hidden select-none">
+        <div className="h-full rounded-none transition-all" style={{ width: `${clamped}%`, backgroundColor: color }} />
       </div>
-      <span className="font-mono text-[10px] font-bold" style={{ color }}>{clamped.toFixed(0)}%</span>
+      <span className="text-[10px] font-bold" style={{ color }}>{clamped.toFixed(0)}%</span>
     </div>
   );
 }
@@ -34,14 +35,14 @@ function CoordinationScore({ score }: { score: number | null }) {
   if (score == null) return <span className="font-mono text-[10px] text-text-secondary opacity-30">—</span>;
   const val = Math.min(100, Math.max(0, score));
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="h-1 w-8 overflow-hidden rounded-full bg-surface-elevated">
+    <div className="flex items-center gap-1.5 font-mono">
+      <div className="h-1.5 w-8 bg-background border border-border/30 rounded-none overflow-hidden select-none">
         <div 
-          className="h-full rounded-full bg-primary opacity-60" 
+          className="h-full rounded-none bg-primary opacity-60" 
           style={{ width: `${val}%` }} 
         />
       </div>
-      <span className="font-mono text-[10px] font-bold text-text-secondary">{val.toFixed(0)}</span>
+      <span className="text-[10px] font-bold text-text-secondary">{val.toFixed(0)}</span>
     </div>
   );
 }
@@ -51,7 +52,7 @@ function GhostBadge({ count }: { count: number }) {
   return (
     <span
       title={`${count} transaction${count > 1 ? "s" : ""} contained ghost blobs (<5% content)`}
-      className="inline-flex items-center rounded-sm px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-status-critical/10 text-status-critical border border-status-critical/20"
+      className="inline-flex items-center rounded-none px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-status-critical/10 text-status-critical border border-status-critical/20"
     >
       ghost
     </span>
@@ -68,14 +69,14 @@ function PackingBar({ score }: { score: number }) {
   const color =
     pct >= 80 ? "var(--status-healthy)" : pct >= 50 ? "var(--status-warning)" : "var(--status-critical)";
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1 w-16 overflow-hidden rounded-full bg-surface-elevated">
+    <div className="flex items-center gap-2 font-mono">
+      <div className="h-1.5 w-16 bg-background border border-border/30 rounded-none overflow-hidden select-none">
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-none transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
-      <span className="font-mono text-[10px] font-bold text-text-secondary">{pct.toFixed(0)}%</span>
+      <span className="text-[10px] font-bold text-text-secondary">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -84,15 +85,15 @@ function EfficiencyScore({ score }: { score: number }) {
   const pct = Math.min(100, Math.max(0, score));
   const color = pct >= 80 ? "var(--status-healthy)" : pct >= 50 ? "var(--status-warning)" : "var(--status-critical)";
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1 w-12 overflow-hidden rounded-full bg-surface-elevated">
+    <div className="flex items-center gap-2 font-mono">
+      <div className="h-1.5 w-12 bg-background border border-border/30 rounded-none overflow-hidden select-none">
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-none transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
       <div 
-        className="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] font-bold"
+        className="inline-flex items-center px-1.5 py-0.5 rounded-none text-[10px] font-bold"
         style={{ color, backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)` }}
       >
         {pct.toFixed(0)}
@@ -149,8 +150,8 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center px-6 py-4 bg-sidebar/50 border-b border-border">
          <div className="flex items-center gap-2">
-            <Zap className="h-3 w-3 text-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60">
+            <Zap className="h-3 w-3 text-primary animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-60 font-mono">
               Protocol Rankings
             </span>
          </div>
@@ -164,7 +165,7 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
               a.download = "leaderboard.csv";
               a.click();
            }}
-           className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-text-secondary hover:text-primary transition-colors border border-border rounded"
+           className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-text-secondary hover:text-primary transition-colors border border-border rounded-none bg-surface/30 font-mono"
          >
            <Download className="h-3 w-3" />
            CSV
@@ -241,6 +242,9 @@ export function BlobLeaderboardTable({ rows, sparklines }: Props) {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="px-6 py-4 border-t border-border/20">
+        <ChartCardFooter />
       </div>
     </div>
   );

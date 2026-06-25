@@ -2,11 +2,13 @@
 
 import type { MarketHour } from "@/types";
 import ReactECharts from "echarts-for-react";
-import { watermarkGraphic } from "@/lib/chartTheme";
+import { getChartTheme, animationConfig } from "@/lib/chartTheme";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 function shortHour(iso: string) {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}h`;
+  return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit" });
 }
 
 interface Props {
@@ -14,8 +16,17 @@ interface Props {
 }
 
 export function CumulativeBlobGrowth({ data }: Props) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+
   if (!data.length)
-    return <p className="py-8 text-center text-[0.6875rem] text-[#4B5563]">No data</p>;
+    return <p className="py-8 text-center text-[0.6875rem] text-text-secondary opacity-50 italic font-mono">No cumulative growth data</p>;
+
+  const isDark = theme !== "light";
+  const t = getChartTheme(isDark);
 
   let running = 0;
   const labels: string[] = [];
@@ -27,53 +38,62 @@ export function CumulativeBlobGrowth({ data }: Props) {
   }
 
   const option = {
-    animation: true,
-    animationEasing: "cubicOut" as const,
-    animationDuration: 700,
-    graphic: watermarkGraphic,
-    grid: { top: 16, right: 16, bottom: 24, left: 0, containLabel: true },
+    ...animationConfig,
+    backgroundColor: t.backgroundColor,
+    graphic: t.graphic,
+    grid: {
+      ...t.gridDefaults,
+      bottom: 60,
+    },
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui" },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { show: false },
+      ...t.axis,
       boundaryGap: false,
+      axisLabel: {
+        ...t.axis.axisLabel,
+        interval: Math.floor(labels.length / 8),
+      },
     },
     yAxis: {
       type: "value" as const,
+      ...t.axis,
       axisLabel: {
-        color: "#4B5563", fontSize: 11, fontFamily: "Space Grotesk, system-ui",
-        formatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v),
+        ...t.axis.axisLabel,
+        formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)),
       },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.04)" } },
     },
     tooltip: {
       trigger: "axis" as const,
-      backgroundColor: "#1A2235",
-      borderColor: "rgba(16,185,129,0.2)",
-      borderWidth: 1,
-      textStyle: { color: "#F9FAFB", fontSize: 12, fontFamily: "Space Grotesk, system-ui" },
+      ...t.tooltip,
       formatter: (params: { axisValue: string; value: number }[]) =>
-        `<span style="color:#4B5563;font-size:11px">${params[0].axisValue}</span><br/><b>${Number(params[0].value).toLocaleString()} blobs</b>`,
+        `<div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="color:#8FA1A8;font-size:10px;font-weight:bold;text-transform:uppercase;">${params[0].axisValue}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#10B981;font-weight:700;font-size:12px;">${Number(params[0].value).toLocaleString()} blobs</span>
+        </div>`,
     },
+    dataZoom: t.dataZoom,
     series: [
       {
+        name: "Cumulative Blobs",
         type: "line" as const,
         data: values,
         smooth: 0.3,
-        lineStyle: { color: "#10B981", width: 1.5 },
+        lineStyle: {
+          color: "#10B981",
+          width: 2,
+        },
         symbol: "none",
         areaStyle: {
           color: {
             type: "linear" as const,
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
-              { offset: 0, color: "rgba(16,185,129,0.2)" },
-              { offset: 1, color: "rgba(16,185,129,0)" },
+              { offset: 0, color: "rgba(16, 185, 129, 0.15)" },
+              { offset: 1, color: "rgba(16, 185, 129, 0)" },
             ],
           },
         },
@@ -81,5 +101,6 @@ export function CumulativeBlobGrowth({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "280px", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: "svg" }} />;
 }
+

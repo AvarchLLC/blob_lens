@@ -17,7 +17,7 @@ export default function Wallet360Page() {
         title="Wallet 360"
         summary="Full-spectrum Ethereum wallet intelligence. Normal transactions, ERC-20 transfers, NFT activity, blob data, and compliance screening — all in one Etherscan-compatible API."
       >
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-full">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-none font-mono">
           <Key className="h-3.5 w-3.5 text-primary" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-primary">API Access Required</span>
         </div>

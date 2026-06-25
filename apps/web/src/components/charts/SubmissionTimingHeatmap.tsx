@@ -44,7 +44,6 @@ export function SubmissionTimingHeatmap({ data }: Props) {
       axisLabel: {
         color: isDark ? "#6B7280" : "#9CA3AF",
         fontSize: 9,
-        rotate: 30,
       },
       axisLine: { lineStyle: { color: isDark ? "#374151" : "#E5E7EB" } },
     },

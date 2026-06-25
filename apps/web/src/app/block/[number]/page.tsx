@@ -19,7 +19,7 @@ export default async function BlockDetailPage({ params }: Props) {
   if (block === null) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="surface border border-border rounded-xl p-12 text-center space-y-2">
+        <div className="surface border border-border rounded-none p-12 text-center space-y-2 bg-surface/30">
           <p className="text-text-secondary text-sm">Block data temporarily unavailable</p>
           <p className="font-mono text-xs text-text-secondary/60">Block #{blockNum.toLocaleString()}</p>
         </div>
@@ -43,14 +43,14 @@ export default async function BlockDetailPage({ params }: Props) {
       </div>
 
       {/* Prev / Next */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 font-mono">
         <Link href={`/block/${blockNum - 1}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all">
+          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-none border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all bg-surface/30">
           <ChevronLeft className="h-3.5 w-3.5" />
           Block {(blockNum - 1).toLocaleString()}
         </Link>
         <Link href={`/block/${blockNum + 1}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all">
+          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-none border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all bg-surface/30">
           Block {(blockNum + 1).toLocaleString()}
           <ChevronRight className="h-3.5 w-3.5" />
         </Link>
@@ -89,11 +89,11 @@ export default async function BlockDetailPage({ params }: Props) {
       {/* Rollup pills */}
       {block.rollups.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">Rollups in Block</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3 font-mono">Rollups in Block</p>
+          <div className="flex flex-wrap gap-2 font-mono">
             {block.rollups.map(r => (
               <Link key={r} href={`/rollup/${encodeURIComponent(r)}`}
-                className="text-xs px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary font-semibold hover:bg-primary/10 transition-colors">
+                className="text-xs px-3 py-1.5 rounded-none border border-primary/20 bg-primary/5 text-primary font-bold hover:bg-primary/10 transition-colors">
                 {r}
               </Link>
             ))}
@@ -103,14 +103,14 @@ export default async function BlockDetailPage({ params }: Props) {
 
       {/* Blob tx table */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3 font-mono">
           Blob Transactions ({block.tx_count})
         </p>
-        <div className="surface border border-border rounded-xl overflow-hidden">
+        <div className="surface border border-border rounded-none overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-surface-elevated">
+                <tr className="border-b border-border bg-surface-elevated font-mono">
                   <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Hash</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">From</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">To</th>
@@ -118,7 +118,7 @@ export default async function BlockDetailPage({ params }: Props) {
                   <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-text-secondary">Blobs</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/30">
                 {block.txs.map(tx => <TxRow key={tx.tx_hash} tx={tx} />)}
                 {block.txs.length === 0 && (
                   <tr>
@@ -141,13 +141,13 @@ function StatCard({ icon, label, value, sub, valueClass, bg }: {
   sub?: string; valueClass?: string; bg: string;
 }) {
   return (
-    <div className={`surface-elevated border rounded-xl p-4 ${bg}`}>
+    <div className={`surface-elevated border rounded-none p-4 ${bg}`}>
       <div className="flex items-center gap-2 mb-2">
         {icon}
-        <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">{label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary font-mono">{label}</span>
       </div>
-      <p className={`text-xl font-bold ${valueClass ?? "text-text-primary"}`}>{value}</p>
-      {sub && <p className="text-xs text-text-secondary mt-0.5">{sub}</p>}
+      <p className={`text-xl font-bold font-mono ${valueClass ?? "text-text-primary"}`}>{value}</p>
+      {sub && <p className="text-xs text-text-secondary mt-0.5 font-mono opacity-60">{sub}</p>}
     </div>
   );
 }
@@ -173,12 +173,12 @@ function TxRow({ tx }: { tx: AddressTx }) {
       </td>
       <td className="px-4 py-3 text-xs">
         {tx.rollup
-          ? <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-semibold">{tx.rollup}</span>
-          : <span className="text-text-secondary">—</span>
+          ? <span className="px-2 py-0.5 rounded-none bg-primary/10 text-primary text-[11px] font-bold font-mono border border-primary/20">{tx.rollup}</span>
+          : <span className="text-text-secondary font-mono">—</span>
         }
       </td>
       <td className="px-4 py-3 text-right">
-        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+        <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-none bg-primary/10 text-primary border border-primary/20 font-mono">
           <Layers className="h-3 w-3" />
           {tx.num_blobs}
         </span>

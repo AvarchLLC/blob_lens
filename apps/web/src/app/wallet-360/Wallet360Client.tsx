@@ -16,31 +16,31 @@ function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1800); }}
-      className="p-1 rounded hover:bg-surface-elevated text-text-secondary hover:text-text-primary transition-colors" title="Copy">
+      className="p-1 rounded-none hover:bg-surface-elevated text-text-secondary hover:text-text-primary transition-colors" title="Copy">
       {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );
 }
 
 function LoadingState() {
-  return <div className="flex items-center justify-center py-16 gap-3 text-text-secondary"><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading…</span></div>;
+  return <div className="flex items-center justify-center py-16 gap-3 text-text-secondary font-mono text-xs"><Loader2 className="h-4 w-4 animate-spin text-primary" /><span>LOADING TELEMETRY…</span></div>;
 }
 function ErrorState({ msg, onRetry }: { msg: string; onRetry?: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <p className="text-sm text-destructive">{msg}</p>
-      {onRetry && <button onClick={onRetry} className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-md border border-border text-text-secondary hover:text-text-primary"><RefreshCw className="h-3.5 w-3.5" />Retry</button>}
+    <div className="flex flex-col items-center justify-center py-12 gap-3 font-mono text-xs">
+      <p className="text-destructive font-bold">{msg}</p>
+      {onRetry && <button onClick={onRetry} className="flex items-center gap-2 px-3 py-1.5 rounded-none border border-border bg-surface/30 text-text-secondary hover:text-text-primary transition-colors"><RefreshCw className="h-3.5 w-3.5" />RETRY</button>}
     </div>
   );
 }
 function EmptyState({ msg }: { msg: string }) {
-  return <div className="flex items-center justify-center py-16 text-sm text-text-secondary opacity-50">{msg}</div>;
+  return <div className="flex items-center justify-center py-16 text-xs font-mono text-text-secondary opacity-50 uppercase tracking-wider">{msg}</div>;
 }
 function StatBox({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-surface border border-border rounded-lg p-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-50 mb-1">{label}</p>
-      <p className="text-lg font-bold text-text-primary font-mono">{value ?? "—"}</p>
+    <div className="bg-surface border border-border rounded-none p-4 bg-surface/20">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-50 mb-1 font-mono">{label}</p>
+      <p className="text-base font-bold text-text-primary font-mono">{value ?? "—"}</p>
     </div>
   );
 }
@@ -60,14 +60,13 @@ interface EsNft { blockNumber: string; timeStamp: string; hash: string; from: st
 // ── Summary tab ───────────────────────────────────────────────────────────────
 
 function SummaryTab({ data, balance }: { data: Summary; balance: string }) {
-  const balEth = (BigInt(balance || "0") * BigInt(1e9) / BigInt(1e18)).toString();
   const balFmt = balance ? (Number(BigInt(balance)) / 1e18).toFixed(6) : data.eth_balance;
   return (
     <div className="space-y-5">
       {(data.ofac_flagged || data.whale_flagged) && (
-        <div className="flex flex-wrap gap-2">
-          {data.ofac_flagged && <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold"><ShieldAlert className="h-3.5 w-3.5" />OFAC Sanctioned</div>}
-          {data.whale_flagged && <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold"><Zap className="h-3.5 w-3.5" />Whale Wallet</div>}
+        <div className="flex flex-wrap gap-2 font-mono">
+          {data.ofac_flagged && <div className="flex items-center gap-2 px-3 py-1 rounded-none bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold"><ShieldAlert className="h-3.5 w-3.5" />OFAC Sanctioned</div>}
+          {data.whale_flagged && <div className="flex items-center gap-2 px-3 py-1 rounded-none bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold"><Zap className="h-3.5 w-3.5" />Whale Wallet</div>}
         </div>
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -114,25 +113,25 @@ function NormalTxsTab({ address }: { address: string }) {
     <div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
-          <thead><tr className="border-b border-border">{["Tx Hash","Block","From → To","Value (ETH)","Gas Used","Status"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border bg-sidebar/30 font-mono">{["Tx Hash","Block","From → To","Value (ETH)","Gas Used","Status"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-border/30">
             {rows.map(tx => (
               <tr key={tx.hash} className="hover:bg-surface-elevated/50">
-                <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-primary">{shortAddr(tx.hash)}</span><CopyButton value={tx.hash} /><a href={`https://etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
+                <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-primary font-bold">{shortAddr(tx.hash)}</span><CopyButton value={tx.hash} /><a href={`https://etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
                 <td className="px-4 py-3 font-mono text-text-secondary">{Number(tx.blockNumber).toLocaleString()}</td>
                 <td className="px-4 py-3 font-mono"><span className="text-text-secondary">{shortAddr(tx.from)}</span><ArrowRight className="h-3 w-3 inline mx-1 text-text-secondary opacity-40" /><span className="text-text-primary">{tx.to ? shortAddr(tx.to) : "Create"}</span></td>
                 <td className="px-4 py-3 font-mono font-bold">{(Number(tx.value) / 1e18).toFixed(4)}</td>
                 <td className="px-4 py-3 font-mono text-text-secondary">{Number(tx.gasUsed).toLocaleString()}</td>
-                <td className="px-4 py-3"><span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", tx.isError === "0" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive")}>{tx.isError === "0" ? "OK" : "FAIL"}</span></td>
+                <td className="px-4 py-3"><span className={cn("px-1.5 py-0.5 rounded-none text-[10px] font-bold font-mono border", tx.isError === "0" ? "bg-primary/10 text-primary border-primary/20" : "bg-destructive/10 text-destructive border-destructive/20")}>{tx.isError === "0" ? "OK" : "FAIL"}</span></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <button disabled={page===1} onClick={()=>load(page-1)} className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-30">Previous</button>
-        <span className="text-xs text-text-secondary">Page {page}</span>
-        <button disabled={rows.length<20} onClick={()=>load(page+1)} className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-30">Next</button>
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border font-mono">
+        <button disabled={page===1} onClick={()=>load(page-1)} className="px-3 py-1.5 text-xs rounded-none border border-border bg-surface/30 disabled:opacity-30 hover:text-primary hover:border-primary/40 transition-colors font-bold">PREVIOUS</button>
+        <span className="text-xs text-text-secondary">PAGE {page}</span>
+        <button disabled={rows.length<20} onClick={()=>load(page+1)} className="px-3 py-1.5 text-xs rounded-none border border-border bg-surface/30 disabled:opacity-30 hover:text-primary hover:border-primary/40 transition-colors font-bold">NEXT</button>
       </div>
     </div>
   );
@@ -168,24 +167,24 @@ function Erc20Tab({ address }: { address: string }) {
     <div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
-          <thead><tr className="border-b border-border">{["Token","Block","From → To","Amount","Tx Hash"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border bg-sidebar/30 font-mono">{["Token","Block","From → To","Amount","Tx Hash"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-border/30">
             {rows.map((t, i) => (
               <tr key={`${t.hash}-${i}`} className="hover:bg-surface-elevated/50">
                 <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-text-secondary text-[10px]">{shortAddr(t.contractAddress)}</span><a href={`https://etherscan.io/token/${t.contractAddress}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
                 <td className="px-4 py-3 font-mono text-text-secondary">{Number(t.blockNumber).toLocaleString()}</td>
                 <td className="px-4 py-3 font-mono"><span className={cn("text-xs", t.from.toLowerCase()===address ? "text-red-400" : "text-text-secondary")}>{shortAddr(t.from)}</span><ArrowRight className="h-3 w-3 inline mx-1 opacity-40" /><span className={cn("text-xs", t.to.toLowerCase()===address ? "text-green-400" : "text-text-primary")}>{shortAddr(t.to)}</span></td>
-                <td className="px-4 py-3 font-mono text-text-primary">{t.value.length > 15 ? `${t.value.slice(0,12)}…` : t.value}</td>
-                <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-primary text-[10px]">{shortAddr(t.hash)}</span><a href={`https://etherscan.io/tx/${t.hash}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
+                <td className="px-4 py-3 font-mono text-text-primary font-bold">{t.value.length > 15 ? `${t.value.slice(0,12)}…` : t.value}</td>
+                <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-primary text-[10px] font-bold">{shortAddr(t.hash)}</span><a href={`https://etherscan.io/tx/${t.hash}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <button disabled={page===1} onClick={()=>load(page-1)} className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-30">Previous</button>
-        <span className="text-xs text-text-secondary">Page {page}</span>
-        <button disabled={rows.length<20} onClick={()=>load(page+1)} className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-30">Next</button>
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border font-mono">
+        <button disabled={page===1} onClick={()=>load(page-1)} className="px-3 py-1.5 text-xs rounded-none border border-border bg-surface/30 disabled:opacity-30 hover:text-primary hover:border-primary/40 transition-colors font-bold">PREVIOUS</button>
+        <span className="text-xs text-text-secondary">PAGE {page}</span>
+        <button disabled={rows.length<20} onClick={()=>load(page+1)} className="px-3 py-1.5 text-xs rounded-none border border-border bg-surface/30 disabled:opacity-30 hover:text-primary hover:border-primary/40 transition-colors font-bold">NEXT</button>
       </div>
     </div>
   );
@@ -221,7 +220,7 @@ function NftTab({ address }: { address: string }) {
     <div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
-          <thead><tr className="border-b border-border">{["Contract","Token ID","Block","From → To","Tx Hash"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">{h}</th>)}</tr></thead>
+          <thead><tr className="border-b border-border bg-sidebar/30 font-mono">{["Contract","Token ID","Block","From → To","Tx Hash"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-border/30">
             {rows.map((n, i) => (
               <tr key={`${n.hash}-${i}`} className="hover:bg-surface-elevated/50">
@@ -229,16 +228,16 @@ function NftTab({ address }: { address: string }) {
                 <td className="px-4 py-3 font-mono text-primary font-bold">#{n.tokenID}</td>
                 <td className="px-4 py-3 font-mono text-text-secondary">{Number(n.blockNumber).toLocaleString()}</td>
                 <td className="px-4 py-3 font-mono"><span className={cn("text-xs", n.from.toLowerCase()===address ? "text-red-400" : "text-text-secondary")}>{shortAddr(n.from)}</span><ArrowRight className="h-3 w-3 inline mx-1 opacity-40" /><span className={cn("text-xs", n.to.toLowerCase()===address ? "text-green-400" : "text-text-primary")}>{shortAddr(n.to)}</span></td>
-                <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-primary text-[10px]">{shortAddr(n.hash)}</span><a href={`https://etherscan.io/tx/${n.hash}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
+                <td className="px-4 py-3"><div className="flex items-center gap-1"><span className="font-mono text-primary text-[10px] font-bold">{shortAddr(n.hash)}</span><a href={`https://etherscan.io/tx/${n.hash}`} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3 w-3 text-text-secondary hover:text-primary" /></a></div></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <button disabled={page===1} onClick={()=>load(page-1)} className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-30">Previous</button>
-        <span className="text-xs text-text-secondary">Page {page}</span>
-        <button disabled={rows.length<20} onClick={()=>load(page+1)} className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-30">Next</button>
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border font-mono">
+        <button disabled={page===1} onClick={()=>load(page-1)} className="px-3 py-1.5 text-xs rounded-none border border-border bg-surface/30 disabled:opacity-30 hover:text-primary hover:border-primary/40 transition-colors font-bold">PREVIOUS</button>
+        <span className="text-xs text-text-secondary">PAGE {page}</span>
+        <button disabled={rows.length<20} onClick={()=>load(page+1)} className="px-3 py-1.5 text-xs rounded-none border border-border bg-surface/30 disabled:opacity-30 hover:text-primary hover:border-primary/40 transition-colors font-bold">NEXT</button>
       </div>
     </div>
   );
@@ -253,9 +252,9 @@ function RollupsTab({ rollups }: { rollups: RollupRow[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs border-collapse">
-        <thead><tr className="border-b border-border">{["Rollup","Blob Txs","Total Blobs"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-40">{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-border bg-sidebar/30 font-mono">{["Rollup","Blob Txs","Total Blobs"].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-text-secondary">{h}</th>)}</tr></thead>
         <tbody className="divide-y divide-border/30">
-          {rollups.map(r=><tr key={r.rollup} className="hover:bg-surface-elevated/50"><td className="px-4 py-3 font-bold capitalize text-text-primary">{r.rollup}</td><td className="px-4 py-3 font-mono">{r.tx_count.toLocaleString()}</td><td className="px-4 py-3 font-mono text-primary font-bold">{r.total_blobs.toLocaleString()}</td></tr>)}
+          {rollups.map(r=><tr key={r.rollup} className="hover:bg-surface-elevated/50"><td className="px-4 py-3 font-bold capitalize text-text-primary font-mono">{r.rollup}</td><td className="px-4 py-3 font-mono">{r.tx_count.toLocaleString()}</td><td className="px-4 py-3 font-mono text-primary font-bold">{r.total_blobs.toLocaleString()}</td></tr>)}
         </tbody>
       </table>
     </div>
@@ -281,29 +280,29 @@ function AdminPanel() {
   };
 
   return (
-    <div className="mt-8 border border-border rounded-xl overflow-hidden">
+    <div className="mt-8 border border-border rounded-none overflow-hidden">
       <button onClick={()=>setOpen(!open)} className="w-full flex items-center justify-between px-6 py-4 bg-surface hover:bg-surface-elevated transition-colors">
-        <div className="flex items-center gap-3"><Key className="h-4 w-4 text-text-secondary" /><span className="text-sm font-bold text-text-primary">Admin — Issue API Key</span></div>
+        <div className="flex items-center gap-3"><Key className="h-4 w-4 text-text-secondary" /><span className="text-sm font-bold text-text-primary font-mono uppercase tracking-wider">Admin — Issue API Key</span></div>
         {open ? <ChevronUp className="h-4 w-4 text-text-secondary" /> : <ChevronDown className="h-4 w-4 text-text-secondary" />}
       </button>
       {open && (
         <div className="px-6 py-5 bg-background border-t border-border">
           <form onSubmit={issue} className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1">Admin Secret *</label><input type="password" value={secret} onChange={e=>setSecret(e.target.value)} required className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-sm font-mono text-text-primary focus:outline-none focus:border-primary" /></div>
-              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1">Owner Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text-primary focus:outline-none focus:border-primary" /></div>
-              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1">Tier</label><select value={tier} onChange={e=>setTier(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-sm text-text-primary focus:outline-none focus:border-primary"><option value="free">Free (1k/day)</option><option value="pro">Pro (10k/day)</option><option value="unlimited">Unlimited</option></select></div>
-              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1">Daily Limit</label><input type="number" value={limit} onChange={e=>setLimit(e.target.value)} min="1" className="w-full px-3 py-2 rounded-lg bg-surface border border-border text-sm font-mono text-text-primary focus:outline-none focus:border-primary" /></div>
+              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1 font-mono">Admin Secret *</label><input type="password" value={secret} onChange={e=>setSecret(e.target.value)} required className="w-full px-3 py-2 rounded-none bg-surface border border-border text-sm font-mono text-text-primary focus:outline-none focus:border-primary" /></div>
+              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1 font-mono">Owner Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full px-3 py-2 rounded-none bg-surface border border-border text-sm text-text-primary focus:outline-none focus:border-primary" /></div>
+              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1 font-mono">Tier</label><select value={tier} onChange={e=>setTier(e.target.value)} className="w-full px-3 py-2 rounded-none bg-surface border border-border text-sm text-text-primary focus:outline-none focus:border-primary"><option value="free">Free (1k/day)</option><option value="pro">Pro (10k/day)</option><option value="unlimited">Unlimited</option></select></div>
+              <div><label className="block text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1 font-mono">Daily Limit</label><input type="number" value={limit} onChange={e=>setLimit(e.target.value)} min="1" className="w-full px-3 py-2 rounded-none bg-surface border border-border text-sm font-mono text-text-primary focus:outline-none focus:border-primary" /></div>
             </div>
-            <button type="submit" disabled={loading||!secret} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold disabled:opacity-50 hover:bg-primary/90">
+            <button type="submit" disabled={loading||!secret} className="flex items-center gap-2 px-4 py-2 rounded-none bg-primary text-white text-sm font-bold disabled:opacity-50 hover:bg-primary/90 transition-colors font-mono uppercase tracking-wider">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Key className="h-4 w-4" />} Issue Key
             </button>
           </form>
           {result && (
-            <div className={cn("mt-4 p-4 rounded-lg border text-sm", result.error ? "bg-destructive/10 border-destructive/30 text-destructive" : "bg-primary/5 border-primary/20")}>
+            <div className={cn("mt-4 p-4 rounded-none border text-sm font-mono", result.error ? "bg-destructive/10 border-destructive/30 text-destructive" : "bg-primary/5 border-primary/20")}>
               {result.error ? <p>{result.error}</p> : (
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Key issued — save now, not shown again</p>
-                  <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border"><code className="font-mono text-xs flex-1 break-all">{result.raw_key}</code>{result.raw_key && <CopyButton value={result.raw_key} />}</div>
+                  <div className="flex items-center gap-2 bg-background rounded-none px-3 py-2 border border-border"><code className="font-mono text-xs flex-1 break-all">{result.raw_key}</code>{result.raw_key && <CopyButton value={result.raw_key} />}</div>
                 </div>
               )}
             </div>
@@ -341,27 +340,27 @@ function DevReference() {
   const [open, setOpen] = useState(false);
   const base = "http://134.209.107.4:8080";
   return (
-    <div className="mt-6 border border-border rounded-xl overflow-hidden">
+    <div className="mt-6 border border-border rounded-none overflow-hidden">
       <button onClick={()=>setOpen(!open)} className="w-full flex items-center justify-between px-6 py-4 bg-surface hover:bg-surface-elevated transition-colors">
-        <div className="flex items-center gap-3"><ExternalLink className="h-4 w-4 text-text-secondary" /><span className="text-sm font-bold text-text-primary">API Reference — Etherscan-Compatible</span></div>
+        <div className="flex items-center gap-3"><ExternalLink className="h-4 w-4 text-text-secondary" /><span className="text-sm font-bold text-text-primary font-mono uppercase tracking-wider">API Reference — Etherscan-Compatible</span></div>
         {open ? <ChevronUp className="h-4 w-4 text-text-secondary" /> : <ChevronDown className="h-4 w-4 text-text-secondary" />}
       </button>
       {open && (
         <div className="px-6 py-5 bg-background border-t border-border space-y-5">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1">Base URL</p>
-            <div className="flex items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2"><code className="font-mono text-primary text-xs">{base}</code><CopyButton value={base} /></div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1 font-mono">Base URL</p>
+            <div className="flex items-center gap-2 bg-surface border border-border rounded-none px-3 py-2"><code className="font-mono text-primary text-xs">{base}</code><CopyButton value={base} /></div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1">Auth</p>
-            <p className="text-xs text-text-secondary">Protected routes require <code className="text-primary text-[11px]">X-API-Key: w360_…</code> or <code className="text-primary text-[11px]">Authorization: Bearer w360_…</code>.</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1 font-mono">Auth</p>
+            <p className="text-xs text-text-secondary font-mono">Protected routes require <code className="text-primary text-[11px]">X-API-Key: w360_…</code> or <code className="text-primary text-[11px]">Authorization: Bearer w360_…</code>.</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2">Endpoints</p>
-            <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2 font-mono">Endpoints</p>
+            <div className="space-y-1.5 font-mono">
               {ENDPOINTS.map(ep=>(
-                <div key={ep.path} className="flex items-start gap-3 bg-surface border border-border rounded-lg px-3 py-2.5">
-                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase shrink-0 mt-0.5">{ep.method}</span>
+                <div key={ep.path} className="flex items-start gap-3 bg-surface border border-border rounded-none px-3 py-2.5">
+                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-none uppercase shrink-0 mt-0.5 border border-primary/20">{ep.method}</span>
                   <code className="font-mono text-xs text-text-primary flex-1 break-all">{ep.path}</code>
                   <span className="text-[10px] text-text-secondary shrink-0 hidden md:block">{ep.auth ? "🔑 " : ""}{ep.desc}</span>
                 </div>
@@ -369,18 +368,18 @@ function DevReference() {
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2">Query Params (txs endpoints)</p>
-            <div className="space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2 font-mono">Query Params (txs endpoints)</p>
+            <div className="space-y-1 font-mono">
               {PARAMS.map(p=><div key={p.name} className="flex items-center gap-3 text-xs"><code className="text-primary font-mono w-28 shrink-0">{p.name}</code><span className="text-text-secondary">{p.desc}</span></div>)}
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2">Response Format</p>
-            <pre className="bg-surface border border-border rounded-lg p-3 text-xs font-mono text-text-secondary overflow-x-auto">{`{ "status": "1", "message": "OK", "result": [...] }`}</pre>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2 font-mono">Response Format</p>
+            <pre className="bg-surface border border-border rounded-none p-3 text-xs font-mono text-text-secondary overflow-x-auto">{`{ "status": "1", "message": "OK", "result": [...] }`}</pre>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2">Example</p>
-            <pre className="bg-surface border border-border rounded-lg p-3 text-xs font-mono text-text-secondary overflow-x-auto">{`curl -H "X-API-Key: w360_your_key" \\
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-2 font-mono">Example</p>
+            <pre className="bg-surface border border-border rounded-none p-3 text-xs font-mono text-text-secondary overflow-x-auto">{`curl -H "X-API-Key: w360_your_key" \\
   "${base}/api/wallet/0xABCD.../normal-txs?page=1&offset=50&sort=desc"`}</pre>
           </div>
         </div>
@@ -443,9 +442,9 @@ export default function Wallet360Client() {
         <input
           type="text" value={input} onChange={e=>setInput(e.target.value)} spellCheck={false}
           placeholder="Enter Ethereum address (0x…)"
-          className={cn("w-full pl-12 pr-32 py-4 rounded-xl bg-surface border text-sm font-mono text-text-primary placeholder:text-text-secondary/40 focus:outline-none transition-all", isValid(input) ? "border-primary/60 shadow-[0_0_0_1px_rgba(0,167,181,0.2)]" : "border-border")}
+          className={cn("w-full pl-12 pr-32 py-4 rounded-none bg-surface border text-sm font-mono text-text-primary placeholder:text-text-secondary/40 focus:outline-none transition-all", isValid(input) ? "border-primary/60 shadow-[0_0_0_1px_rgba(0,167,181,0.2)]" : "border-border")}
         />
-        <button type="submit" disabled={!isValid(input)} className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold disabled:opacity-30 hover:bg-primary/90 transition-all">
+        <button type="submit" disabled={!isValid(input)} className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-2 rounded-none bg-primary text-white text-sm font-bold disabled:opacity-30 hover:bg-primary/90 transition-all font-mono uppercase tracking-wider">
           Lookup <ArrowRight className="h-4 w-4" />
         </button>
       </form>
@@ -454,24 +453,24 @@ export default function Wallet360Client() {
       {address && (
         <div className="mb-8">
           {/* Address bar */}
-          <div className="flex items-center gap-3 mb-5 p-3 bg-surface border border-border rounded-lg">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0"><span className="text-xs font-bold text-primary">0x</span></div>
+          <div className="flex items-center gap-3 mb-5 p-3 bg-surface border border-border rounded-none bg-surface/30">
+            <div className="h-8 w-8 rounded-none bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0"><span className="text-xs font-bold text-primary font-mono">0x</span></div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-50 mb-0.5">Viewing wallet</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary opacity-50 mb-0.5 font-mono">Viewing wallet</p>
               <p className="font-mono text-sm text-text-primary truncate">{address}</p>
             </div>
             <div className="flex items-center gap-1">
               <CopyButton value={address} />
-              <a href={`https://etherscan.io/address/${address}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-surface-elevated text-text-secondary hover:text-primary"><ExternalLink className="h-3.5 w-3.5" /></a>
+              <a href={`https://etherscan.io/address/${address}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded-none hover:bg-surface-elevated text-text-secondary hover:text-primary"><ExternalLink className="h-3.5 w-3.5" /></a>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-surface border border-border rounded-lg mb-5 w-fit flex-wrap">
+          <div className="flex gap-1 p-1 bg-surface border border-border rounded-none mb-5 w-fit flex-wrap">
             {TABS.map(t => {
               const Icon = t.icon;
               return (
-                <button key={t.id} onClick={()=>setTab(t.id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all", tab===t.id ? "bg-primary text-white shadow-sm" : "text-text-secondary hover:text-text-primary")}>
+                <button key={t.id} onClick={()=>setTab(t.id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-none text-sm font-bold transition-all font-mono uppercase tracking-wider", tab===t.id ? "bg-primary text-white" : "text-text-secondary hover:text-text-primary")}>
                   <Icon className="h-3.5 w-3.5" />{t.label}
                 </button>
               );
@@ -479,7 +478,7 @@ export default function Wallet360Client() {
           </div>
 
           {/* Tab content */}
-          <div className="bg-surface border border-border rounded-xl p-5">
+          <div className="bg-surface border border-border rounded-none p-5 bg-surface/10">
             {tab==="summary" && (loading ? <LoadingState /> : error ? <ErrorState msg={error} /> : summary ? <SummaryTab data={summary} balance={balance} /> : null)}
             {tab==="txs"     && <NormalTxsTab address={address} />}
             {tab==="erc20"   && <Erc20Tab address={address} />}

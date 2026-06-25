@@ -35,11 +35,11 @@ export default async function TxDetailPage({ params }: Props) {
   if (!tx) {
     return (
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="surface border border-border rounded-xl p-12 text-center space-y-3">
-          <div className="h-12 w-12 rounded-full bg-border/30 flex items-center justify-center mx-auto">
+        <div className="surface border border-border rounded-none p-12 text-center space-y-3 bg-surface/30">
+          <div className="h-12 w-12 rounded-none bg-border/30 flex items-center justify-center mx-auto border border-border/50">
             <Database className="h-5 w-5 text-text-secondary" />
           </div>
-          <p className="font-semibold text-text-primary">Transaction not found</p>
+          <p className="font-bold text-text-primary font-mono">Transaction not found</p>
           <p className="text-sm text-text-secondary">This hash doesn't match a blob transaction in our index</p>
           <p className="font-mono text-xs text-text-secondary/50 break-all max-w-lg mx-auto pt-1">{hash}</p>
         </div>
@@ -60,40 +60,40 @@ export default async function TxDetailPage({ params }: Props) {
       />
 
       {/* Status row */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 font-mono">
         {tx.status ? (
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-status-healthy/40 bg-status-healthy/10 text-status-healthy">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-none border border-status-healthy/40 bg-status-healthy/10 text-status-healthy">
             <CheckCircle className="h-3.5 w-3.5" /> Success
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-status-critical/40 bg-status-critical/10 text-status-critical">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-none border border-status-critical/40 bg-status-critical/10 text-status-critical">
             <XCircle className="h-3.5 w-3.5" /> Failed
           </span>
         )}
-        <span className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary bg-surface">
+        <span className="text-xs px-3 py-1.5 rounded-none border border-border text-text-secondary bg-surface/30">
           EIP-4844 Blob
         </span>
         {tx.rollup && (
-          <span className="text-xs px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary font-semibold">
+          <span className="text-xs px-3 py-1.5 rounded-none border border-primary/30 bg-primary/5 text-primary font-bold">
             {tx.rollup}
           </span>
         )}
-        <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary font-semibold">
+        <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-none border border-primary/30 bg-primary/5 text-primary font-bold">
           <Layers className="h-3 w-3" />
           {tx.num_blobs} blob{tx.num_blobs !== 1 ? "s" : ""}
         </span>
       </div>
 
       {/* Core info grid */}
-      <div className="surface border border-border rounded-xl overflow-hidden">
-        <div className="grid grid-cols-1 divide-y divide-border">
+      <div className="surface border border-border rounded-none overflow-hidden">
+        <div className="grid grid-cols-1 divide-y divide-border/30">
           <InfoRow label="Block">
             <Link href={`/block/${tx.block_number}`} className="font-mono text-primary hover:underline">
               #{tx.block_number.toLocaleString()}
             </Link>
           </InfoRow>
           <InfoRow label="Timestamp">
-            {new Date(tx.block_timestamp).toUTCString()}
+            <span className="font-mono text-xs">{new Date(tx.block_timestamp).toUTCString()}</span>
           </InfoRow>
           <InfoRow label="From">
             <Link href={`/address/${tx.from_address}`} className="font-mono text-primary hover:underline break-all text-sm">
@@ -103,7 +103,7 @@ export default async function TxDetailPage({ params }: Props) {
           <InfoRow label="To">
             {tx.to_address
               ? <Link href={`/address/${tx.to_address}`} className="font-mono text-primary hover:underline break-all text-sm">{tx.to_address}</Link>
-              : <span className="text-text-secondary italic text-sm">Contract creation</span>
+              : <span className="text-text-secondary italic text-sm font-mono">Contract creation</span>
             }
           </InfoRow>
         </div>
@@ -111,60 +111,60 @@ export default async function TxDetailPage({ params }: Props) {
 
       {/* Fee breakdown */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">Fee Breakdown</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3 font-mono">Fee Breakdown</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Execution */}
-          <div className="surface-elevated border border-border rounded-xl p-5 space-y-4">
+          <div className="surface-elevated border border-border rounded-none p-5 space-y-4 bg-surface/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-status-warning/10 border border-status-warning/20 flex items-center justify-center">
+              <div className="h-7 w-7 rounded-none bg-status-warning/10 border border-status-warning/20 flex items-center justify-center">
                 <Zap className="h-3.5 w-3.5 text-status-warning" />
               </div>
-              <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">Execution Gas</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Execution Gas</p>
             </div>
             <div className="space-y-2.5 text-sm">
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Gas Used</span>
-                <span className="font-mono">{tx.gas_used ? tx.gas_used.toLocaleString() : "—"}</span>
+                <span className="text-text-secondary text-xs">Gas Used</span>
+                <span className="font-mono text-xs font-bold">{tx.gas_used ? tx.gas_used.toLocaleString() : "—"}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Gas Price</span>
-                <span className="font-mono">{gasPriceGwei(tx.effective_gas_price)}</span>
+                <span className="text-text-secondary text-xs">Gas Price</span>
+                <span className="font-mono text-xs font-bold">{gasPriceGwei(tx.effective_gas_price)}</span>
               </div>
-              <div className="h-px bg-border" />
+              <div className="h-px bg-border/30" />
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary font-medium">Fee</span>
+                <span className="text-text-secondary font-bold text-xs font-mono">Fee</span>
                 <div className="text-right">
-                  <p className="font-semibold font-mono">{weiToEth(execFeeWei)}</p>
-                  {ethUsd && <p className="text-xs text-text-secondary">{weiToUsd(execFeeWei, ethUsd)}</p>}
+                  <p className="font-bold font-mono">{weiToEth(execFeeWei)}</p>
+                  {ethUsd && <p className="text-[10px] text-text-secondary font-mono">{weiToUsd(execFeeWei, ethUsd)}</p>}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Blob */}
-          <div className="surface-elevated border border-border rounded-xl p-5 space-y-4">
+          <div className="surface-elevated border border-border rounded-none p-5 space-y-4 bg-surface/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <div className="h-7 w-7 rounded-none bg-primary/10 border border-primary/20 flex items-center justify-center">
                 <Layers className="h-3.5 w-3.5 text-primary" />
               </div>
-              <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">Blob Gas</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-text-secondary font-mono">Blob Gas</p>
             </div>
             <div className="space-y-2.5 text-sm">
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Blob Gas Used</span>
-                <span className="font-mono">{tx.blob_gas_used ? tx.blob_gas_used.toLocaleString() : "—"}</span>
+                <span className="text-text-secondary text-xs">Blob Gas Used</span>
+                <span className="font-mono text-xs font-bold">{tx.blob_gas_used ? tx.blob_gas_used.toLocaleString() : "—"}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Blob Base Fee</span>
-                <span className="font-mono">{tx.blob_gas_price ? gasPriceGwei(tx.blob_gas_price) : (tx.blob_base_fee ? formatFee(tx.blob_base_fee) : "—")}</span>
+                <span className="text-text-secondary text-xs">Blob Base Fee</span>
+                <span className="font-mono text-xs font-bold">{tx.blob_gas_price ? gasPriceGwei(tx.blob_gas_price) : (tx.blob_base_fee ? formatFee(tx.blob_base_fee) : "—")}</span>
               </div>
-              <div className="h-px bg-border" />
+              <div className="h-px bg-border/30" />
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary font-medium">Fee</span>
+                <span className="text-text-secondary font-bold text-xs font-mono">Fee</span>
                 <div className="text-right">
-                  <p className="font-semibold font-mono">{weiToEth(blobFeeWei)}</p>
-                  {ethUsd && <p className="text-xs text-text-secondary">{weiToUsd(blobFeeWei, ethUsd)}</p>}
+                  <p className="font-bold font-mono">{weiToEth(blobFeeWei)}</p>
+                  {ethUsd && <p className="text-[10px] text-text-secondary font-mono">{weiToUsd(blobFeeWei, ethUsd)}</p>}
                 </div>
               </div>
             </div>
@@ -172,24 +172,24 @@ export default async function TxDetailPage({ params }: Props) {
         </div>
 
         {/* Total */}
-        <div className="mt-3 surface border border-primary/20 bg-primary/5 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-sm font-semibold text-text-primary">Total Fee</p>
+        <div className="mt-3 surface border border-primary/20 bg-primary/5 rounded-none p-4 flex items-center justify-between">
+          <p className="text-xs font-bold text-text-primary font-mono uppercase tracking-wider">Total Fee</p>
           <div className="text-right">
-            <p className="font-bold font-mono text-text-primary">{weiToEth(totalFeeWei)}</p>
-            {ethUsd && <p className="text-xs text-primary font-semibold">{weiToUsd(totalFeeWei, ethUsd)}</p>}
+            <p className="font-bold font-mono text-text-primary text-base">{weiToEth(totalFeeWei)}</p>
+            {ethUsd && <p className="text-xs text-primary font-bold font-mono">{weiToUsd(totalFeeWei, ethUsd)}</p>}
           </div>
         </div>
       </div>
 
       {/* Blob commitments */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3 font-mono">
           Blob Commitments ({tx.num_blobs})
         </p>
-        <div className="surface border border-border rounded-xl overflow-hidden">
+        <div className="surface border border-border rounded-none overflow-hidden">
           {tx.blob_hashes.map((h, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 border-b border-border last:border-0 hover:bg-white/[0.02] transition-colors">
-              <span className="h-5 w-5 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+            <div key={i} className="flex items-center gap-4 p-3 border-b border-border/30 last:border-0 hover:bg-white/[0.02] transition-colors">
+              <span className="h-5 w-5 rounded-none bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-mono font-bold text-primary shrink-0">
                 {i}
               </span>
               <p className="font-mono text-xs text-text-secondary break-all">{h}</p>
@@ -204,7 +204,7 @@ export default async function TxDetailPage({ params }: Props) {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-start gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
-      <span className="text-xs font-bold uppercase tracking-wider text-text-secondary w-24 shrink-0 pt-0.5">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-wider text-text-secondary w-24 shrink-0 pt-0.5 font-mono">{label}</span>
       <span className="text-sm text-text-primary flex-1">{children}</span>
     </div>
   );

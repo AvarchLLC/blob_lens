@@ -67,7 +67,6 @@ export function FeePercentilesChart({ data }: Props) {
       axisLabel: {
         color: isDark ? "#6B7280" : "#9CA3AF",
         fontSize: 10,
-        rotate: 30,
         interval: Math.floor(labels.length / 8),
       },
       axisLine: { lineStyle: { color: isDark ? "#374151" : "#E5E7EB" } },
@@ -137,5 +136,5 @@ export function FeePercentilesChart({ data }: Props) {
 
   if (!mounted) return <div className="h-56 animate-pulse rounded bg-border/20" />;
 
-  return <ReactECharts option={option} style={{ height: 224 }} notMerge />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} notMerge />;
 }

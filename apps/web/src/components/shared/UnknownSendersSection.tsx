@@ -27,7 +27,7 @@ export function UnknownSendersSection({ senders }: Props) {
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary opacity-60">
             Unattributed Senders
           </span>
-          <span className="rounded bg-surface-elevated border border-border px-1.5 py-0.5 font-mono text-[10px] font-bold text-text-primary">
+          <span className="rounded-none bg-surface-elevated border border-border px-1.5 py-0.5 font-mono text-[10px] font-bold text-text-primary">
             {senders.length}
           </span>
         </div>
