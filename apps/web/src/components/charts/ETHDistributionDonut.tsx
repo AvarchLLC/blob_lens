@@ -18,15 +18,25 @@ const CAT_COLORS: Record<string, string> = {
   other: "#52666E",
 };
 
+const CAT_LABELS: Record<string, string> = {
+  staked: "Staking Pools",
+  cex: "Centralized Exchanges",
+  enterprise: "Enterprise Treasuries",
+  bridges: "Cross-chain Bridges",
+};
+
 export function ETHDistributionDonut({ data }: Props) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) {
+    return <div className="h-[300px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+  }
 
-  if (!data.length)
-    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;
+  if (!data.length) {
+    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic font-mono">No distribution data available</p>;
+  }
 
   const isDark = theme !== "light";
   const t = getChartTheme(isDark);
@@ -35,48 +45,69 @@ export function ETHDistributionDonut({ data }: Props) {
 
   const option = {
     ...animationConfig,
+    backgroundColor: "transparent",
     tooltip: {
       trigger: "item" as const,
       ...t.tooltip,
-      formatter: (params: { name: string; value: number; percent: number }) =>
-        `<b>${params.name.toUpperCase()}</b><br/>${params.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ETH (${params.percent.toFixed(1)}%)`,
+      formatter: (params: { name: string; value: number; percent: number; color: string }) =>
+        `<div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="color:#8FA1A8;font-size:10px;font-weight:bold;text-transform:uppercase;">${params.name}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:${params.color};font-weight:700;font-size:12px;">${params.value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ETH (${params.percent.toFixed(1)}%)</span>
+        </div>`,
+    },
+    legend: {
+      type: "scroll",
+      orient: "horizontal" as const,
+      bottom: 0,
+      left: "center",
+      show: true,
+      textStyle: {
+        color: isDark ? "#8E8EA8" : "#58547A",
+        fontSize: 10,
+        fontFamily: "var(--font-mono), monospace",
+      },
+      itemWidth: 8,
+      itemHeight: 8,
+      selectedMode: true,
     },
     graphic: [
       ...watermarkGraphic,
       {
         type: "text",
         left: "center",
-        top: "42%",
+        top: "35%",
         style: {
           text: grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-          fill: isDark ? "#F0F4F5" : "#0D1618",
-          fontSize: 17,
+          fill: isDark ? "#F5F3FF" : "#0E0C1B",
+          fontSize: 18,
           fontWeight: "700",
-          fontFamily: "var(--font-geist-mono)",
+          fontFamily: "var(--font-mono), monospace",
           textAlign: "center",
         },
       },
       {
         type: "text",
         left: "center",
-        top: "53%",
+        top: "46%",
         style: {
-          text: "INDEXED ETH",
-          fill: isDark ? "#7E9098" : "#5C7077",
-          fontSize: 10,
-          fontFamily: "Space Grotesk, system-ui",
+          text: "TOTAL ETH",
+          fill: isDark ? "#8E8EA8" : "#58547A",
+          fontSize: 9,
+          fontWeight: "bold",
+          fontFamily: "var(--font-mono), monospace",
           textAlign: "center",
         },
       },
     ],
     series: [
       {
+        name: "ETH Liquidity",
         type: "pie" as const,
-        radius: ["62%", "80%"],
+        radius: ["58%", "76%"],
         padAngle: 2,
-        center: ["50%", "50%"],
+        center: ["50%", "42%"],
         data: data.map((d) => ({
-          name: d.category,
+          name: CAT_LABELS[d.category] || d.category,
           value: d.balance_eth,
           itemStyle: {
             color: CAT_COLORS[d.category] || CAT_COLORS.other,
@@ -95,5 +126,5 @@ export function ETHDistributionDonut({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "300px", width: "100%" }} opts={{ renderer: "svg" }} />;
 }

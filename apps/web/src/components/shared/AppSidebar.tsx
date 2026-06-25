@@ -75,6 +75,19 @@ const NAV_GROUPS: NavGroup[] = [
                 ],
             },
             {
+                href: '/da-insights',
+                label: 'DA Insights',
+                icon: BarChart3,
+                children: [
+                    { label: 'Network Share', sectionId: 'network-share-efficiency' },
+                    { label: 'Fee Dynamics', sectionId: 'fee-dynamics' },
+                    { label: 'Capacity & Congestion', sectionId: 'congestion-capacity' },
+                    { label: 'Efficiency Leaderboard', sectionId: 'da-cost-efficiency' },
+                    { label: 'Rollup Telemetry', sectionId: 'rollup-activity' },
+                    { label: 'Historical Trends', sectionId: 'long-term-volume' },
+                ],
+            },
+            {
                 href: '/live',
                 label: 'Live Stream',
                 icon: Activity,
@@ -96,11 +109,6 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Market Intelligence',
         items: [
             {
-                href: '/rwa',
-                label: 'RWA Valuation',
-                icon: Landmark,
-            },
-            {
                 href: '/eth-liquidity',
                 label: 'ETH Liquidity',
                 icon: Wallet,
@@ -121,18 +129,6 @@ const NAV_GROUPS: NavGroup[] = [
                     { label: 'Ecosystem Behavior', sectionId: 'ecosystem-behavior' },
                     { label: 'Congestion Forecast', sectionId: 'congestion-forecast' },
                     { label: 'Network Graph', sectionId: 'ecosystem-relationships' },
-                ],
-            },
-            {
-                href: '/da-insights',
-                label: 'DA Insights',
-                icon: BarChart3,
-                children: [
-                    { label: 'Fee Market Health', sectionId: 'fee-market-health' },
-                    { label: 'DA Cost Efficiency', sectionId: 'da-cost-efficiency' },
-                    { label: 'Submission Timing', sectionId: 'submission-timing' },
-                    { label: 'Long-Term Trends', sectionId: 'long-term-trends' },
-                    { label: 'Regime Alerts', sectionId: 'regime-alerts' },
                 ],
             },
         ],
