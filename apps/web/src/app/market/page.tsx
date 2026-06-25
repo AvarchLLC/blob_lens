@@ -25,7 +25,7 @@ import {
   getRollupNetworkGraph,
 } from "@/lib/queries";
 import { classifyRegime, formatNumber } from "@/lib/utils";
-import { Activity, ShieldCheck, Zap } from "lucide-react";
+import { Activity, ShieldCheck, Zap, Coins, Database, Gauge, ArrowUpRight } from "lucide-react";
 
 export const revalidate = 30;
 
@@ -100,56 +100,47 @@ export default async function MarketPage({
               : "1 wei"
           }
           note="Average fee per 128KB blob (last hour)"
+          icon={Coins}
+          accentColor="#00df81"
+          glowColor="rgba(0, 223, 129, 0.15)"
         />
         <StatCard
           label={`Total Blobs (${HOURS_LABEL[hours]})`}
           value={formatNumber(totalBlobsPeriod)}
           note="Combined blobs across all indexed blocks"
+          icon={Database}
+          accentColor="#00A7B5"
+          glowColor="rgba(0, 167, 181, 0.15)"
         />
         <StatCard
           label="Avg Utilization"
           value={avgUtilization === "—" ? "—" : `${avgUtilization}%`}
           note="Network usage relative to target capacity"
+          icon={Gauge}
+          accentColor="#FFCC00"
+          glowColor="rgba(255, 204, 0, 0.12)"
         />
         <StatCard
           label="Most Active Rollup"
           value={topRollup}
           note="Entity with highest volume in current window"
+          icon={ArrowUpRight}
+          accentColor="#9060FF"
+          glowColor="rgba(144, 96, 255, 0.15)"
         />
       </div>
 
-      {/* ── Section 1: Market State & Alerts side-by-side ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-7 flex flex-col">
-          <PageSection
-            label="Regime Analysis"
-            title="Market State Classification"
-            description={`Hour-by-hour market state over the last ${HOURS_LABEL[hours]}.`}
-            interpretation="Regime classification is based on block fullness. 'Healthy' regimes indicate optimal fee-burning efficiency without congestion-induced price spikes."
-            fullHeight
-            className="flex-1"
-          >
-            <div className="flex-1 w-full min-h-[300px]">
-              <RegimeHeatmap data={market} daysCount={Math.min(days, 7)} />
-            </div>
-          </PageSection>
+      {/* ── Section 1: Regime Analysis (Full width) ── */}
+      <PageSection
+        label="Regime Analysis"
+        title="Market State Classification"
+        description={`Hour-by-hour market state over the last ${HOURS_LABEL[hours]}.`}
+        interpretation="Regime classification is based on block fullness. 'Healthy' regimes indicate optimal fee-burning efficiency without congestion-induced price spikes."
+      >
+        <div className="w-full">
+          <RegimeHeatmap data={market} daysCount={Math.min(days, 7)} />
         </div>
-
-        <div className="lg:col-span-5 flex flex-col">
-          <PageSection
-            label="Alerts & Status"
-            title="Surveillance Panel"
-            description="Active congestion warnings and system state parameters."
-            interpretation="The surveillance panel monitors real-time fee spikes. During high congestion regimes, rollup operators should adjust batch submission intervals to prevent cost overheads."
-            fullHeight
-            className="flex-1"
-          >
-            <div className="space-y-4">
-              <RegimeAlertPanel borderless={true} />
-            </div>
-          </PageSection>
-        </div>
-      </div>
+      </PageSection>
 
       {/* ── Section 2: Pricing & Cost Dynamics (Full width stacked charts) ── */}
       <PageSection
@@ -263,23 +254,93 @@ export default async function MarketPage({
           )}
         </div>
       </PageSection>
+
+      {/* ── Section 6: Alerts & Status Surveillance Panel (Full width at bottom) ── */}
+      <PageSection
+        label="Alerts & Status"
+        title="Surveillance Panel"
+        description="Active congestion warnings and system state parameters."
+        interpretation="The surveillance panel monitors real-time fee spikes. During high congestion regimes, rollup operators should adjust batch submission intervals to prevent cost overheads."
+      >
+        <div className="space-y-4">
+          <RegimeAlertPanel borderless={true} />
+        </div>
+      </PageSection>
     </div>
   );
 }
 
 // ── Shared brutalist components ──
 
-function StatCard({ label, value, note }: { label: string; value: string; note: string }) {
+function StatCard({
+  label,
+  value,
+  note,
+  icon: Icon,
+  glowColor,
+  accentColor,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  icon: React.ComponentType<any>;
+  glowColor: string;
+  accentColor: string;
+}) {
   return (
-    <div className="surface-elevated p-5 flex flex-col justify-between rounded-none border border-dashed border-border bg-surface/30">
-      <span className="caption text-[11px] uppercase tracking-wider mb-2 block font-mono">{label}</span>
-      <span
-        className="font-mono font-bold text-text-primary text-2xl leading-tight truncate"
-        title={value}
-      >
-        {value}
-      </span>
-      <p className="text-[11px] text-text-secondary mt-3 opacity-70 truncate font-mono">{note}</p>
+    <div className="group relative overflow-hidden p-5 flex flex-col justify-between rounded-none border border-dashed border-border bg-surface/20 transition-all duration-300 hover:-translate-y-1 hover:border-solid hover:bg-surface/30">
+      {/* Radial glow background */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle 120px at 80% 20%, ${glowColor}, transparent 70%)`,
+        }}
+      />
+
+      {/* Top neon glow bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px] bg-border group-hover:h-[3px] transition-all duration-300"
+        style={{
+          backgroundColor: accentColor,
+          boxShadow: `0 0 8px ${accentColor}`,
+        }}
+      />
+
+      {/* Card header */}
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-70 font-mono group-hover:text-text-primary group-hover:opacity-100 transition-all">
+          {label}
+        </span>
+        <div
+          className="h-7 w-7 rounded-none border border-dashed border-border flex items-center justify-center bg-surface-elevated/50 group-hover:border-solid transition-all duration-300"
+          style={{
+            borderColor: accentColor,
+            color: accentColor,
+            boxShadow: `0 0 6px ${glowColor}`,
+          }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+      </div>
+
+      {/* Numeric value & explanation */}
+      <div className="space-y-1 z-10">
+        <span
+          className="font-mono font-bold text-text-primary text-2xl leading-tight block tracking-tight group-hover:scale-[1.01] origin-left transition-transform duration-300 truncate"
+          title={value}
+        >
+          {value}
+        </span>
+        <p className="text-[10px] text-text-secondary opacity-60 group-hover:opacity-85 transition-opacity font-mono leading-relaxed truncate">
+          {note}
+        </p>
+      </div>
+
+      {/* Corner tech ticks */}
+      <div
+        className="absolute bottom-1 right-1 h-1.5 w-1.5 border-r border-b border-border/20 group-hover:border-solid transition-all"
+        style={{ borderColor: accentColor }}
+      />
     </div>
   );
 }
