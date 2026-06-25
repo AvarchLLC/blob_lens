@@ -43,28 +43,28 @@ export default async function LeaderboardPage() {
               const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
               
               return (
-                <div key={row.rollup} className="surface-elevated p-6 border-l-2" style={{ borderLeftColor: color }}>
+                <div key={row.rollup} className="bg-surface border border-border/60 hover:border-primary/45 p-6 border-l-4 rounded-none relative group/card tech-bracket flex flex-col justify-between" style={{ borderLeftColor: color }}>
                   <div className="flex items-start justify-between mb-6">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{medal}</span>
                         <RollupBadge rollup={row.rollup} linkable />
                       </div>
-                      <p className="text-[9px] uppercase font-bold tracking-widest text-text-secondary opacity-50">Efficiency Tier</p>
+                      <p className="text-[9px] uppercase font-bold tracking-widest text-text-secondary opacity-50 font-mono">Efficiency Tier</p>
                     </div>
                     <div className="font-mono text-2xl font-bold tracking-tighter" style={{ color }}>
                       {score.toFixed(0)}
                     </div>
                   </div>
                   
-                  <div className="space-y-4">
+                  <div className="space-y-4 font-mono">
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-text-secondary opacity-60">
                         <span>Packing</span>
                         <span style={{ color }}>{packing.toFixed(0)}%</span>
                       </div>
-                      <div className="h-1 w-full bg-surface rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${packing}%`, backgroundColor: color }} />
+                      <div className="h-2 w-full bg-background border border-border/30 rounded-none overflow-hidden">
+                        <div className="h-full rounded-none transition-all" style={{ width: `${packing}%`, backgroundColor: color }} />
                       </div>
                     </div>
                     
@@ -74,7 +74,7 @@ export default async function LeaderboardPage() {
                     </div>
                     <div className="flex justify-between items-center text-[10px] font-bold">
                        <span className="text-text-secondary opacity-50 uppercase tracking-wider">Avg Cost / Blob</span>
-                       <span className="text-text-primary font-mono">{Number(row.cost_per_blob_gwei).toFixed(3)} G</span>
+                       <span className="text-text-primary">{Number(row.cost_per_blob_gwei).toFixed(3)} G</span>
                     </div>
                   </div>
                 </div>

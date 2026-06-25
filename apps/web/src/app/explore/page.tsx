@@ -12,23 +12,23 @@ async function RecentBlobsSection() {
   try { blobs = await getLatestBlobs(10); } catch { /* CH unavailable */ }
 
   if (!blobs.length) return (
-    <div className="surface border border-border rounded-xl p-6 text-center text-xs text-text-secondary">
+    <div className="surface border border-border rounded-none p-6 text-center text-xs text-text-secondary bg-surface/30">
       No recent data available
     </div>
   );
 
   return (
-    <div className="surface border border-border rounded-xl overflow-hidden">
+    <div className="surface border border-border rounded-none overflow-hidden bg-surface/10">
       {blobs.map((tx, i) => (
-        <div key={tx.tx_hash} className={`flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors ${i > 0 ? "border-t border-border" : ""}`}>
-          <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+        <div key={tx.tx_hash} className={`flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors ${i > 0 ? "border-t border-border/30" : ""}`}>
+          <div className="h-7 w-7 rounded-none bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <Layers className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <Link href={`/tx/${tx.tx_hash}`} className="font-mono text-xs text-primary hover:underline block truncate">
+            <Link href={`/tx/${tx.tx_hash}`} className="font-mono text-xs text-primary hover:underline block truncate font-bold">
               {shortHash(tx.tx_hash)}
             </Link>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 font-mono">
               <Link href={`/block/${tx.block_number}`} className="text-[11px] text-text-secondary hover:text-text-primary transition-colors">
                 #{tx.block_number.toLocaleString()}
               </Link>
@@ -40,8 +40,8 @@ async function RecentBlobsSection() {
               )}
             </div>
           </div>
-          <div className="text-right shrink-0 space-y-0.5">
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/15">
+          <div className="text-right shrink-0 space-y-0.5 font-mono">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-none bg-primary/10 text-primary border border-primary/20">
               {tx.num_blobs}×
             </span>
             <p className="text-[11px] text-text-secondary">{formatFee(tx.blob_base_fee)}</p>
@@ -57,28 +57,28 @@ async function RecentBlocksSection() {
   try { blocks = await getRecentBlocks(6); } catch { /* CH unavailable */ }
 
   if (!blocks.length) return (
-    <div className="surface border border-border rounded-xl p-6 text-center text-xs text-text-secondary">
+    <div className="surface border border-border rounded-none p-6 text-center text-xs text-text-secondary bg-surface/30">
       No recent data available
     </div>
   );
 
   return (
-    <div className="surface border border-border rounded-xl overflow-hidden">
+    <div className="surface border border-border rounded-none overflow-hidden bg-surface/10">
       {blocks.map((b, i) => (
-        <div key={b.block_number} className={`flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors ${i > 0 ? "border-t border-border" : ""}`}>
-          <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+        <div key={b.block_number} className={`flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors ${i > 0 ? "border-t border-border/30" : ""}`}>
+          <div className="h-7 w-7 rounded-none bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <Clock className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <Link href={`/block/${b.block_number}`} className="font-mono text-xs text-primary hover:underline">
+            <Link href={`/block/${b.block_number}`} className="font-mono text-xs text-primary hover:underline font-bold">
               #{b.block_number.toLocaleString()}
             </Link>
-            <p className="text-[11px] text-text-secondary mt-0.5 truncate">
+            <p className="text-[11px] text-text-secondary mt-0.5 truncate font-mono">
               {timeAgo(b.created_at)}
               {b.rollups?.length > 0 && ` · ${b.rollups.slice(0, 2).join(", ")}${b.rollups.length > 2 ? ` +${b.rollups.length - 2}` : ""}`}
             </p>
           </div>
-          <div className="text-right shrink-0">
+          <div className="text-right shrink-0 font-mono">
             <p className="text-sm font-bold text-text-primary">{b.blob_count}</p>
             <p className="text-[11px] text-text-secondary">{Math.round(b.utilization)}% full</p>
           </div>
@@ -90,15 +90,15 @@ async function RecentBlocksSection() {
 
 function FeedSkeleton({ rows }: { rows: number }) {
   return (
-    <div className="surface border border-border rounded-xl overflow-hidden">
+    <div className="surface border border-border rounded-none overflow-hidden bg-surface/10">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}>
-          <div className="h-7 w-7 rounded-lg bg-border/30 animate-pulse shrink-0" />
+        <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border/30" : ""}`}>
+          <div className="h-7 w-7 rounded-none bg-border/30 animate-pulse shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-28 rounded bg-border/40 animate-pulse" />
-            <div className="h-2.5 w-20 rounded bg-border/25 animate-pulse" />
+            <div className="h-3 w-28 rounded-none bg-border/40 animate-pulse" />
+            <div className="h-2.5 w-20 rounded-none bg-border/25 animate-pulse" />
           </div>
-          <div className="h-5 w-12 rounded-md bg-border/30 animate-pulse" />
+          <div className="h-5 w-12 rounded-none bg-border/30 animate-pulse" />
         </div>
       ))}
     </div>
@@ -111,10 +111,10 @@ export default function ExplorePage() {
 
       {/* Hero */}
       <div className="text-center space-y-5">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-xs font-bold uppercase tracking-widest text-primary">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-none border border-primary/20 bg-primary/5 text-xs font-bold uppercase tracking-widest text-primary font-mono">
           BlobLens Explorer
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold text-text-primary leading-tight">
+        <h1 className="text-4xl md:text-5xl font-bold text-text-primary leading-tight font-mono uppercase tracking-tight">
           Explore Every Blob<br />
           <span className="text-primary">Transaction</span>
         </h1>
@@ -128,14 +128,14 @@ export default function ExplorePage() {
 
       {/* Quick links */}
       <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
-        <span className="text-text-secondary/50 font-semibold uppercase tracking-wider">Try</span>
+        <span className="text-text-secondary/50 font-bold uppercase tracking-wider font-mono">Try</span>
         <Link href="/block/22431084"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all font-mono">
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-none border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all font-mono bg-surface/30">
           Block #22431084
           <ArrowRight className="h-3 w-3" />
         </Link>
         <Link href="/address/0x000000633b68f5d8d3a86593ebb815b4663bcbe0"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all font-mono">
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-none border border-border text-text-secondary hover:border-primary/40 hover:text-primary transition-all font-mono bg-surface/30">
           0x0000…cbe0
           <ArrowRight className="h-3 w-3" />
         </Link>
@@ -148,13 +148,13 @@ export default function ExplorePage() {
           { icon: "👤", label: "Address", hint: "Paste a 42-char 0x address", example: "0xd8dA…6045", color: "border-primary/15 bg-primary/5" },
           { icon: "📦", label: "Block", hint: "Enter a block number", example: "22431084", color: "border-status-warning/15 bg-status-warning/5" },
         ].map(({ icon, label, hint, example, color }) => (
-          <div key={label} className={`surface-elevated border rounded-xl p-5 space-y-2 ${color}`}>
+          <div key={label} className={`surface-elevated border rounded-none p-5 space-y-2 ${color}`}>
             <div className="flex items-center gap-2">
               <span className="text-lg">{icon}</span>
-              <span className="font-semibold text-text-primary text-sm">{label}</span>
+              <span className="font-bold text-text-primary text-sm font-mono uppercase tracking-wider">{label}</span>
             </div>
             <p className="text-xs text-text-secondary">{hint}</p>
-            <p className="font-mono text-xs text-text-secondary/50 bg-surface rounded-md px-2 py-1">{example}</p>
+            <p className="font-mono text-xs text-text-secondary/50 bg-surface rounded-none px-2 py-1 border border-border/50">{example}</p>
           </div>
         ))}
       </div>
@@ -162,7 +162,7 @@ export default function ExplorePage() {
       {/* Live feeds */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 font-mono">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
@@ -175,7 +175,7 @@ export default function ExplorePage() {
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 font-mono">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />

@@ -48,7 +48,41 @@ const LOGOS: Record<string, string> = {
   Hemi: "/l2/icons/hemi.png",
   Zircuit: "/l2/icons/zircuit.png",
   "Swan Chain": "/l2/icons/swan.png",
+  Swan: "/l2/icons/swan.png",
   Ethereum: "/l2/icons/ethereum.png",
+  Superseed: "/l2/icons/superseed.png",
+  SuperSeed: "/l2/icons/superseed.png",
+  Polynomial: "/l2/icons/polynomial.png",
+  
+  // Newly mapped active L2s and user requested files
+  Abstract: "/l2/icons/abstract.png",
+  Metis: "/l2/icons/metis.png",
+  Boba: "/l2/icons/bobanetwork.png",
+  "Boba Network": "/l2/icons/bobanetwork.png",
+  Katana: "/l2/icons/katana.png",
+  Codex: "/l2/icons/codex.png",
+  "X Layer": "/l2/icons/xlayer.png",
+  XLayer: "/l2/icons/xlayer.png",
+  Phala: "/l2/icons/phala.png",
+  "HashKey Chain": "/l2/icons/hashkey.png",
+  HashKey: "/l2/icons/hashkey.png",
+  "DeBank Chain": "/l2/icons/debank.png",
+  DeBank: "/l2/icons/debank.png",
+  DBK: "/l2/icons/dbk.png",
+  R0AR: "/l2/icons/r0ar.png",
+  Roar: "/l2/icons/r0ar.png",
+  "Zero Network": "/l2/icons/zeronetwork.png",
+  Zero: "/l2/icons/zeronetwork.png",
+  Shape: "/l2/icons/shape.png",
+  "Arena-Z": "/l2/icons/arenaz.png",
+  "Arena Z": "/l2/icons/arenaz.png",
+  "Syndicate Chain": "/l2/icons/syndicate.png",
+  Syndicate: "/l2/icons/syndicate.png",
+  Superlumio: "/l2/icons/superlumio.png",
+  "The Binary Holdings": "/l2/icons/thebinaryholdings.png",
+  Forknet: "/l2/icons/forknet.jpg",
+  Forket: "/l2/icons/forknet.jpg",
+  Pegglecoin: "/l2/icons/pegglecoin.png",
 };
 
 // ── Brand colors ───────────────────────────────────────────────────────────
@@ -83,6 +117,52 @@ const BRAND: Record<string, string> = {
   Zircuit: "#61DFFF",
   Hemi: "#F26522",
   Ethereum: "#627EEA",
+  Superseed: "#FFA500",
+  SuperSeed: "#FFA500",
+  Polynomial: "#8C52FF",
+  Cyber: "#00F0FF",
+  Derive: "#00FF66",
+  Redstone: "#FF3B30",
+  Orderly: "#5E5CE6",
+  Swell: "#00F0FF",
+  "Swell Chain": "#00F0FF",
+  "Swan Chain": "#FF9500",
+  Swan: "#FF9500",
+  "Metal L2": "#A2A2A2",
+  Metal: "#A2A2A2",
+  Mint: "#00FFCC",
+  Lisk: "#4070FF",
+  Celo: "#35D07F",
+
+  // Newly mapped active L2s and user requested files
+  Abstract: "#00FFCC",
+  Metis: "#00D2FF",
+  Boba: "#CCFF00",
+  "Boba Network": "#CCFF00",
+  Katana: "#FF3366",
+  Codex: "#E2E8F0",
+  "X Layer": "#F5F5F7",
+  XLayer: "#F5F5F7",
+  Phala: "#D0F800",
+  "HashKey Chain": "#00E080",
+  HashKey: "#00E080",
+  "DeBank Chain": "#FF2E63",
+  DeBank: "#FF2E63",
+  DBK: "#FF2E63",
+  R0AR: "#FF4500",
+  Roar: "#FF4500",
+  "Zero Network": "#5E5CE6",
+  Zero: "#5E5CE6",
+  Shape: "#FADE15",
+  "Arena-Z": "#00F0FF",
+  "Arena Z": "#00F0FF",
+  "Syndicate Chain": "#9060FF",
+  Syndicate: "#9060FF",
+  Superlumio: "#00C0FF",
+  "The Binary Holdings": "#CFFF00",
+  Forknet: "#FF0033",
+  Forket: "#FF0033",
+  Pegglecoin: "#FFCC00",
 };
 
 function effColor(e: number): string {
@@ -147,8 +227,8 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
   useEffect(() => {
     if (!containerRef.current || !svgRef.current || !data.nodes.length) return;
 
-    const W = containerRef.current.clientWidth || 800;
-    const H = containerRef.current.clientHeight || 560;
+    let W = containerRef.current.clientWidth || 800;
+    let H = containerRef.current.clientHeight || 560;
     const maxVal = Math.max(...data.nodes.map((n) => n.value), 1);
 
     // Build nodes
@@ -195,9 +275,9 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
     const sim = d3.forceSimulation<GNode>(nodes)
       .force("link", d3.forceLink<GNode, GLink>(links)
         .id((d) => d.id)
-        .distance((l) => (l.isHub ? 180 : 220))
+        .distance((l) => (l.isHub ? 120 : 160))
         .strength((l) => (l.isHub ? 0.4 : 0.12)))
-      .force("charge", d3.forceManyBody<GNode>().strength(-750))
+      .force("charge", d3.forceManyBody<GNode>().strength(-450))
       .force("center", d3.forceCenter(W / 2, H / 2).strength(0.07))
       .force("collision", d3.forceCollide<GNode>(
         (d) => nodeR(d.value, maxVal, !!d.isEthereum) + 16
@@ -208,6 +288,20 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
       .attr("viewBox", `0 0 ${W} ${H}`)
       .attr("width", W).attr("height", H);
     svg.selectAll("*").remove();
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width, height } = entries[0].contentRect;
+      if (width === 0 || height === 0) return;
+      
+      W = width;
+      H = height;
+      
+      svg.attr("viewBox", `0 0 ${W} ${H}`).attr("width", W).attr("height", H);
+      sim.force("center", d3.forceCenter(W / 2, H / 2).strength(0.07));
+      sim.alpha(0.25).restart();
+    });
+    resizeObserver.observe(containerRef.current);
 
     const defs = svg.append("defs");
 
@@ -312,6 +406,27 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
     // Inner group: scaled independently on hover
     const nodeInner = nodeOuter.append("g").attr("class", "ni");
 
+    // ── Concentric Rotating Orbit Rings for Ethereum (Quantum Core) ───
+    const ethNode = nodeInner.filter((d) => !!d.isEthereum);
+    
+    // Outer dashed ring (spins clockwise)
+    ethNode.append("circle")
+      .attr("r", 72)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(98, 126, 234, 0.25)")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "6 8")
+      .attr("class", "spin-slow");
+
+    // Inner dotted ring (spins counter-clockwise)
+    ethNode.append("circle")
+      .attr("r", 62)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(0, 223, 129, 0.35)")
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2 6")
+      .attr("class", "spin-reverse-fast");
+
     // 1. Gradient-filled base circle + glow filter
     nodeInner.append("circle")
       .attr("r", (d) => nodeR(d.value, maxVal, !!d.isEthereum))
@@ -319,6 +434,16 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
       .attr("stroke", (d) => d.isEthereum ? "#627EEA" : effColor(d.efficiency))
       .attr("stroke-width", 2.5)
       .attr("filter", (d) => `url(#${d.isEthereum ? "glow-eth" : effGlowId(d.efficiency)})`);
+
+    // ── Tech Dashed Brand Ring for Rollups ───
+    const rollupNodes = nodeInner.filter((d) => !d.isEthereum);
+    rollupNodes.append("circle")
+      .attr("r", (d) => nodeR(d.value, maxVal, false) + 4)
+      .attr("fill", "none")
+      .attr("stroke", (d) => brandFor(d.name))
+      .attr("stroke-width", 1)
+      .attr("stroke-opacity", 0.4)
+      .attr("stroke-dasharray", "3 3");
 
     // 2. Letter avatar (always rendered, covered by logo if it loads)
     nodeInner.append("text")
@@ -328,7 +453,7 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
       .attr("font-size", (d) => `${Math.round(nodeR(d.value, maxVal, !!d.isEthereum) * 0.78)}px`)
       .attr("font-weight", "900")
       .attr("fill", "rgba(255,255,255,0.90)")
-      .attr("font-family", "'Space Grotesk', sans-serif")
+      .attr("font-family", "var(--font-mono), monospace")
       .style("pointer-events", "none")
       .text((d) => d.isEthereum ? "⟠" : d.name.charAt(0).toUpperCase());
 
@@ -353,7 +478,7 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
       .attr("font-weight", "600")
       .attr("fill", (d) => d.isEthereum ? "#627EEA" : brandFor(d.name))
       .attr("filter", "url(#txt-shadow)")
-      .attr("font-family", "'Space Grotesk', sans-serif")
+      .attr("font-family", "var(--font-mono), monospace")
       .style("pointer-events", "none")
       .text((d) => d.name);
 
@@ -413,6 +538,15 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
 
     // ── Simulation tick ────────────────────────────────────────────────────
     sim.on("tick", () => {
+      // Clamp nodes to container boundaries to prevent clipping of labels
+      nodes.forEach((node) => {
+        const r = nodeR(node.value, maxVal, !!node.isEthereum);
+        const padX = r + 20;
+        const padY = r + 35; // extra bottom padding for text labels
+        node.x = Math.max(padX, Math.min(W - padX, node.x ?? W / 2));
+        node.y = Math.max(padY, Math.min(H - padY, node.y ?? H / 2));
+      });
+
       const lineAttrs = (sel: d3.Selection<SVGLineElement, GLink, SVGGElement, unknown>) =>
         sel
           .attr("x1", (l) => (l.source as GNode).x ?? 0)
@@ -428,18 +562,46 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
     return () => {
       sim.stop();
       cancelAnimationFrame(animRef.current);
+      resizeObserver.disconnect();
     };
   }, [data]);
 
   return (
-    <div className="relative rounded-xl overflow-hidden bg-surface-elevated">
-      <div ref={containerRef} className="h-[560px] w-full">
-        <svg ref={svgRef} className="w-full h-full" />
+    <div className="relative w-full h-full overflow-hidden bg-background border border-dashed border-border rounded-none shadow-inner">
+      {/* Retro cyber-grid background */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none" style={{
+        backgroundImage: isDark 
+          ? 'linear-gradient(to right, rgba(0, 167, 181, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 167, 181, 0.05) 1px, transparent 1px)'
+          : 'linear-gradient(to right, rgba(0, 138, 150, 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 138, 150, 0.06) 1px, transparent 1px)',
+        backgroundSize: '32px 32px'
+      }} />
+
+      <div ref={containerRef} className="w-full h-full">
+        <svg ref={svgRef} className="w-full h-full block" />
       </div>
 
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes spin-clockwise {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes spin-counterclockwise {
+          from { transform: rotate(360deg); }
+          to { transform: rotate(0deg); }
+        }
+        .spin-slow {
+          transform-origin: 0px 0px;
+          animation: spin-clockwise 45s linear infinite;
+        }
+        .spin-reverse-fast {
+          transform-origin: 0px 0px;
+          animation: spin-counterclockwise 25s linear infinite;
+        }
+      `}} />
+
       {/* Efficiency halo legend */}
-      <div className={`absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 backdrop-blur-sm pointer-events-none ${
-        isDark ? "border-white/8 bg-black/55" : "border-border bg-white/80"
+      <div className={`absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-none border border-dashed px-3 py-2.5 backdrop-blur-sm pointer-events-none font-mono ${
+        isDark ? "border-border/60 bg-background/85" : "border-border bg-white/90"
       }`}>
         <p className="text-[9px] uppercase tracking-[0.13em] text-text-secondary/50 mb-0.5">
           Efficiency halo
@@ -461,8 +623,8 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
       </div>
 
       {/* Edge type legend */}
-      <div className={`absolute bottom-8 right-3 z-10 flex flex-col gap-1.5 rounded-lg border px-3 py-2 backdrop-blur-sm pointer-events-none ${
-        isDark ? "border-white/8 bg-black/55" : "border-border bg-white/80"
+      <div className={`absolute bottom-8 right-3 z-10 flex flex-col gap-1.5 rounded-none border border-dashed px-3 py-2 backdrop-blur-sm pointer-events-none font-mono ${
+        isDark ? "border-border/60 bg-background/85" : "border-border bg-white/90"
       }`}>
         <div className="flex items-center gap-2">
           <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke={isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)"} strokeWidth="1.2" strokeDasharray="4 3"/></svg>
@@ -491,8 +653,8 @@ export function RollupNetworkGraphD3({ data }: { data: NetworkGraphType }) {
         const top  = tooltip.y + TH + 5 > vh ? tooltip.y - TH - 5 : tooltip.y + 5;
         return (
         <div
-          className={`fixed z-30 rounded-xl border px-4 py-3 backdrop-blur-md pointer-events-none shadow-xl ${
-            isDark ? "border-white/10 bg-black/80" : "border-border bg-white/90"
+          className={`fixed z-30 rounded-none border border-dashed px-4 py-3 backdrop-blur-md pointer-events-none shadow-2xl font-mono ${
+            isDark ? "border-border bg-background/95" : "border-border bg-white/95"
           }`}
           style={{ left, top, minWidth: 200 }}
         >

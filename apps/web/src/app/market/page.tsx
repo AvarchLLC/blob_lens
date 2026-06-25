@@ -1,5 +1,5 @@
+import { Suspense } from "react";
 import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
-import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
 import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
 import { CongestionForecast } from "@/components/charts/CongestionForecast";
 import { L1vsBlobFeeChart } from "@/components/charts/L1vsBlobFeeChart";
@@ -7,13 +7,11 @@ import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
 import { RollupActivityLineChart } from "@/components/charts/RollupActivityLineChart";
 import { RollupMetricLineChart } from "@/components/charts/RollupMetricLineChart";
 import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
-import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { RegimeAlertPanel } from "@/components/shared/RegimeAlertPanel";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { L1CostComparisonTable } from "@/components/shared/L1CostComparisonTable";
 import { PageHeader, PageSection } from "@/components/shared/PageHeader";
-import { MetricCard } from "@/components/shared/MetricCard";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TimeRangePicker } from "@/components/shared/TimeRangePicker";
 import { blobCostUsd, formatUsd, getEthPrice } from "@/lib/ethPrice";
 import { getHourlyL1Fee } from "@/lib/l1Fee";
 import {
@@ -27,62 +25,72 @@ import {
   getRollupNetworkGraph,
 } from "@/lib/queries";
 import { classifyRegime, formatNumber } from "@/lib/utils";
+import { Activity, ShieldCheck, Zap, Coins, Database, Gauge, ArrowUpRight } from "lucide-react";
 
 export const revalidate = 30;
 
-const REGIME_COLOR: Record<string, string> = {
-  undersaturated: "#52666E",
-  healthy:        "#00A86B",
-  congested:      "#E8A020",
-  spike:          "#E5484D",
+const HOURS_LABEL: Record<number, string> = {
+  24:   "24 hours",
+  168:  "7 days",
+  720:  "30 days",
+  2160: "90 days",
 };
 
-export default async function MarketPage() {
-  const [market24h, market7d, leaderboard, ethUsd, forecast, rollupActivity, rollupFee, rollupUtil, networkGraph, l1FeeData, l1HistoricalCosts] =
-    await Promise.all([
-      getMarketActivity(720).catch(() => []), // 30 days
-      getMarketActivity(2160).catch(() => []), // 90 days
-      getLeaderboard(1).catch(() => []),
-      getEthPrice(),
-      getForecastData().catch(() => null),
-      getHourlyRollupActivity(24, 10).catch(() => []),
-      getHourlyRollupFee(24, 10).catch(() => []),
-      getHourlyRollupUtilization(24, 10).catch(() => []),
-      getRollupNetworkGraph(24).catch(() => ({ nodes: [], edges: [] })),
-      getHourlyL1Fee(24).catch(() => []),
-      getL1Costs(30).catch(() => []),
-    ]);
+export default async function MarketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ hours?: string }>;
+}) {
+  const { hours: hoursParam } = await searchParams;
+  const hours = [24, 168, 720, 2160].includes(Number(hoursParam)) ? Number(hoursParam) : 24;
+  const days = Math.ceil(hours / 24);
+
+  const [
+    market, leaderboard, ethUsd, forecast, 
+    rollupActivity, rollupFee, rollupUtil, 
+    networkGraph, l1FeeData, l1HistoricalCosts
+  ] = await Promise.all([
+    getMarketActivity(hours).catch(() => []),
+    getLeaderboard(1).catch(() => []),
+    getEthPrice(),
+    getForecastData().catch(() => null),
+    getHourlyRollupActivity(hours, 10).catch(() => []),
+    getHourlyRollupFee(hours, 10).catch(() => []),
+    getHourlyRollupUtilization(hours, 10).catch(() => []),
+    getRollupNetworkGraph(hours).catch(() => ({ nodes: [], edges: [] })),
+    getHourlyL1Fee(hours).catch(() => []),
+    getL1Costs(days).catch(() => []),
+  ]);
 
   const latestL1Cost = l1HistoricalCosts[l1HistoricalCosts.length - 1] || null;
-  const market = market24h;
   const latest = market[market.length - 1];
   const topRollup = leaderboard[0]?.rollup ?? "—";
-  const totalBlobsLastHour = market.slice(-1).reduce((s, m) => s + Number(m.blob_count), 0);
+  const totalBlobsPeriod = market.reduce((s, m) => s + Number(m.blob_count), 0);
   const avgUtilization = market.length
     ? (market.reduce((s, m) => s + Number(m.avg_utilization), 0) / market.length).toFixed(1)
     : "—";
 
-  const regimeName = classifyRegime(latest?.max_blobs_in_block ?? 0);
-
   return (
-    <div className="animate-page-in">
+    <div className="animate-page-in space-y-8">
       <PageHeader
         meta="Market Intelligence"
         title="Blob Fee Economics"
         summary="Deep analysis of Ethereum's EIP-4844 blob market. Monitor real-time regimes, historical fee trends, and ecosystem-wide utilization patterns."
       >
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 surface border border-border flex items-center gap-2">
-            <span className="pulse-dot" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary opacity-60 tracking-widest">Live 30s</span>
+        <div className="flex flex-col items-start md:items-end gap-2.5">
+          <Suspense fallback={<div className="h-9 w-56 rounded-none bg-border/30 animate-pulse" />}>
+            <TimeRangePicker basePath="/market" current={hours} />
+          </Suspense>
+          <div className="flex items-center gap-2 px-3 py-1 bg-status-healthy/10 border border-dashed border-status-healthy/30 rounded-none">
+             <RegimeBadge maxBlobsInBlock={latest?.max_blobs_in_block ?? 0} size="sm" />
+             <span className="text-[10px] font-bold uppercase tracking-widest text-text-primary font-mono ml-1">Regime Active</span>
           </div>
-          <RegimeBadge maxBlobsInBlock={latest?.max_blobs_in_block ?? 0} size="lg" />
         </div>
       </PageHeader>
 
-      {/* ── Metric cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <MetricCard
+      {/* ── Orientation strip: metrics ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard
           label="Cost / Blob (Avg)"
           value={
             latest && Number(latest.avg_fee) > 0
@@ -91,149 +99,248 @@ export default async function MarketPage() {
                 : `${(Number(latest.avg_fee) / 1e9).toFixed(4)} gwei`
               : "1 wei"
           }
-          note="Average fee per 128KB blob (last hour)."
+          note="Average fee per 128KB blob (last hour)"
+          icon={Coins}
+          accentColor="#00df81"
+          glowColor="rgba(0, 223, 129, 0.15)"
         />
-        <MetricCard
-          label="Total Blobs (1h)"
-          value={formatNumber(totalBlobsLastHour)}
-          note="Combined blobs across all indexed blocks."
+        <StatCard
+          label={`Total Blobs (${HOURS_LABEL[hours]})`}
+          value={formatNumber(totalBlobsPeriod)}
+          note="Combined blobs across all indexed blocks"
+          icon={Database}
+          accentColor="#00A7B5"
+          glowColor="rgba(0, 167, 181, 0.15)"
         />
-        <MetricCard
+        <StatCard
           label="Avg Utilization"
           value={avgUtilization === "—" ? "—" : `${avgUtilization}%`}
-          note="Network usage relative to the 9-blob max."
+          note="Network usage relative to target capacity"
+          icon={Gauge}
+          accentColor="#FFCC00"
+          glowColor="rgba(255, 204, 0, 0.12)"
         />
-        <MetricCard
+        <StatCard
           label="Most Active Rollup"
           value={topRollup}
-          note="Entity with highest volume in current window."
+          note="Entity with highest volume in current window"
+          icon={ArrowUpRight}
+          accentColor="#9060FF"
+          glowColor="rgba(144, 96, 255, 0.15)"
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        
-        {/* Left Column */}
-        <div className="xl:col-span-8 space-y-12">
-          
-          <PageSection
-            label="Regime Analysis"
-            title="Market State Classification"
-            description="Hour-by-hour market state over 24 hours."
-            interpretation="Regime classification is based on block fullness. 'Healthy' regimes indicate optimal fee-burning efficiency without congestion-induced price spikes."
-          >
-            <div className="min-h-[300px]">
-              <RegimeHeatmap data={market} />
-            </div>
-          </PageSection>
+      {/* ── Section 1: Regime Analysis (Full width) ── */}
+      <PageSection
+        label="Regime Analysis"
+        title="Market State Classification"
+        description={`Hour-by-hour market state over the last ${HOURS_LABEL[hours]}.`}
+        interpretation="Regime classification is based on block fullness. 'Healthy' regimes indicate optimal fee-burning efficiency without congestion-induced price spikes."
+      >
+        <div className="w-full">
+          <RegimeHeatmap data={market} daysCount={Math.min(days, 7)} />
+        </div>
+      </PageSection>
 
-          <PageSection
-            label="Pricing"
-            title="Historical Cost Benchmarking"
-            description="Comparison of blob base fees and alternative L1 data availability costs."
-            interpretation="The 'Blob DA vs L1 Calldata' chart highlights the massive cost savings introduced by EIP-4844. Blobs are typically 10-100x cheaper than posting data as Calldata."
-          >
-            <div className="space-y-10">
-              <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                  L2 Transaction Efficiency (vs. L1)
-                </h4>
-                <L1CostComparisonTable latestL1={latestL1Cost} avgBlobUsd={latest ? Number(latest.avg_fee) * 131_072 / 1e18 * (ethUsd || 0) : null} />
-              </div>
+      {/* ── Section 2: Pricing & Cost Dynamics (Full width stacked charts) ── */}
+      <PageSection
+        label="Pricing"
+        title={`Historical Cost Benchmarking — Last ${HOURS_LABEL[hours]}`}
+        description="Comparison of blob base fees, calldata rates, and transaction efficiency."
+        interpretation="The comparison charts illustrate the economic divergence between execution-layer calldata and dedicated blob space. Blobs consistently reduce data availability overhead by orders of magnitude."
+      >
+        <div className="space-y-8">
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+              Blob Base Fee Trend
+            </h4>
+            <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} />
+          </div>
 
-              <div className="pt-10 border-t border-border/50">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                  Blob Base Fee Trend (24h)
-                </h4>
-                <BlobFeeLineChart data={market} ethUsd={ethUsd ?? undefined} />
-              </div>
-              {ethUsd != null && l1FeeData.length > 0 && (
-                <div className="pt-10 border-t border-border/50">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
+          {ethUsd != null && l1FeeData.length > 0 && (
+            <div className="pt-8 border-t border-dashed border-border/20">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div className="lg:col-span-7">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
                     DA vs Calldata Cost Comparison (USD)
                   </h4>
                   <L1vsBlobFeeChart blobData={market} l1Data={l1FeeData} ethUsd={ethUsd} />
                 </div>
-              )}
+                <div className="lg:col-span-5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+                    L2 Transaction Efficiency (vs. L1)
+                  </h4>
+                  <L1CostComparisonTable latestL1={latestL1Cost} avgBlobUsd={latest ? Number(latest.avg_fee) * 131_072 / 1e18 * (ethUsd || 0) : null} />
+                </div>
+              </div>
             </div>
-          </PageSection>
+          )}
+        </div>
+      </PageSection>
 
+      {/* ── Section 3: Capacity & Forecast side-by-side ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-7 flex flex-col">
           <PageSection
             label="Capacity"
-            title="Throughput & Slot Analysis"
-            description="Detailed block utilization and per-slot analysis."
-            interpretation="Consistent utilization above the 50% target (4.5 blobs) triggers the exponential fee mechanism. Sustained 'Congested' regimes indicate a growing demand for data availability."
+            title="Slot Utilization Trend"
+            description="Percentage of block space filled by blobs relative to target capacity."
+            interpretation="Consistent utilization above the 50% target (3 blobs per block in Dencun, higher in Pectra/Fusaka) triggers the exponential EIP-4844 fee escalator."
+            fullHeight
+            className="flex-1"
           >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                  Blobs per Block
-                </h4>
-                <BlobsPerBlockChart data={market} />
-              </div>
-              <div className="lg:border-l lg:border-border/50 lg:pl-10">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                  Slot Utilization (%)
-                </h4>
-                <BlobUtilizationChart data={market} />
-              </div>
-            </div>
-          </PageSection>
-
-          <PageSection
-            label="Rollup Activity"
-            title="Ecosystem Behavior"
-            description="Analysis of how individual rollups utilize the blob market."
-            interpretation="Bursts in 'Activity by Rollup' often correlate with major protocol upgrades or peak user demand periods. Diverging 'Fee by Rollup' lines show how rollups optimize their batching strategy."
-          >
-            <div className="space-y-10">
-              <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                  Top 10 Rollups by Volume
-                </h4>
-                <RollupActivityLineChart data={rollupActivity} />
-              </div>
-              <div className="pt-10 border-t border-border/50">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                  Average Fee Paid per Rollup
-                </h4>
-                <RollupMetricLineChart data={rollupFee} mode="fee-wei" />
-              </div>
-            </div>
+            <BlobUtilizationChart data={market} />
           </PageSection>
         </div>
 
-        {/* Right Column */}
-        <div className="xl:col-span-4 space-y-12">
-          
-          {forecast && forecast.current_fee_wei > 0 && (
+        <div className="lg:col-span-5 flex flex-col">
+          {forecast && forecast.current_fee_wei > 0 ? (
             <PageSection
               label="Prediction"
-              title="Congestion Forecast"
-              description="Predictive modeling of blob base fees."
-              interpretation="This model uses the EIP-4844 exponential formula to project fees over the next 50 blocks. High steepness suggests imminent fee escalation."
+              title="4–12 Slot Congestion Forecast"
+              description="Predictive modeling of blob base fees over the next 50 blocks."
+              interpretation="The predictive model uses the EIP-4844 exponential formula to project fee adjustments based on the accumulated excess blob gas. A steep upward curve signals imminent competition."
+              fullHeight
+              className="flex-1"
             >
               <CongestionForecast data={forecast} />
             </PageSection>
-          )}
-
-          <PageSection
-            label="Network"
-            title="Ecosystem Relationships"
-            description="Force-directed graph of rollup DA co-occurrence."
-            interpretation="Node size represents blob volume. Edges represent co-occurrence in the same block. Tightly clustered graphs indicate intense competition for block space."
-          >
-            <div className="h-[400px]">
-              {networkGraph.nodes.length > 0 ? (
-                <RollupNetworkGraphD3 data={networkGraph} />
-              ) : (
-                <div className="h-full flex items-center justify-center text-text-secondary opacity-40 italic text-xs">No relationship data available.</div>
-              )}
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 border border-dashed border-border text-xs text-text-secondary opacity-50 italic font-mono">
+              Forecast metrics calculating...
             </div>
-          </PageSection>
-
-          <RegimeAlertPanel />
+          )}
         </div>
       </div>
+
+      {/* ── Section 4: Rollup Activity & Behavior (Full width stacked charts) ── */}
+      <PageSection
+        label="Rollup Activity"
+        title={`Ecosystem Behavior — Last ${HOURS_LABEL[hours]}`}
+        description="Detailed breakdown of blob counts and average transaction fees paid per rollup sequencer."
+        interpretation="Ecosystem telemetry tracks individual sequencer intensities. Diverging fee-per-rollup trends highlight how different networks optimize batch sizes to avoid high congestion fee windows."
+      >
+        <div className="space-y-8">
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+              Top 10 Rollups by Blob Volume
+            </h4>
+            <RollupActivityLineChart data={rollupActivity} />
+          </div>
+
+          <div className="pt-8 border-t border-dashed border-border/20">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+              Average Fee Paid per Rollup
+            </h4>
+            <RollupMetricLineChart data={rollupFee} mode="fee-wei" />
+          </div>
+        </div>
+      </PageSection>
+
+      {/* ── Section 5: Network Co-occurrence Graph (Spacious full-width) ── */}
+      <PageSection
+        label="Network Relationships"
+        title="Ecosystem Co-occurrence Graph"
+        description="Force-directed graph mapping which rollups share block space in the same transaction bundles."
+        interpretation="Node size represents relative blob volume. Connected edges represent co-occurrence in the same blocks. Tight clusters highlight networks that submit transactions concurrently, driving short-term gas congestion."
+      >
+        <div className="h-[500px] w-full">
+          {networkGraph.nodes.length > 0 ? (
+            <RollupNetworkGraphD3 data={networkGraph} />
+          ) : (
+            <div className="h-full flex items-center justify-center text-text-secondary opacity-50 italic text-xs font-mono">
+              No relationship data available in this window
+            </div>
+          )}
+        </div>
+      </PageSection>
+
+      {/* ── Section 6: Alerts & Status Surveillance Panel (Full width at bottom) ── */}
+      <PageSection
+        label="Alerts & Status"
+        title="Surveillance Panel"
+        description="Active congestion warnings and system state parameters."
+        interpretation="The surveillance panel monitors real-time fee spikes. During high congestion regimes, rollup operators should adjust batch submission intervals to prevent cost overheads."
+      >
+        <div className="space-y-4">
+          <RegimeAlertPanel borderless={true} />
+        </div>
+      </PageSection>
+    </div>
+  );
+}
+
+// ── Shared brutalist components ──
+
+function StatCard({
+  label,
+  value,
+  note,
+  icon: Icon,
+  glowColor,
+  accentColor,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  icon: React.ComponentType<any>;
+  glowColor: string;
+  accentColor: string;
+}) {
+  return (
+    <div className="group relative overflow-hidden p-5 flex flex-col justify-between rounded-none border border-dashed border-border bg-surface/20 transition-all duration-300 hover:-translate-y-1 hover:border-solid hover:bg-surface/30">
+      {/* Radial glow background */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle 120px at 80% 20%, ${glowColor}, transparent 70%)`,
+        }}
+      />
+
+      {/* Top neon glow bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px] bg-border group-hover:h-[3px] transition-all duration-300"
+        style={{
+          backgroundColor: accentColor,
+          boxShadow: `0 0 8px ${accentColor}`,
+        }}
+      />
+
+      {/* Card header */}
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary opacity-70 font-mono group-hover:text-text-primary group-hover:opacity-100 transition-all">
+          {label}
+        </span>
+        <div
+          className="h-7 w-7 rounded-none border border-dashed border-border flex items-center justify-center bg-surface-elevated/50 group-hover:border-solid transition-all duration-300"
+          style={{
+            borderColor: accentColor,
+            color: accentColor,
+            boxShadow: `0 0 6px ${glowColor}`,
+          }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+      </div>
+
+      {/* Numeric value & explanation */}
+      <div className="space-y-1 z-10">
+        <span
+          className="font-mono font-bold text-text-primary text-2xl leading-tight block tracking-tight group-hover:scale-[1.01] origin-left transition-transform duration-300 truncate"
+          title={value}
+        >
+          {value}
+        </span>
+        <p className="text-[10px] text-text-secondary opacity-60 group-hover:opacity-85 transition-opacity font-mono leading-relaxed truncate">
+          {note}
+        </p>
+      </div>
+
+      {/* Corner tech ticks */}
+      <div
+        className="absolute bottom-1 right-1 h-1.5 w-1.5 border-r border-b border-border/20 group-hover:border-solid transition-all"
+        style={{ borderColor: accentColor }}
+      />
     </div>
   );
 }

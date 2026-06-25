@@ -118,7 +118,7 @@ export const chartTheme = {
       },
       {
         type: 'slider',
-        show: false, // Keep slider hidden by default but available
+        show: true, // Show slider globally for time-series navigation
         start: 0,
         end: 100,
         height: 20,
@@ -214,7 +214,7 @@ export const chartTheme = {
       },
       {
         type: 'slider',
-        show: false,
+        show: true, // Show slider globally for time-series navigation
         start: 0,
         end: 100,
         height: 20,

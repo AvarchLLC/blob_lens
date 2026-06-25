@@ -16,10 +16,10 @@ export function RollupVolumeAreaChart({ data }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-sm" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   if (!data.length)
-    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No historical volume data</p>;
+    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic font-mono">No historical volume data</p>;
 
   const isDark = theme !== "light";
   const t = getChartTheme(isDark);
@@ -145,5 +145,5 @@ export function RollupVolumeAreaChart({ data }: Props) {
     })),
   };
 
-  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: 'svg' }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: 'svg' }} />;
 }

@@ -1,47 +1,64 @@
 "use client";
 
 import { getChartTheme, watermarkGraphic, animationConfig } from "@/lib/chartTheme";
-import type { ETHLiquiditySnapshot } from "@/types";
+import type { WhaleWallet } from "@/types";
 import ReactECharts from "echarts-for-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 interface Props {
-  data: ETHLiquiditySnapshot[];
+  data: WhaleWallet[];
 }
 
 const CAT_COLORS: Record<string, string> = {
-  staked: "#00A86B",
-  cex: "#3B82F6",
+  contract: "#8B5CF6",
+  exchange: "#3B82F6",
+  founder: "#EC4899",
   enterprise: "#E8A020",
-  bridges: "#5B8DB8",
-  other: "#52666E",
+  individual: "#10B981",
+  other: "#6B7280",
 };
 
 const CAT_LABELS: Record<string, string> = {
-  staked: "Staking Pools",
-  cex: "Centralized Exchanges",
-  enterprise: "Enterprise Treasuries",
-  bridges: "Cross-chain Bridges",
+  contract: "Smart Contracts",
+  exchange: "Exchanges",
+  founder: "Founders / Team",
+  enterprise: "Treasuries",
+  individual: "Individual Whales",
 };
 
-export function ETHDistributionDonut({ data }: Props) {
+export function WhaleCategoryDonut({ data }: Props) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="flex-1 w-full min-h-[300px] animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+    return <div className="h-[340px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
   }
 
   if (!data.length) {
-    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic font-mono">No distribution data available</p>;
+    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic font-mono">No category distribution data available</p>;
   }
 
   const isDark = theme !== "light";
   const t = getChartTheme(isDark);
 
-  const grandTotal = data.reduce((s, d) => s + d.balance_eth, 0);
+  const grandTotal = data.reduce((s, d) => s + (d.balance_eth || 0), 0);
+
+  // Group by category
+  const grouped = new Map<string, number>();
+  for (const w of data) {
+    const cat = w.category || "individual";
+    grouped.set(cat, (grouped.get(cat) || 0) + (w.balance_eth || 0));
+  }
+
+  const chartData = [...grouped.entries()].map(([cat, val]) => ({
+    name: CAT_LABELS[cat] || cat,
+    value: val,
+    itemStyle: {
+      color: CAT_COLORS[cat] || CAT_COLORS.other,
+    },
+  })).sort((a, b) => b.value - a.value);
 
   const option = {
     ...animationConfig,
@@ -79,7 +96,7 @@ export function ETHDistributionDonut({ data }: Props) {
         style: {
           text: grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }),
           fill: isDark ? "#F5F3FF" : "#0E0C1B",
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: "700",
           fontFamily: "var(--font-mono), monospace",
           textAlign: "center",
@@ -90,9 +107,9 @@ export function ETHDistributionDonut({ data }: Props) {
         left: "center",
         top: "46%",
         style: {
-          text: "TOTAL ETH",
+          text: "TOTAL TRACKED ETH",
           fill: isDark ? "#8E8EA8" : "#58547A",
-          fontSize: 9,
+          fontSize: 8,
           fontWeight: "bold",
           fontFamily: "var(--font-mono), monospace",
           textAlign: "center",
@@ -101,18 +118,12 @@ export function ETHDistributionDonut({ data }: Props) {
     ],
     series: [
       {
-        name: "ETH Liquidity",
+        name: "Whale Distribution",
         type: "pie" as const,
         radius: ["58%", "76%"],
         padAngle: 2,
         center: ["50%", "42%"],
-        data: data.map((d) => ({
-          name: CAT_LABELS[d.category] || d.category,
-          value: d.balance_eth,
-          itemStyle: {
-            color: CAT_COLORS[d.category] || CAT_COLORS.other,
-          },
-        })),
+        data: chartData,
         label: { show: false },
         emphasis: {
           scale: true,
@@ -127,7 +138,7 @@ export function ETHDistributionDonut({ data }: Props) {
   };
 
   return (
-    <div className="flex-1 w-full min-h-[300px] h-full">
+    <div className="w-full h-[340px]">
       <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: "svg" }} />
     </div>
   );

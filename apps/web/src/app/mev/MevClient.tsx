@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
+import { PageHeader } from "@/components/shared/PageHeader";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell,
@@ -108,11 +109,11 @@ const LIGHT: TC = {
 
 /* ─── protocol config ──────────────────────────────────────────────────── */
 const PROTO_CONFIG: Record<string, { label: string; color: string; dark: string; light: string }> = {
-  uniswap_v3:   { label: "Uni v3",  color: "#e91e8c", dark: "bg-pink-500/15 text-pink-400",    light: "bg-pink-50 text-pink-600" },
-  uniswap_v2:   { label: "Uni v2",  color: "#8b5cf6", dark: "bg-violet-500/15 text-violet-400", light: "bg-violet-50 text-violet-600" },
-  sushiswap_v2: { label: "Sushi",   color: "#f97316", dark: "bg-orange-500/15 text-orange-400", light: "bg-orange-50 text-orange-600" },
-  curve:        { label: "Curve",   color: "#10b981", dark: "bg-emerald-500/15 text-emerald-400", light: "bg-emerald-50 text-emerald-600" },
-  dodo:         { label: "DODO",    color: "#eab308", dark: "bg-yellow-500/15 text-yellow-400",  light: "bg-yellow-50 text-yellow-600" },
+  uniswap_v3:   { label: "Uni v3",  color: "#e91e8c", dark: "bg-pink-500/15 text-pink-400 border-pink-500/30",    light: "bg-pink-50 text-pink-600 border-pink-200" },
+  uniswap_v2:   { label: "Uni v2",  color: "#8b5cf6", dark: "bg-violet-500/15 text-violet-400 border-violet-500/30", light: "bg-violet-50 text-violet-600 border-violet-200" },
+  sushiswap_v2: { label: "Sushi",   color: "#f97316", dark: "bg-orange-500/15 text-orange-400 border-orange-500/30", light: "bg-orange-50 text-orange-600 border-orange-200" },
+  curve:        { label: "Curve",   color: "#10b981", dark: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", light: "bg-emerald-50 text-emerald-600 border-emerald-200" },
+  dodo:         { label: "DODO",    color: "#eab308", dark: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",  light: "bg-yellow-50 text-yellow-600 border-yellow-200" },
 };
 const CHART_COLORS = ["#e91e8c","#8b5cf6","#f97316","#10b981","#eab308","#06b6d4","#ef4444","#22c55e","#a855f7","#f43f5e","#3b82f6","#f59e0b"];
 
@@ -147,10 +148,10 @@ function Card({ tc, title, sub, children, className = "" }: {
   tc: TC; title: string; sub?: string; children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={`rounded-xl border ${tc.card} ${tc.cardBorder} p-5 ${className}`}>
+    <div className={`rounded-none border ${tc.card} ${tc.cardBorder} p-5 ${className}`}>
       <div className="mb-4">
-        <p className={`text-[13px] font-semibold ${tc.text}`}>{title}</p>
-        {sub && <p className={`text-xs mt-0.5 ${tc.faint}`}>{sub}</p>}
+        <p className={`text-[13px] font-bold uppercase tracking-wider font-mono ${tc.text}`}>{title}</p>
+        {sub && <p className={`text-xs mt-0.5 font-mono opacity-60 ${tc.faint}`}>{sub}</p>}
       </div>
       {children}
     </div>
@@ -159,10 +160,10 @@ function Card({ tc, title, sub, children, className = "" }: {
 
 function Kpi({ tc, label, value, sub, accent }: { tc: TC; label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className={`rounded-xl border ${tc.kpiBg} ${tc.kpiBorder} px-5 py-4`}>
-      <p className={`text-[10px] font-semibold uppercase tracking-widest ${tc.muted}`}>{label}</p>
-      <p className={`mt-1.5 text-2xl font-bold tabular-nums ${accent ?? tc.text}`}>{value}</p>
-      {sub && <p className={`mt-0.5 text-xs ${tc.faint}`}>{sub}</p>}
+    <div className={`rounded-none border ${tc.kpiBg} ${tc.kpiBorder} px-5 py-4`}>
+      <p className={`text-[10px] font-bold uppercase tracking-widest font-mono ${tc.muted}`}>{label}</p>
+      <p className={`mt-1.5 text-2xl font-bold tabular-nums font-mono ${accent ?? tc.text}`}>{value}</p>
+      {sub && <p className={`mt-0.5 text-xs font-mono opacity-60 ${tc.faint}`}>{sub}</p>}
     </div>
   );
 }
@@ -170,19 +171,23 @@ function Kpi({ tc, label, value, sub, accent }: { tc: TC; label: string; value: 
 function Proto({ p, isDark }: { p: string; isDark: boolean }) {
   const cfg = PROTO_CONFIG[p];
   if (!cfg) return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isDark ? "bg-white/10 text-white/40" : "bg-gray-100 text-gray-400"}`}>
+    <span className={`rounded-none border px-2 py-0.5 text-[10px] font-bold font-mono uppercase tracking-wider ${isDark ? "bg-white/10 text-white/40 border-white/10" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
       {p}
     </span>
   );
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isDark ? cfg.dark : cfg.light}`}>
+    <span className={`rounded-none border px-2 py-0.5 text-[10px] font-bold font-mono uppercase tracking-wider ${isDark ? cfg.dark : cfg.light}`}>
       {cfg.label}
     </span>
   );
 }
 
-function EmptyState({ tc, msg = "Loading…" }: { tc: TC; msg?: string }) {
-  return <div className={`flex h-44 items-center justify-center text-sm ${tc.faint}`}>{msg}</div>;
+function EmptyState({ tc, msg = "No data available" }: { tc: TC; msg?: string }) {
+  return (
+    <div className={`flex items-center justify-center py-16 text-xs font-mono opacity-50 uppercase tracking-wider ${tc.text}`}>
+      {msg}
+    </div>
+  );
 }
 
 function TableShell({ tc, title, sub, head, children }: {
@@ -190,14 +195,14 @@ function TableShell({ tc, title, sub, head, children }: {
   head: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-xl border ${tc.cardBorder} ${tc.card} overflow-hidden`}>
+    <div className={`rounded-none border ${tc.cardBorder} ${tc.card} overflow-hidden`}>
       <div className={`border-b ${tc.tableBorder} px-5 py-3`}>
-        <p className={`text-[13px] font-semibold ${tc.text}`}>{title}</p>
-        {sub && <p className={`text-xs ${tc.muted} mt-0.5`}>{sub}</p>}
+        <p className={`text-[13px] font-bold uppercase tracking-wider font-mono ${tc.text}`}>{title}</p>
+        {sub && <p className={`text-xs ${tc.muted} mt-0.5 font-mono opacity-60`}>{sub}</p>}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className={`border-b ${tc.tableBorder} text-[10px] uppercase tracking-widest ${tc.tableHead}`}>{head}</tr></thead>
+          <thead><tr className={`border-b ${tc.tableBorder} text-[10px] uppercase tracking-widest font-mono ${tc.tableHead}`}>{head}</tr></thead>
           <tbody>{children}</tbody>
         </table>
       </div>
@@ -218,18 +223,18 @@ function DonutCard({ tc, title, sub, data, total, className = "" }: {
             {data.map((e, i) => <Cell key={i} fill={e.fill} />)}
           </Pie>
           <Tooltip
-            contentStyle={{ background: tc.ttBg, border: `1px solid ${tc.ttBorder}`, borderRadius: 8, color: tc.ttColor, fontSize: 12 }}
+            contentStyle={{ background: tc.ttBg, border: `1px solid ${tc.ttBorder}`, borderRadius: 0, color: tc.ttColor, fontSize: 12, fontFamily: "var(--font-geist-mono)" }}
             formatter={(v: number) => [`${fmtK(v)} (${((v / total) * 100).toFixed(1)}%)`, ""]}
           />
         </PieChart>
-        <div className="w-full space-y-1.5 text-xs">
+        <div className="w-full space-y-1.5 text-xs font-mono">
           {data.map((e) => (
             <div key={e.name} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: e.fill }} />
+                <span className="h-2 w-2 rounded-none flex-shrink-0" style={{ background: e.fill }} />
                 <span className={tc.muted}>{e.name}</span>
               </div>
-              <span className={`tabular-nums font-medium ${tc.text}`}>{((e.value / total) * 100).toFixed(1)}%</span>
+              <span className={`tabular-nums font-bold ${tc.text}`}>{((e.value / total) * 100).toFixed(1)}%</span>
             </div>
           ))}
         </div>
@@ -240,8 +245,8 @@ function DonutCard({ tc, title, sub, data, total, className = "" }: {
 
 /* ─── main ──────────────────────────────────────────────────────────────── */
 export default function MevClient() {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const isDark = theme === "dark";
+  const { theme } = useTheme();
+  const isDark = theme !== "light";
   const tc = isDark ? DARK : LIGHT;
 
   const [stats, setStats] = useState<MevStats | null>(null);
@@ -287,14 +292,16 @@ export default function MevClient() {
 
   if (loading)
     return (
-      <div className={`min-h-screen ${tc.pageBg} ${tc.pageText} flex items-center justify-center`}>
-        <p className={`text-sm ${tc.faint}`}>Loading MEV data…</p>
+      <div className="flex items-center justify-center py-32 font-mono">
+        <p className="text-xs text-text-secondary/50 uppercase tracking-widest animate-pulse">
+          LOADING TELEMETRY DATA…
+        </p>
       </div>
     );
   if (error)
     return (
-      <div className={`min-h-screen ${tc.pageBg} p-8`}>
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-400 text-sm font-mono whitespace-pre-wrap">{error}</div>
+      <div className="border border-dashed border-red-500/30 bg-red-500/5 p-6 text-red-400 text-xs font-mono whitespace-pre-wrap">
+        [ ERROR ] {error}
       </div>
     );
 
@@ -307,14 +314,14 @@ export default function MevClient() {
     : 0;
 
   /* ── chart helpers ─────────────────────────────────────────────────── */
-  const TICK = { fill: tc.axis, fontSize: 11 };
+  const TICK = { fill: tc.axis, fontSize: 11, fontFamily: "var(--font-geist-mono)" };
   const TIP = {
     contentStyle: {
       background: tc.ttBg, border: `1px solid ${tc.ttBorder}`,
-      borderRadius: 8, color: tc.ttColor, fontSize: 12,
+      borderRadius: 0, color: tc.ttColor, fontSize: 12, fontFamily: "var(--font-geist-mono)"
     },
   };
-  const LEG = { color: tc.ttColor, fontSize: 12, opacity: 0.65 };
+  const LEG = { color: tc.ttColor, fontSize: 12, opacity: 0.65, fontFamily: "var(--font-geist-mono)" };
 
   /* ── chart data ─────────────────────────────────────────────────────── */
   const weeklyData = weekly.map((r) => ({
@@ -382,49 +389,31 @@ export default function MevClient() {
   ];
 
   return (
-    <div className={`min-h-screen ${tc.pageBg} ${tc.pageText} transition-colors duration-200`}>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-
-        {/* ── header ─────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="text-3xl select-none">🥪</span>
-              <div>
-                <h1 className={`text-2xl font-bold ${tc.text}`}>MEV Sandwich Tracker</h1>
-                <p className={`mt-0.5 text-sm ${tc.muted}`}>
-                  Native on-chain detection — Uniswap v2/v3, SushiSwap, Curve, DODO · all sandwiches since Dencun
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                "Source: ethereum.logs + ethereum.transactions",
-                "same-pool same-block frontrun → victim → backrun",
-                "Refreshes every 30s",
-              ].map((t) => (
-                <span key={t} className={`rounded-full border px-3 py-0.5 text-[11px] ${tc.cardBorder} ${tc.faint}`}>{t}</span>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            className={`flex-shrink-0 rounded-full border p-2.5 transition-all ${tc.kpiBg} ${tc.kpiBorder} ${tc.muted} hover:scale-105`}
-            title="Toggle light/dark mode"
-          >
-            {isDark ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
+    <div className="animate-page-in space-y-6">
+      <PageHeader
+        meta="MEV Observability Feed"
+        title="🥪 MEV Sandwich Tracker"
+        summary="Native on-chain detection — Uniswap v2/v3, SushiSwap, Curve, DODO · all sandwiches since Dencun"
+      >
+        <div className="flex flex-wrap gap-2 font-mono">
+          {[
+            "Source: ethereum.logs",
+            "Refreshes 30s",
+          ].map((t) => (
+            <span key={t} className={`rounded-none border ${tc.cardBorder} px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>{t}</span>
+          ))}
         </div>
+      </PageHeader>
 
         {/* ── backfill banner ─────────────────────────────────────────── */}
         {backfilling && progress && stats && (
-          <div className={`rounded-xl border ${tc.bannerBorder} ${tc.bannerBg} px-5 py-3`}>
+          <div className={`rounded-none border border-dashed ${tc.bannerBorder} ${tc.bannerBg} px-5 py-3 font-mono`}>
             <div className="flex items-center justify-between text-sm">
-              <span className={`font-medium ${tc.bannerText}`}>Historical backfill running — {bfPct}% complete</span>
+              <span className={`font-bold ${tc.bannerText} uppercase tracking-wide`}>Historical backfill running — {bfPct}% complete</span>
               <span className={`text-xs ${tc.bannerSub}`}>block {fmt(progress.last_block)} / {fmt(stats.last_block)}</span>
             </div>
-            <div className={`mt-2 h-1 rounded-full ${tc.bannerBarBg}`}>
-              <div className={`h-full rounded-full ${tc.bannerBar} transition-all`} style={{ width: `${bfPct}%` }} />
+            <div className={`mt-2 h-1.5 rounded-none bg-background border border-border/30 overflow-hidden`}>
+              <div className={`h-full rounded-none ${tc.bannerBar} transition-all`} style={{ width: `${bfPct}%` }} />
             </div>
             <p className={`mt-1.5 text-xs ${tc.bannerSub}`}>{fmt(progress.total_sandwiches)} sandwiches detected so far</p>
           </div>
@@ -446,10 +435,10 @@ export default function MevClient() {
         )}
 
         {/* ── tab bar ─────────────────────────────────────────────────── */}
-        <div className={`flex gap-0.5 border-b ${tc.tabBar}`}>
+        <div className={`flex gap-0.5 border-b ${tc.tabBar} font-mono`}>
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 text-[13px] font-medium transition-all rounded-t-lg ${tab === t.id ? tc.tabActive : tc.tabInactive}`}
+              className={`px-4 py-2.5 text-[12px] font-bold uppercase tracking-wider transition-all rounded-none ${tab === t.id ? tc.tabActive : tc.tabInactive}`}
             >
               {t.label}
             </button>
@@ -565,7 +554,7 @@ export default function MevClient() {
                     <XAxis dataKey="week" tick={TICK} tickLine={false} />
                     <YAxis tick={TICK} tickLine={false} axisLine={false} />
                     <Tooltip {...TIP} />
-                    <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={[3,3,0,0]} />
+                    <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={0} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -573,7 +562,7 @@ export default function MevClient() {
               <Card tc={tc} title="Weekly Victim Volume (USD)" sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}>
                 {weeklyData.some((r) => r.usd > 0) ? (
                   <>
-                    <p className={`mb-2 text-xs ${tc.faint}`}>
+                    <p className={`mb-2 text-xs font-mono opacity-60 ${tc.faint}`}>
                       {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% priced in latest week
                     </p>
                     <ResponsiveContainer width="100%" height={170}>
@@ -582,7 +571,7 @@ export default function MevClient() {
                         <XAxis dataKey="week" tick={TICK} tickLine={false} />
                         <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
                         <Tooltip {...TIP} formatter={(v: number) => [fmtUsd(v), "Victim Volume"]} />
-                        <Bar dataKey="usd" name="Victim USD" fill="#34d399" radius={[3,3,0,0]} />
+                        <Bar dataKey="usd" name="Victim USD" fill="#34d399" radius={0} />
                       </BarChart>
                     </ResponsiveContainer>
                   </>
@@ -611,16 +600,16 @@ export default function MevClient() {
                 }
               >
                 {tokens.map((t, i) => (
-                  <tr key={t.token} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                  <tr key={t.token} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
                     <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className={`font-semibold ${tc.text}`}>{tokenSymbol(t.token)}</span>
-                        <span className={`text-xs font-mono ${tc.faint}`}>{short(t.token)}</span>
+                        <span className="h-2 w-2 rounded-none flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className={`font-bold ${tc.text}`}>{tokenSymbol(t.token)}</span>
+                        <span className={`text-[10px] ${tc.faint}`}>{short(t.token)}</span>
                       </div>
                     </td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${tc.text}`}>{fmt(t.sandwiches)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(t.sandwiches)}</td>
                     <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(t.sandwiches) / tokensTot) * 100).toFixed(1)}%</td>
                     <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_victims)}</td>
                     <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_bots)}</td>
@@ -654,13 +643,13 @@ export default function MevClient() {
                 {pairs.map((p, i) => {
                   const tot = pairs.reduce((s, r) => s + Number(r.sandwiches), 0) || 1;
                   return (
-                    <tr key={`${p.token0}-${p.token1}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                    <tr key={`${p.token0}-${p.token1}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
                       <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
-                      <td className={`px-4 py-2.5 font-semibold ${tc.text}`}>{tokenSymbol(p.token0)}/{tokenSymbol(p.token1)}</td>
+                      <td className={`px-4 py-2.5 font-bold ${tc.text}`}>{tokenSymbol(p.token0)}/{tokenSymbol(p.token1)}</td>
                       <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
-                      <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${tc.text}`}>{fmt(p.sandwiches)}</td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
                       <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(p.sandwiches) / tot) * 100).toFixed(1)}%</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums font-medium text-emerald-500">{fmtUsd(p.victim_usd_total)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums font-bold text-emerald-500">{fmtUsd(p.victim_usd_total)}</td>
                       <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
                       <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
                     </tr>
@@ -681,7 +670,7 @@ export default function MevClient() {
                   <XAxis dataKey="week" tick={TICK} tickLine={false} />
                   <YAxis tick={TICK} tickLine={false} axisLine={false} />
                   <Tooltip {...TIP} />
-                  <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={[3,3,0,0]} />
+                  <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={0} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
@@ -700,18 +689,18 @@ export default function MevClient() {
               }
             >
               {bots.map((b, i) => (
-                <tr key={b.sandwicher} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+                <tr key={b.sandwicher} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
                   <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
-                  <td className="px-4 py-2.5 font-mono">
-                    <a href={ethAddr(b.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <a href={ethAddr(b.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 font-bold transition-colors">
                       {short(b.sandwicher)}
                     </a>
                   </td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${tc.text}`}>{fmt(b.sandwiches)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(b.sandwiches)}</td>
                   <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_victims)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-medium text-orange-500">{fmtUsd(b.total_gas_cost_usd)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-bold text-orange-500">{fmtUsd(b.total_gas_cost_usd)}</td>
                   <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_pools)}</td>
-                  <td className={`px-4 py-2.5 text-right text-xs tabular-nums ${tc.faint}`}>{fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.faint}`}>{fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}</td>
                 </tr>
               ))}
             </TableShell>
@@ -735,18 +724,18 @@ export default function MevClient() {
             }
           >
             {pools.map((p, i) => (
-              <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors`}>
+              <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
                 <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
-                <td className="px-4 py-2.5 font-mono">
-                  <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors`}>{short(p.pool)}</a>
+                <td className="px-4 py-2.5">
+                  <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors font-bold`}>{short(p.pool)}</a>
                 </td>
-                <td className={`px-4 py-2.5 font-semibold ${tc.text}`}>
+                <td className={`px-4 py-2.5 font-bold ${tc.text}`}>
                   {p.token0 && p.token1
                     ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`
                     : <span className={tc.veryFaint}>unknown</span>}
                 </td>
                 <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
-                <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${tc.text}`}>{fmt(p.sandwiches)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
                 <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
                 <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
               </tr>
@@ -772,41 +761,39 @@ export default function MevClient() {
             }
           >
             {recent.map((r, i) => (
-              <tr key={`${r.frontrun_tx}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors text-xs`}>
+              <tr key={`${r.frontrun_tx}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors text-xs font-mono`}>
                 <td className={`px-3 py-2.5 tabular-nums ${tc.muted}`}>{fmt(r.block_number)}</td>
-                <td className="px-3 py-2.5 font-mono">
-                  <a href={ethAddr(r.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400">{short(r.sandwicher)}</a>
+                <td className="px-3 py-2.5">
+                  <a href={ethAddr(r.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 font-bold">{short(r.sandwicher)}</a>
                 </td>
-                <td className={`px-3 py-2.5 font-semibold ${tc.text}`}>
+                <td className={`px-3 py-2.5 font-bold ${tc.text}`}>
                   {r.token0 && r.token1 ? `${tokenSymbol(r.token0)}/${tokenSymbol(r.token1)}` : short(r.pool)}
                 </td>
                 <td className="px-3 py-2.5"><Proto p={r.protocol} isDark={isDark} /></td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   {Number(r.victim_usd) > 0
-                    ? <span className="text-emerald-500 font-medium">{fmtUsd(r.victim_usd)}</span>
+                    ? <span className="text-emerald-500 font-bold">{fmtUsd(r.victim_usd)}</span>
                     : <span className={tc.veryFaint}>—</span>}
                 </td>
-                <td className="px-3 py-2.5 font-mono">
-                  <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400">
-                    {short(r.frontrun_tx)}<span className={`ml-1 ${tc.veryFaint}`}>#{r.frontrun_idx}</span>
+                <td className="px-3 py-2.5">
+                  <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 font-bold">
+                    {short(r.frontrun_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.frontrun_idx}</span>
                   </a>
                 </td>
-                <td className="px-3 py-2.5 font-mono">
-                  <a href={ethTx(r.victim_tx)} target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:text-yellow-400">
-                    {short(r.victim_tx)}<span className={`ml-1 ${tc.veryFaint}`}>#{r.victim_idx}</span>
+                <td className="px-3 py-2.5">
+                  <a href={ethTx(r.victim_tx)} target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:text-yellow-400 font-bold">
+                    {short(r.victim_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.victim_idx}</span>
                   </a>
                 </td>
-                <td className="px-3 py-2.5 font-mono">
-                  <a href={ethTx(r.backrun_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400">
-                    {short(r.backrun_tx)}<span className={`ml-1 ${tc.veryFaint}`}>#{r.backrun_idx}</span>
+                <td className="px-3 py-2.5">
+                  <a href={ethTx(r.backrun_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 font-bold">
+                    {short(r.backrun_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.backrun_idx}</span>
                   </a>
                 </td>
               </tr>
             ))}
           </TableShell>
         )}
-
-      </div>
     </div>
   );
 }

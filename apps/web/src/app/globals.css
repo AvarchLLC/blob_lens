@@ -676,8 +676,8 @@
 /* ─── Cosmic-Style Dotted/Dashed Redesign Utilities ─── */
 .cosmic-card {
   background-color: var(--surface);
-  border: 1px dashed var(--border-dotted);
-  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-strong);
+  border-radius: 0px;
   padding: 1.5rem;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -708,7 +708,7 @@
 .glass-card {
   background: rgba(16, 16, 30, 0.7);
   backdrop-filter: blur(12px) saturate(160%);
-  border: 1px dashed var(--border-dotted);
+  border: 1px dashed var(--border-strong);
 }
 
 .glass-card-bordered {

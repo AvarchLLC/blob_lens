@@ -23,7 +23,7 @@ export function RollupMetricLineChart({ data, mode, ethUsd }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-[280px] w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   if (!data.length)
     return <p className="py-8 text-center text-[0.6875rem] text-text-secondary opacity-50 italic">No historical metrics data</p>;
@@ -88,21 +88,26 @@ export function RollupMetricLineChart({ data, mode, ethUsd }: Props) {
           .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
           .slice(0, 10);
           
+        const borderStyle = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)";
+        const titleColor = isDark ? "#8FA1A8" : "#58547A";
+        const textColor = isDark ? "#F5F7F8" : "#0E0C1B";
+        const subColor = isDark ? "#8FA1A8" : "#58547A";
+          
         return `
           <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;">
-            <div style="display:flex;justify-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:4px;margin-bottom:4px;">
-              <span style="font-size:10px;font-weight:bold;color:#8FA1A8;text-transform:uppercase;letter-spacing:0.05em;">${time}</span>
+            <div style="display:flex;justify-between;align-items:center;border-bottom:1px solid ${borderStyle};padding-bottom:4px;margin-bottom:4px;">
+              <span style="font-size:10px;font-weight:bold;color:${titleColor};text-transform:uppercase;letter-spacing:0.05em;">${time}</span>
             </div>
             ${rows.map(p => `
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
                 <div style="display:flex;align-items:center;gap:6px;">
                   <div style="width:6px;height:6px;border-radius:full;background-color:${p.color};"></div>
-                  <span style="font-size:11px;color:#F5F7F8;font-weight:500;">${p.seriesName}</span>
+                  <span style="font-size:11px;color:${textColor};font-weight:500;">${p.seriesName}</span>
                 </div>
                 <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:bold;color:${p.color}">${tipFmt(p.value)}</span>
               </div>
             `).join('')}
-            ${params.length > 10 ? `<div style="font-size:9px;color:#8FA1A8;text-align:center;padding-top:4px;">+ ${params.length - 10} more rollups</div>` : ''}
+            ${params.length > 10 ? `<div style="font-size:9px;color:${subColor};text-align:center;padding-top:4px;">+ ${params.length - 10} more rollups</div>` : ''}
           </div>
         `;
       }
@@ -126,7 +131,6 @@ export function RollupMetricLineChart({ data, mode, ethUsd }: Props) {
       axisLabel: {
         ...t.axis.axisLabel,
         interval: Math.max(0, Math.floor(hours.length / 8)),
-        rotate: 30,
         fontSize: 9,
       },
       axisLine: t.axis.axisLine,

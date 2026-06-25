@@ -20,7 +20,7 @@ export function BlobUtilizationChart({ data }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   if (!data.length)
     return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;
@@ -35,12 +35,19 @@ export function BlobUtilizationChart({ data }: Props) {
     ...animationConfig,
     backgroundColor: t.backgroundColor,
     graphic: t.graphic,
-    grid: { top: 16, right: 16, bottom: 24, left: 0, containLabel: true },
+    grid: { 
+      ...t.gridDefaults, 
+      bottom: 60 
+    },
     xAxis: {
       type: "category" as const,
       data: labels,
       ...t.axis,
       boundaryGap: false,
+      axisLabel: {
+        ...t.axis.axisLabel,
+        interval: Math.max(0, Math.floor(labels.length / 8)),
+      }
     },
     yAxis: {
       type: "value" as const,
@@ -58,9 +65,13 @@ export function BlobUtilizationChart({ data }: Props) {
       formatter: (params: { axisValue: string; value: number }[]) => {
         const ttText = isDark ? "#F0F4F5" : "#0D1618";
         const ttMuted = isDark ? "#7E9098" : "#5C7077";
-        return `<span style="color:${ttMuted};font-size:11px">${params[0].axisValue}</span><br/><b style="color:${ttText}">${params[0].value}%</b> avg utilization`;
+        return `<div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="color:${ttMuted};font-size:10px;font-weight:bold;text-transform:uppercase;font-family:var(--font-mono),monospace;">${params[0].axisValue}</span>
+          <span style="font-family:var(--font-mono),monospace;color:#10B981;font-weight:700;font-size:12px;">${params[0].value}% avg utilization</span>
+        </div>`;
       },
     },
+    dataZoom: t.dataZoom,
     series: [
       {
         type: "line" as const,
@@ -94,5 +105,5 @@ export function BlobUtilizationChart({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: 'svg' }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: 'svg' }} />;
 }

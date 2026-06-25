@@ -16,10 +16,13 @@ export function RollupShareDonut({ data }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-full w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) {
+    return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+  }
 
-  if (!data.length)
-    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;
+  if (!data.length) {
+    return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic font-mono">No network share data available</p>;
+  }
 
   const isDark = theme !== "light";
   const t = getChartTheme(isDark);
@@ -45,46 +48,67 @@ export function RollupShareDonut({ data }: Props) {
 
   const option = {
     ...animationConfig,
+    backgroundColor: "transparent",
     tooltip: {
       trigger: "item" as const,
       ...t.tooltip,
       formatter: (params: { name: string; value: number; percent: number }) =>
-        `<b>${params.name}</b><br/>${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)`,
+        `<div style="display:flex;flex-direction:column;gap:4px;">
+          <span style="color:#8FA1A8;font-size:10px;font-weight:bold;text-transform:uppercase;">${params.name}</span>
+          <span style="font-family:'JetBrains Mono',monospace;color:#8B5CF6;font-weight:700;font-size:12px;">${params.value.toLocaleString()} blobs (${params.percent.toFixed(1)}%)</span>
+        </div>`,
+    },
+    legend: {
+      type: "scroll",
+      orient: "horizontal" as const,
+      bottom: 0,
+      left: "center",
+      show: true,
+      textStyle: {
+        color: isDark ? "#8E8EA8" : "#58547A",
+        fontSize: 10,
+        fontFamily: "var(--font-mono), monospace",
+      },
+      itemWidth: 8,
+      itemHeight: 8,
+      selectedMode: true,
     },
     graphic: [
       ...watermarkGraphic,
       {
         type: "text",
         left: "center",
-        top: "42%",
+        top: "35%",
         style: {
           text: total.toLocaleString(),
-          fill: isDark ? "#F0F4F5" : "#0D1618",
-          fontSize: 17,
+          fill: isDark ? "#F5F3FF" : "#0E0C1B",
+          fontSize: 18,
           fontWeight: "700",
-          fontFamily: "var(--font-geist-mono)",
+          fontFamily: "var(--font-mono), monospace",
           textAlign: "center",
         },
       },
       {
         type: "text",
         left: "center",
-        top: "53%",
+        top: "46%",
         style: {
           text: "TOTAL BLOBS",
-          fill: isDark ? "#7E9098" : "#5C7077",
-          fontSize: 10,
-          fontFamily: "Space Grotesk, system-ui",
+          fill: isDark ? "#8E8EA8" : "#58547A",
+          fontSize: 9,
+          fontWeight: "bold",
+          fontFamily: "var(--font-mono), monospace",
           textAlign: "center",
         },
       },
     ],
     series: [
       {
+        name: "Network Share",
         type: "pie" as const,
-        radius: ["62%", "80%"],
+        radius: ["58%", "76%"],
         padAngle: 2,
-        center: ["50%", "50%"],
+        center: ["50%", "42%"],
         data: chartData.map((d) => ({
           name: d.name,
           value: d.value,
@@ -105,5 +129,5 @@ export function RollupShareDonut({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: "svg" }} />;
 }

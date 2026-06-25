@@ -923,12 +923,12 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
       </motion.section>
 
       {/* ── Footer ── */}
-      <footer className="py-14 border-t border-border/20 relative z-10 bg-background/80 backdrop-blur-md">
+      <footer className="py-14 border-t border-border/20 relative z-10 bg-surface/30 backdrop-blur-md">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 md:px-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             <div className="md:col-span-2">
               <Link href="/" className="flex items-center gap-2.5 mb-4">
-                <div className="h-7 w-7 rounded-sm border border-primary/30 bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-none border border-primary/30 bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
                   <img src="/brand/bloblogo.png" alt="" className="h-4 w-4 brightness-150" />
                 </div>
                 <span className="font-bold">Blob<span className="text-primary">Lens</span></span>

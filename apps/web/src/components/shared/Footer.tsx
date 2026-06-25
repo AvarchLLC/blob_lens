@@ -20,16 +20,16 @@ const DATA_FACTS = [
 
 export function Footer() {
   return (
-    <footer className="relative mt-12 border-t border-border/60">
-      {/* Subtle emerald top-glow line */}
+    <footer className="relative mt-12 border-t border-border/20 bg-surface/30">
+      {/* Subtle purple top-glow line */}
       <div
         className="absolute inset-x-0 top-0 h-px"
         style={{
-          background: "linear-gradient(90deg, transparent 0%, rgba(0,223,129,0.30) 40%, rgba(0,223,129,0.30) 60%, transparent 100%)",
+          background: "linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.2) 40%, rgba(139, 92, 246, 0.2) 60%, transparent 100%)",
         }}
       />
 
-      <div className="px-6 py-10 lg:px-10">
+      <div className="px-6 py-8">
         {/* Main grid */}
         <div className="grid grid-cols-2 gap-10 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -46,15 +46,15 @@ export function Footer() {
                 priority
               />
               <div>
-                <p className="font-mono text-base font-bold tracking-tight text-foreground leading-none">
-                  Blob<span className="text-[#00df81]">Lens</span>
+                <p className="font-mono text-base font-bold tracking-tight text-text-primary leading-none">
+                  Blob<span className="text-primary">Lens</span>
                 </p>
-                <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50">
+                <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-text-tertiary">
                   EIP-4844 Analytics
                 </p>
               </div>
             </Link>
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+            <p className="text-xs text-text-secondary/70 leading-relaxed max-w-[220px]">
               Real-time blob economics dashboard for Ethereum. Track fees, utilization, and rollup activity.
             </p>
             <div className="flex items-center gap-3 pt-1">
@@ -62,7 +62,7 @@ export function Footer() {
                 href="https://github.com/AvarchLLC/blob_lens"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-text-secondary/70 hover:text-primary transition-colors"
               >
                 <Github className="h-3.5 w-3.5" />
                 GitHub
@@ -71,7 +71,7 @@ export function Footer() {
                 href="https://eipsinsight.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-text-secondary/70 hover:text-primary transition-colors"
               >
                 <Globe className="h-3.5 w-3.5" />
                 EIPs Insight
@@ -81,7 +81,7 @@ export function Footer() {
 
           {/* Navigation */}
           <div className="space-y-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground/60">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-primary/70 font-mono">
               Navigate
             </p>
             <ul className="space-y-2">
@@ -89,9 +89,9 @@ export function Footer() {
                 <li key={href}>
                   <Link
                     href={href}
-                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
+                    className="flex items-center gap-2 text-xs text-text-secondary/70 hover:text-primary transition-colors font-mono uppercase tracking-wider group"
                   >
-                    <Icon className="h-3 w-3 text-muted-foreground/40 group-hover:text-[#00df81] transition-colors" />
+                    <Icon className="h-3 w-3 text-text-secondary/40 group-hover:text-primary transition-colors" />
                     {label}
                   </Link>
                 </li>
@@ -101,14 +101,14 @@ export function Footer() {
 
           {/* Protocol facts */}
           <div className="space-y-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground/60">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-primary/70 font-mono">
               Protocol
             </p>
             <ul className="space-y-2">
               {DATA_FACTS.map(({ label, value }) => (
                 <li key={label} className="flex items-baseline gap-2">
-                  <span className="text-[10px] text-muted-foreground/50 shrink-0 w-14">{label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{value}</span>
+                  <span className="text-[10px] text-text-secondary/40 font-mono uppercase tracking-wider shrink-0 w-14">{label}</span>
+                  <span className="font-mono text-[10px] text-text-secondary">{value}</span>
                 </li>
               ))}
             </ul>
@@ -116,23 +116,23 @@ export function Footer() {
 
           {/* Regime legend */}
           <div className="space-y-3">
-            <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted-foreground/60">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-text-primary/70 font-mono">
               Fee Regimes
             </p>
             <ul className="space-y-2.5">
               {[
-                { label: "Quiet",     sub: "< 20% utilization",  color: "#3f3f46" },
-                { label: "Healthy",   sub: "20 – 80%",           color: "#00df81" },
-                { label: "Congested", sub: "80 – 95%",           color: "#fcbb00" },
-                { label: "Spike",     sub: "> 95%",              color: "#fb2c36" },
+                { label: "Quiet",     sub: "< 20% utilization",  color: "#6b7280" },
+                { label: "Healthy",   sub: "20 – 80%",           color: "#10b981" },
+                { label: "Congested", sub: "80 – 95%",           color: "#f59e0b" },
+                { label: "Spike",     sub: "> 95%",              color: "#ef4444" },
               ].map(({ label, sub, color }) => (
                 <li key={label} className="flex items-center gap-2">
                   <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: color, boxShadow: `0 0 5px ${color}60` }}
+                    className="h-2.5 w-2.5 shrink-0 border border-black/10 dark:border-white/10"
+                    style={{ backgroundColor: color }}
                   />
-                  <span className="text-xs text-muted-foreground">{label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground/50">{sub}</span>
+                  <span className="text-xs font-mono text-text-secondary">{label}</span>
+                  <span className="font-mono text-[10px] opacity-65 text-text-secondary">{sub}</span>
                 </li>
               ))}
             </ul>
@@ -140,11 +140,11 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-10 flex flex-col gap-2 border-t border-border/40 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[11px] text-muted-foreground/50">
+        <div className="mt-10 flex flex-col gap-2 border-t border-border/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[9px] text-text-tertiary font-mono uppercase tracking-wider">
             © {new Date().getFullYear()} AvarchLLC · Open-source · MIT License
           </p>
-          <p className="text-[11px] text-muted-foreground/40 font-mono">
+          <p className="text-[9px] text-text-tertiary font-mono uppercase tracking-wider">
             Data sourced from Ethereum mainnet via BlobLens indexer
           </p>
         </div>

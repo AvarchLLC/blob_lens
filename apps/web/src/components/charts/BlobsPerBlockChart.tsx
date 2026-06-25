@@ -20,7 +20,7 @@ export function BlobsPerBlockChart({ data }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-[280px] w-full animate-pulse bg-surface-elevated rounded-md" />;
+  if (!mounted) return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
 
   if (!data.length)
     return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic">No data</p>;
@@ -42,7 +42,7 @@ export function BlobsPerBlockChart({ data }: Props) {
           { offset: 1, color: isDark ? "rgba(0,167,181,0.45)" : "rgba(0,138,150,0.45)" },
         ],
       },
-      borderRadius: [3, 3, 0, 0],
+      borderRadius: 0,
     },
   }));
 
@@ -75,5 +75,5 @@ export function BlobsPerBlockChart({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: 'svg' }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: 'svg' }} />;
 }

@@ -96,15 +96,16 @@ export function PageSection({
       </div>
       
       <div className={cn(
-        "surface bg-surface border border-dashed border-border-dotted rounded-xl flex-1 transition-colors duration-300 hover:border-primary/20",
-        !noPadding && "p-6"
+        "surface bg-surface border border-dashed border-border-dotted rounded-none flex-1 transition-colors duration-300 hover:border-primary/20",
+        !noPadding && "p-6",
+        fullHeight && "flex flex-col"
       )}>
         {children}
       </div>
       
       {interpretation && (
-        <div className="mt-3 flex gap-3 p-4 bg-primary/5 border border-dashed border-primary-border rounded-xl">
-          <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="mt-3 flex gap-3 p-4 bg-primary/5 border border-dashed border-primary-border rounded-none">
+          <div className="h-5 w-5 rounded-none bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
             <span className="text-[10px] font-bold text-primary">i</span>
           </div>
           <p className="text-xs text-text-secondary leading-relaxed">
