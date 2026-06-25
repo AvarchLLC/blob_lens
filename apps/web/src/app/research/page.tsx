@@ -21,7 +21,7 @@ import {
   type BpoEpochStat,
   type HistoricalDailyStat,
 } from "@/lib/queries";
-import { BarChart3, FlaskConical, TrendingUp, Cpu, ChevronRight, Clock } from "lucide-react";
+import { BarChart3, FlaskConical, TrendingUp, Cpu, ChevronRight, Clock, Coins, Database, Gauge, Zap } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
@@ -69,18 +69,37 @@ function BpoEpochCard({ stat }: { stat: BpoEpochStat }) {
       : { backgroundColor: "var(--status-healthy)" };
 
   return (
-    <div className="rounded-2xl border p-7 flex flex-col gap-5" style={{ borderColor: meta.borderColor, ...meta.bgStyle }}>
+    <div 
+      className="group relative overflow-hidden p-6 flex flex-col gap-5 rounded-none border border-dashed bg-surface/15 transition-all duration-300 hover:-translate-y-1 hover:border-solid hover:bg-surface/25" 
+      style={{ borderColor: meta.borderColor }}
+    >
+      {/* Top neon glow bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-300"
+        style={{
+          backgroundColor: meta.dotColor,
+          boxShadow: `0 0 8px ${meta.dotColor}`,
+        }}
+      />
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: meta.dotColor }} />
-            <h3 className="text-lg font-bold text-text-primary">{stat.epoch}</h3>
+            <span className="h-2 w-2 rounded-full" style={{ background: meta.dotColor }} />
+            <h3 className="text-base font-bold text-text-primary font-mono">{stat.epoch}</h3>
           </div>
-          <p className="text-[10px] text-text-secondary/50">{meta.date} · Block {stat.start_block.toLocaleString()}</p>
-          <p className="text-xs text-text-secondary/60 mt-1">{meta.tagline}</p>
+          <p className="text-[9px] text-text-secondary/50 font-mono">{meta.date} · Block {stat.start_block.toLocaleString()}</p>
+          <p className="text-xs text-text-secondary/70 mt-2 font-mono leading-relaxed">{meta.tagline}</p>
         </div>
-        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0" style={meta.badgeStyle}>
+        <span 
+          className="text-[9px] font-bold px-2.5 py-1 rounded-none border border-dashed font-mono shrink-0" 
+          style={{ 
+            borderColor: meta.dotColor, 
+            color: meta.dotColor,
+            background: `${meta.dotColor}10`
+          }}
+        >
           {meta.eip}
         </span>
       </div>
@@ -88,35 +107,35 @@ function BpoEpochCard({ stat }: { stat: BpoEpochStat }) {
       {/* Key metrics */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: "Avg blobs / block", value: stat.avg_blobs_per_block.toFixed(2) },
-          { label: "Avg fee (gwei)",    value: stat.avg_fee_gwei < 0.001 ? stat.avg_fee_gwei.toExponential(2) : stat.avg_fee_gwei.toFixed(4) },
-          { label: "Total blobs",       value: Number(stat.total_blobs).toLocaleString() },
-          { label: "Blocks with blobs", value: Number(stat.total_blocks_with_blobs).toLocaleString() },
+          { label: "Avg blobs / block", value: stat.avg_blobs_per_block != null ? stat.avg_blobs_per_block.toFixed(2) : "0.00" },
+          { label: "Avg fee (gwei)",    value: stat.avg_fee_gwei == null ? "—" : stat.avg_fee_gwei < 0.001 ? stat.avg_fee_gwei.toExponential(2) : stat.avg_fee_gwei.toFixed(4) },
+          { label: "Total blobs",       value: stat.total_blobs != null ? Number(stat.total_blobs).toLocaleString() : "0" },
+          { label: "Blocks with blobs", value: stat.total_blocks_with_blobs != null ? Number(stat.total_blocks_with_blobs).toLocaleString() : "0" },
         ].map((m) => (
-          <div key={m.label} className="bg-background/40 rounded-xl p-3">
-            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary/40 mb-1">{m.label}</p>
-            <p className="font-mono text-sm font-bold text-text-primary">{m.value}</p>
+          <div key={m.label} className="bg-surface-elevated/40 border border-dashed border-border/30 rounded-none p-3 group-hover:border-solid transition-colors duration-300">
+            <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-text-secondary/40 mb-1.5 font-mono">{m.label}</p>
+            <p className="font-mono text-xs font-bold text-text-primary">{m.value}</p>
           </div>
         ))}
       </div>
 
       {/* Target fill rate */}
-      <div>
-        <div className="flex items-center justify-between text-xs mb-2">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs font-mono">
           <span className="text-text-secondary/50">Target fill rate</span>
-          <span className="font-mono font-bold text-text-primary">{fillPct.toFixed(1)}%</span>
+          <span className="font-bold text-text-primary">{fillPct.toFixed(1)}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-background/60 overflow-hidden mb-1.5">
-          <div className="h-full rounded-full transition-all" style={{ width: `${fillPct}%`, ...fillColorStyle }} />
+        <div className="h-1.5 rounded-none bg-background/60 overflow-hidden relative border border-border/20">
+          <div className="h-full transition-all" style={{ width: `${fillPct}%`, ...fillColorStyle }} />
         </div>
-        <div className="flex items-center justify-between text-[10px] text-text-secondary/30">
+        <div className="flex items-center justify-between text-[8px] text-text-secondary/30 font-mono uppercase tracking-wider">
           <span>0</span>
           <span>Target ({stat.target_blobs})</span>
           <span>Max ({stat.max_blobs})</span>
         </div>
         <div className="relative h-1 mt-0.5">
           <div
-            className="absolute h-3 w-0.5 bg-text-secondary/20 -top-1"
+            className="absolute h-3 w-0.5 bg-text-secondary/25 -top-2"
             style={{ left: `${(stat.target_blobs / stat.max_blobs) * 100}%` }}
           />
         </div>
@@ -124,14 +143,17 @@ function BpoEpochCard({ stat }: { stat: BpoEpochStat }) {
 
       {/* Throughput vs Dencun comparison */}
       {stat.epoch !== "Dencun" && (
-        <div className="pt-3 border-t border-border/20">
-          <p className="text-[10px] text-text-secondary/40 uppercase tracking-widest font-bold">
-            Capacity vs Dencun: <span className="text-text-primary">
-              {stat.epoch === "Pectra" ? "2×" : "3×"} target · {stat.epoch === "Pectra" ? "1.5×" : "3×"} max
+        <div className="pt-3.5 border-t border-dashed border-border/30">
+          <p className="text-[9px] text-text-secondary/40 uppercase tracking-widest font-bold font-mono">
+            Capacity vs Dencun: <span className="text-text-primary font-bold ml-1">
+              {stat.epoch === "Pectra" ? "2×" : "4×"} target · {stat.epoch === "Pectra" ? "1.5×" : "3×"} max
             </span>
           </p>
         </div>
       )}
+
+      {/* Corner tech ticks */}
+      <div className="absolute bottom-1 right-1 h-1.5 w-1.5 border-r border-b border-border/20 group-hover:border-solid transition-all" style={{ borderColor: meta.dotColor }} />
     </div>
   );
 }
@@ -202,138 +224,196 @@ export default async function ResearchPage({
 
       {/* ══ TAB: Blob Market ══ */}
       {isMarket && (
-        <>
+        <div className="space-y-12">
           {/* Summary strip */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <MetricCard label="Blobs (30d)"       value={totalBlobs30d.toLocaleString()} note="Cumulative EIP-4844 blobs submitted." />
-            <MetricCard label="Transactions (30d)" value={totalTxs30d.toLocaleString()}   note="Type-3 transactions in the monthly window." />
-            <MetricCard label="Active Rollups"      value={rollupCount}                    note="Distinct L2 protocols active this month." />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <MetricCard 
+              label="Blobs (30d)" 
+              value={totalBlobs30d.toLocaleString()} 
+              note="Cumulative EIP-4844 blobs submitted." 
+              icon="database"
+              accentColor="#00A7B5"
+              glowColor="rgba(0, 167, 181, 0.15)"
+            />
+            <MetricCard 
+              label="Transactions (30d)" 
+              value={totalTxs30d.toLocaleString()} 
+              note="Type-3 transactions in the monthly window." 
+              icon="zap"
+              accentColor="#00df81"
+              glowColor="rgba(0, 223, 129, 0.15)"
+            />
+            <MetricCard 
+              label="Active Rollups" 
+              value={rollupCount} 
+              note="Distinct L2 protocols active this month." 
+              icon="cpu"
+              accentColor="#9060FF"
+              glowColor="rgba(144, 96, 255, 0.15)"
+            />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-            <div className="xl:col-span-8 space-y-12">
-              <PageSection
-                label="Growth Trends"
-                title="Submission Velocity"
-                description="Cumulative growth and block-level throughput analysis."
-                interpretation="A steepening 'Cumulative Blob Growth' curve indicates accelerating L2 adoption. Fluctuations in 'Blobs per Block' reveal shifts in rollup batching efficiency."
-              >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                      Cumulative Blob Growth (7d)
-                    </h4>
-                    <CumulativeBlobGrowth data={market7d} />
-                  </div>
-                  <div className="lg:border-l lg:border-border/50 lg:pl-10">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                      Avg Blobs per Block (7d)
-                    </h4>
-                    <BlobsPerBlockChart data={market7d} />
-                  </div>
-                </div>
-              </PageSection>
-
-              <PageSection
-                label="Market Structure"
-                title="Ecosystem Distribution"
-                description="Analysis of market share and long-term utilization patterns."
-                interpretation="The 'Rollup Market Share' identifies which L2s are the primary drivers of Ethereum's DA revenue. Step-changes in volume often indicate protocol upgrades."
-              >
-                <div className="space-y-10">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                        Market Share by Volume (30d)
-                      </h4>
-                      <div className="h-[350px] flex items-center justify-center">
-                        <RollupShareDonut data={leaderboard30d} />
-                      </div>
-                    </div>
-                    <div className="lg:border-l lg:border-border/50 lg:pl-10">
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                        Slot Utilization Trend (30d)
-                      </h4>
-                      <BlobUtilizationChart data={market30d} />
-                    </div>
-                  </div>
-                  <div className="pt-10 border-t border-border/50">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60">
-                      Daily Blob Volume by Rollup (Stacked)
-                    </h4>
-                    <RollupVolumeAreaChart data={dailyBreakdown} />
-                  </div>
-                </div>
-              </PageSection>
-
-              <PageSection
-                label="Efficiency"
-                title="Data Packing Analysis"
-                description="Distribution of blob content fullness across all submissions."
-                interpretation="A left-heavy distribution (high density in 0-20% buckets) suggests that rollups are paying for blob space they are not fully utilizing."
-              >
-                <div className="min-h-[350px]">
-                  <PackingHistogram data={fullnessHistogram} />
-                </div>
-              </PageSection>
-            </div>
-
-            <div className="xl:col-span-4 space-y-12">
-              <PageSection
-                label="Patterns"
-                title="Regime Timeline"
-                description="Historical state analysis over 7 days."
-                interpretation="The heatmap reveals repeating daily congestion patterns. Use these windows to schedule high-volume data availability tasks during 'Healthy' regimes."
-              >
-                <div className="min-h-[400px]">
-                  <RegimeHeatmap data={market7d} />
-                </div>
-              </PageSection>
-
-              {forecast && forecast.current_fee_wei > 0 && (
-                <PageSection label="Forecast" title="Fee Projection" description="Short-term price modeling.">
-                  <CongestionForecast data={forecast} />
-                </PageSection>
-              )}
-
-              <div className="p-8 border border-primary/20 bg-primary/5 rounded-xl space-y-4">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary">Research Insight</h3>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">
-                  The transition to Pectra parameters has significantly altered the supply-demand equilibrium. Current data suggests that
-                  the &apos;Healthy&apos; regime now sustains higher throughput at lower costs compared to the initial Dencun launch.
-                </p>
-                <div className="pt-4 flex justify-between items-center text-[10px] font-bold text-primary uppercase tracking-widest">
-                  <span>Confidence Score</span>
-                  <span className="font-mono">88%</span>
-                </div>
-                <div className="h-1 w-full bg-primary/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: "88%" }} />
-                </div>
+          {/* Section 1: Growth Trends */}
+          <PageSection
+            label="Growth Trends"
+            title="Submission Velocity & Throughput"
+            description="Cumulative growth and block-level throughput analysis over the last 7 days."
+            interpretation="A steepening 'Cumulative Blob Growth' curve indicates accelerating L2 adoption. Fluctuations in 'Avg Blobs per Block' reveal shifts in rollup batching efficiency."
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+                  Cumulative Blob Growth (7d)
+                </h4>
+                <CumulativeBlobGrowth data={market7d} />
+              </div>
+              <div className="lg:border-l lg:border-dashed lg:border-border/30 lg:pl-8">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+                  Avg Blobs per Block (7d)
+                </h4>
+                <BlobsPerBlockChart data={market7d} />
               </div>
             </div>
+          </PageSection>
+
+          {/* Section 2: Regime Timeline (Full-width for maximum space) */}
+          <PageSection
+            label="Patterns"
+            title="Regime Timeline"
+            description="Historical state analysis over the last 7 days."
+            interpretation="The heatmap reveals repeating daily congestion patterns. Use these windows to schedule high-volume data availability tasks during 'Healthy' regimes."
+          >
+            <div className="w-full">
+              <RegimeHeatmap data={market7d} />
+            </div>
+          </PageSection>
+
+          {/* Section 3: Predictions & Insights (Placed down below, side-by-side) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {forecast && forecast.current_fee_wei > 0 ? (
+              <>
+                <div className="lg:col-span-8">
+                  <PageSection
+                    label="Forecast"
+                    title="Fee Projection"
+                    description="Short-term predictive price modeling."
+                  >
+                    <CongestionForecast data={forecast} />
+                  </PageSection>
+                </div>
+                <div className="lg:col-span-4">
+                  <div className="p-6 border border-dashed border-primary/30 bg-primary/5 rounded-none space-y-4 relative overflow-hidden h-full flex flex-col justify-between min-h-[295px]">
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary" />
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary font-mono">Research Insight</h3>
+                      </div>
+                      <p className="text-[11px] text-text-secondary leading-relaxed font-mono">
+                        The transition to Pectra parameters has significantly altered the supply-demand equilibrium. Current data suggests that
+                        the &apos;Healthy&apos; regime now sustains higher throughput at lower costs compared to the initial Dencun launch.
+                      </p>
+                    </div>
+                    <div>
+                      <div className="pt-2 flex justify-between items-center text-[10px] font-bold text-primary uppercase tracking-widest font-mono mb-2">
+                        <span>Confidence Score</span>
+                        <span className="font-mono">88%</span>
+                      </div>
+                      <div className="h-1 w-full bg-primary/10 rounded-none overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: "88%" }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="lg:col-span-12">
+                <div className="p-6 border border-dashed border-primary/30 bg-primary/5 rounded-none space-y-4 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary" />
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-text-primary font-mono">Research Insight</h3>
+                  </div>
+                  <p className="text-[11px] text-text-secondary leading-relaxed font-mono">
+                    The transition to Pectra parameters has significantly altered the supply-demand equilibrium. Current data suggests that
+                    the &apos;Healthy&apos; regime now sustains higher throughput at lower costs compared to the initial Dencun launch.
+                  </p>
+                  <div className="pt-2 flex justify-between items-center text-[10px] font-bold text-primary uppercase tracking-widest font-mono">
+                    <span>Confidence Score</span>
+                    <span className="font-mono">88%</span>
+                  </div>
+                  <div className="h-1 w-full bg-primary/10 rounded-none overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: "88%" }} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </>
+
+          {/* Section 3: Market Share & Stacked Area Chart */}
+          <PageSection
+            label="Market Structure"
+            title="Ecosystem Distribution & Volume"
+            description="Analysis of market share, long-term utilization, and sequencer volume trends over the last 30 days."
+            interpretation="The 'Rollup Market Share' identifies which L2s are the primary drivers of Ethereum's DA revenue. Step-changes in volume often indicate protocol upgrades."
+          >
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+                    Market Share by Volume (30d)
+                  </h4>
+                  <div className="h-[350px] flex items-center justify-center">
+                    <RollupShareDonut data={leaderboard30d} />
+                  </div>
+                </div>
+                <div className="lg:col-span-7 lg:border-l lg:border-dashed lg:border-border/30 lg:pl-8">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+                    Slot Utilization Trend (30d)
+                  </h4>
+                  <BlobUtilizationChart data={market30d} />
+                </div>
+              </div>
+              <div className="pt-8 border-t border-dashed border-border/20">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-4 opacity-60 font-mono">
+                  Daily Blob Volume by Rollup (Stacked)
+                </h4>
+                <RollupVolumeAreaChart data={dailyBreakdown} />
+              </div>
+            </div>
+          </PageSection>
+
+          {/* Section 4: Data Packing Analysis */}
+          <PageSection
+            label="Efficiency"
+            title="Data Packing Analysis"
+            description="Distribution of blob content fullness across all submissions."
+            interpretation="A left-heavy distribution (high density in 0-20% buckets) suggests that rollups are paying for blob space they are not fully utilizing."
+          >
+            <div className="min-h-[350px]">
+              <PackingHistogram data={fullnessHistogram} />
+            </div>
+          </PageSection>
+        </div>
       )}
 
       {/* ══ TAB: BPO Upgrades ══ */}
       {isBpo && (
         <div className="space-y-12">
           {/* Intro */}
-          <div className="rounded-2xl border border-border/30 bg-surface/30 p-8">
+          <div className="rounded-none border border-dashed border-border bg-surface/20 p-8 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary" />
             <div className="flex items-start gap-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-none border border-dashed border-primary/40 bg-primary/10 flex items-center justify-center shrink-0">
                 <Cpu className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-text-primary mb-2">BPO Upgrade Analytics</h2>
-                <p className="text-sm text-text-secondary/70 leading-relaxed max-w-3xl">
+                <h2 className="text-xl font-bold text-text-primary mb-2 font-mono">BPO Upgrade Analytics</h2>
+                <p className="text-xs text-text-secondary/70 leading-relaxed max-w-3xl font-mono">
                   Each BPO (Blob Parameter Only) upgrade fundamentally changed the DA market — capacity, fee dynamics, and rollup behavior all shifted.
                   These stats are computed from indexed blob transactions, comparing each epoch&apos;s actual throughput against its target and maximum parameters.
                 </p>
-                <div className="flex flex-wrap gap-4 mt-4 text-[10px] font-bold uppercase tracking-widest">
+                <div className="flex flex-wrap gap-4 mt-4 text-[9px] font-bold uppercase tracking-widest font-mono">
                   {[
                     { label: "Dencun",  block: "19,426,587", eip: "EIP-4844",  dotColor: "#60A5FA" },
                     { label: "Pectra",  block: "22,431,084", eip: "EIP-7691",  dotColor: "#8B5CF6" },
@@ -463,14 +543,15 @@ export default async function ResearchPage({
       {isHistory && (
         <div className="space-y-12">
           {/* Intro */}
-          <div className="rounded-2xl border border-border/30 bg-surface/30 p-8">
+          <div className="rounded-none border border-dashed border-border bg-surface/20 p-8 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary" />
             <div className="flex items-start gap-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-none border border-dashed border-primary/40 bg-primary/10 flex items-center justify-center shrink-0">
                 <Clock className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-text-primary mb-2">All-Time History</h2>
-                <p className="text-sm text-text-secondary/70 leading-relaxed max-w-3xl">
+                <h2 className="text-xl font-bold text-text-primary mb-2 font-mono">All-Time History</h2>
+                <p className="text-xs text-text-secondary/70 leading-relaxed max-w-3xl font-mono">
                   Full historical view of the Ethereum DA layer from the Dencun activation (March 2024) to today.
                   Each BPO daily record is shaded by BPO epoch — Dencun <span style={{ color: "#60A5FA" }} className="font-semibold">blue</span>,
                   Pectra <span style={{ color: "#8B5CF6" }} className="font-semibold">purple</span>,
@@ -494,10 +575,38 @@ export default async function ResearchPage({
                   const peakDay    = historicalStats.reduce((m, d) => Number(d.total_blobs) > Number(m.total_blobs) ? d : m, historicalStats[0]);
                   return (
                     <>
-                      <MetricCard label="All-Time Blobs"   value={totalBlobs >= 1_000_000 ? (totalBlobs / 1_000_000).toFixed(2) + "M" : totalBlobs.toLocaleString()} note="Total EIP-4844 blobs since Dencun." />
-                      <MetricCard label="Days of Data"     value={totalDays.toLocaleString()} note="Calendar days indexed from Dencun to present." />
-                      <MetricCard label="All-Time Avg Fee" value={avgFee < 0.000001 ? avgFee.toExponential(2) + " G" : avgFee.toFixed(4) + " G"} note="Average daily blob base fee in Gwei." />
-                      <MetricCard label="Peak Day (blobs)" value={Number(peakDay.total_blobs).toLocaleString()} note={`Highest single-day blob count (${peakDay.day}).`} />
+                      <MetricCard 
+                        label="All-Time Blobs" 
+                        value={totalBlobs >= 1_000_000 ? (totalBlobs / 1_000_000).toFixed(2) + "M" : totalBlobs.toLocaleString()} 
+                        note="Total EIP-4844 blobs since Dencun." 
+                        icon="database"
+                        accentColor="#00A7B5"
+                        glowColor="rgba(0, 167, 181, 0.15)"
+                      />
+                      <MetricCard 
+                        label="Days of Data" 
+                        value={totalDays.toLocaleString()} 
+                        note="Calendar days indexed from Dencun to present." 
+                        icon="clock"
+                        accentColor="#FFCC00"
+                        glowColor="rgba(255, 204, 0, 0.12)"
+                      />
+                      <MetricCard 
+                        label="All-Time Avg Fee" 
+                        value={avgFee < 0.000001 ? avgFee.toExponential(2) + " G" : avgFee.toFixed(4) + " G"} 
+                        note="Average daily blob base fee in Gwei." 
+                        icon="coins"
+                        accentColor="#00df81"
+                        glowColor="rgba(0, 223, 129, 0.15)"
+                      />
+                      <MetricCard 
+                        label="Peak Day (blobs)" 
+                        value={Number(peakDay.total_blobs).toLocaleString()} 
+                        note={`Highest single-day blob count (${peakDay.day}).`} 
+                        icon="trending-up"
+                        accentColor="#FF3366"
+                        glowColor="rgba(255, 51, 102, 0.15)"
+                      />
                     </>
                   );
                 })()}
@@ -522,8 +631,8 @@ export default async function ResearchPage({
               </PageSection>
             </>
           ) : (
-            <div className="rounded-xl border border-border/30 bg-surface/30 p-12 text-center">
-              <p className="text-sm text-text-secondary/40">Historical data is loading. Check back shortly.</p>
+            <div className="rounded-none border border-dashed border-border/30 bg-surface/20 p-12 text-center">
+              <p className="text-sm text-text-secondary/40 font-mono italic">Historical data is loading. Check back shortly.</p>
             </div>
           )}
 
