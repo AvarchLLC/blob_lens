@@ -100,6 +100,24 @@ export async function getWhales(limit = 100): Promise<WhaleWallet[]> {
   }
 }
 
+export async function getWhaleHistory(days = 30): Promise<any[]> {
+  try {
+    const rows = await sql<any[]>`
+      SELECT
+          s.address, w.label, s.balance_eth::float8, s.timestamp::text
+      FROM whale_wallet_snapshots s
+      LEFT JOIN whale_wallets w ON s.address = w.address
+      WHERE s.timestamp > NOW() - INTERVAL '1 day' * ${days}
+      ORDER BY s.timestamp ASC, s.balance_eth DESC
+    `;
+    return rows;
+  } catch (e) {
+    console.error("getWhaleHistory error (likely table not created yet):", e);
+    return [];
+  }
+}
+
+
 export async function getOFACList(): Promise<OFACSanction[]> {
   try {
     const rows = await sql<OFACSanction[]>`

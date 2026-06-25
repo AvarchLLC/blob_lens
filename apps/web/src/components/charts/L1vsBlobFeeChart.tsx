@@ -78,7 +78,10 @@ export function L1vsBlobFeeChart({ blobData, l1Data, ethUsd }: Props) {
   const option = {
     ...animationConfig,
     ...chartTheme,
-    grid: chartTheme.gridDefaults,
+    grid: {
+      ...chartTheme.gridDefaults,
+      bottom: 60,
+    },
     legend: {
       top: 0,
       right: 0,
@@ -90,6 +93,10 @@ export function L1vsBlobFeeChart({ blobData, l1Data, ethUsd }: Props) {
       data: labels,
       ...chartTheme.axis,
       boundaryGap: false,
+      axisLabel: {
+        ...chartTheme.axis.axisLabel,
+        interval: Math.max(0, Math.floor(labels.length / 8)),
+      }
     },
     yAxis: {
       type: "value" as const,
@@ -108,21 +115,26 @@ export function L1vsBlobFeeChart({ blobData, l1Data, ethUsd }: Props) {
           .filter((p) => p.value != null)
           .map(
             (p) =>
-              `<div style="display:flex;align-items:center;gap:8px;">
-                <span style="color:${p.seriesName === "Blob DA" ? green : amber};font-size:11px">●</span>
-                <span style="color:${isDark ? "#a1a1aa" : "#64748b"};font-size:11px">${p.seriesName}</span>
-                <span style="font-family:monospace;font-weight:600;color:${isDark ? "#fafafa" : "#0F172A"}">
+              `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="color:${p.seriesName === "Blob DA" ? green : amber};font-size:11px">●</span>
+                  <span style="color:${isDark ? "#a1a1aa" : "#64748b"};font-size:11px;font-family:var(--font-mono),monospace;">${p.seriesName}</span>
+                </div>
+                <span style="font-family:var(--font-mono),monospace;font-weight:600;color:${isDark ? "#fafafa" : "#0F172A"}">
                   ${formatUsd(p.value!)}
                 </span>
               </div>`
           )
           .join("");
-        return `<div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="color:${isDark ? "#71717a" : "#94A3B8"};font-size:11px">${params[0].axisValue}</span>
+        return `<div style="min-width:220px;display:flex;flex-direction:column;gap:6px;padding:4px;">
+          <div style="border-bottom:1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"};padding-bottom:4px;margin-bottom:4px;">
+            <span style="color:${isDark ? "#71717a" : "#94A3B8"};font-size:10px;font-weight:bold;text-transform:uppercase;font-family:var(--font-mono),monospace;">${params[0].axisValue}</span>
+          </div>
           ${rows}
         </div>`;
       },
     },
+    dataZoom: chartTheme.dataZoom,
     series: [
       {
         name: "L1 Calldata",
@@ -160,5 +172,5 @@ export function L1vsBlobFeeChart({ blobData, l1Data, ethUsd }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "300px", width: "100%" }} />;
+  return <ReactECharts option={option} style={{ height: "350px", width: "100%" }} opts={{ renderer: "svg" }} />;
 }
