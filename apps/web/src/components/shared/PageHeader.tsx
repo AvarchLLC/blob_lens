@@ -97,7 +97,8 @@ export function PageSection({
       
       <div className={cn(
         "surface bg-surface border border-dashed border-border-dotted rounded-none flex-1 transition-colors duration-300 hover:border-primary/20",
-        !noPadding && "p-6"
+        !noPadding && "p-6",
+        fullHeight && "flex flex-col"
       )}>
         {children}
       </div>

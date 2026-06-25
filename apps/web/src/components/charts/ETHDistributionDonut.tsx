@@ -31,7 +31,7 @@ export function ETHDistributionDonut({ data }: Props) {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="h-[300px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
+    return <div className="flex-1 w-full min-h-[300px] animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
   }
 
   if (!data.length) {
@@ -126,5 +126,9 @@ export function ETHDistributionDonut({ data }: Props) {
     ],
   };
 
-  return <ReactECharts option={option} style={{ height: "300px", width: "100%" }} opts={{ renderer: "svg" }} />;
+  return (
+    <div className="flex-1 w-full min-h-[300px] h-full">
+      <ReactECharts option={option} style={{ height: "100%", width: "100%" }} opts={{ renderer: "svg" }} />
+    </div>
+  );
 }
