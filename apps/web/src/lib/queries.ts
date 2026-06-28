@@ -305,7 +305,7 @@ export async function getOverviewStats(): Promise<OverviewStats> {
           toString(max(block_timestamp)) AS last_indexed,
           max(block_number)            AS last_block,
           (
-            SELECT round(avg(blob_gas_used / multiIf(block_number >= 24833256, 2359296.0, block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2)
+            SELECT round(avg(blob_gas_used / multiIf(block_number >= 25042056, 2752512.0, block_number >= 24833256, 1966080.0, block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2)
             FROM blob_lens.block_blob_stats FINAL
             WHERE is_canonical = 1
               AND blob_count > 0
@@ -531,7 +531,7 @@ export async function getMarketActivity(hours = 24): Promise<MarketHour[]> {
         sum(bt.num_blobs)                                              AS blob_count,
         toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
-        round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
+        round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 25042056, 2752512.0, bbs.block_number >= 24833256, 1966080.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM blob_lens.blob_transactions AS bt FINAL
       LEFT JOIN (
         SELECT block_number, blob_count, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used
@@ -561,7 +561,7 @@ export async function getPerRollupFeeActivity(
         sum(bt.num_blobs)                                              AS blob_count,
         toString(toUInt64(ifNotFinite(avgIf(toFloat64(bbs.blob_base_fee), bbs.blob_base_fee > 0 AND bbs.blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
         max(bbs.blob_count)                                            AS max_blobs_in_block,
-        round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
+        round(avg(bbs.blob_gas_used / multiIf(bbs.block_number >= 25042056, 2752512.0, bbs.block_number >= 24833256, 1966080.0, bbs.block_number >= 22431084, 1179648.0, 786432.0)) * 100, 2) AS avg_utilization
       FROM blob_lens.blob_transactions AS bt FINAL
       LEFT JOIN (
         SELECT block_number, blob_count, blob_base_fee, ifNull(blob_gas_used, 0) AS blob_gas_used
@@ -634,7 +634,7 @@ export async function getRecentBlocks(limit = 20): Promise<BlockRow[]> {
         toString(bbs.blob_base_fee)                                AS blob_base_fee,
         bbs.blob_gas_used,
         bbs.blob_count,
-        round(bbs.blob_gas_used / multiIf(bbs.block_number >= 24833256, 2359296.0, bbs.block_number >= 22431084, 1179648.0, 786432.0) * 100, 1) AS utilization,
+        round(bbs.blob_gas_used / multiIf(bbs.block_number >= 25042056, 2752512.0, bbs.block_number >= 24833256, 1966080.0, bbs.block_number >= 22431084, 1179648.0, 786432.0) * 100, 1) AS utilization,
         countIf(bt.tx_hash != '')                                  AS tx_count,
         arrayFilter(x -> x != '', groupUniqArray(bt.rollup))       AS rollups,
         toString(bbs.block_timestamp)                              AS created_at
@@ -981,13 +981,16 @@ export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
           avgIf(toFloat64(blob_base_fee), blob_base_fee < 1000000000000) / 1e9 AS fee_gwei,
           multiIf(block_number < 22431084, 'Dencun',
                    block_number < 24833256, 'Pectra',
-                   'Fusaka') AS epoch,
+                   block_number < 25042056, 'BPO1',
+                   'BPO2') AS epoch,
           multiIf(block_number < 22431084, 3,
                    block_number < 24833256, 6,
-                   12) AS target_blobs,
+                   block_number < 25042056, 10,
+                   14) AS target_blobs,
           multiIf(block_number < 22431084, 6,
                    block_number < 24833256, 9,
-                   18) AS max_blobs
+                   block_number < 25042056, 15,
+                   21) AS max_blobs
         FROM blob_lens.blob_transactions FINAL
         WHERE is_canonical = 1
         GROUP BY block_number, epoch, target_blobs, max_blobs
@@ -1304,7 +1307,8 @@ export async function getDaMarketActivity(hours = 24): Promise<MarketHour[]> {
             blob_base_fee > 0 AND blob_base_fee < 1000000000000), 0.0))) AS avg_fee,
           toUInt16(max(blob_count))                                              AS max_blobs_in_block,
           round(avg(blob_gas_used / multiIf(
-            number >= 24833256, 2359296.0,
+            number >= 25042056, 2752512.0,
+            number >= 24833256, 1966080.0,
             number >= 22431084, 1179648.0,
             786432.0
           )) * 100, 2)                                                          AS avg_utilization

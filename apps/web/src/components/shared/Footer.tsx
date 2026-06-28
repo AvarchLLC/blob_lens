@@ -13,8 +13,8 @@ const NAV_LINKS = [
 const DATA_FACTS = [
   { label: "Network",   value: "Ethereum mainnet" },
   { label: "Standard", value: "EIP-4844 (type-3 txs)" },
-  { label: "Target",   value: "4.5 blobs / block" },
-  { label: "Max",      value: "9 blobs / block (Pectra)" },
+  { label: "Target",   value: "14 blobs / block" },
+  { label: "Max",      value: "21 blobs / block (BPO2)" },
   { label: "Refresh",  value: "30s – 60s ISR" },
 ];
 
@@ -68,13 +68,13 @@ export function Footer() {
                 GitHub
               </a>
               <a
-                href="https://eipsinsight.com"
+                href="https://www.mywallet360.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-text-secondary/70 hover:text-primary transition-colors"
               >
                 <Globe className="h-3.5 w-3.5" />
-                EIPs Insight
+                MyWallet360
               </a>
             </div>
           </div>

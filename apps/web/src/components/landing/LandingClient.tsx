@@ -958,7 +958,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
               <ul className="space-y-3">
                 {[
                   { href: "https://github.com/AvarchLLC/blob_lens", l: "GitHub Source" },
-                  { href: "https://eipsinsight.com",                l: "EIPs Insight" },
+                  { href: "https://www.mywallet360.com/",            l: "MyWallet360" },
                   { href: "https://giveth.io",                      l: "Giveth Support" },
                 ].map((x) => (
                   <li key={x.href}>

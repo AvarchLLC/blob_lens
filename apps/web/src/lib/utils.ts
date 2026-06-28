@@ -7,13 +7,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Target/max blobs per block change with each BPO (Blob Parameter Only) fork —
-// see the epoch boundaries in getDaBpoEpochStats(). Current epoch is Fusaka
-// (block >= 24,833,256): target 12 blobs/block, max 18. Update these when the
-// next BPO fork lands, or thresholds silently drift stale again (was stuck on
-// Dencun's target=3/max=6 for two forks, which misclassified everything as
-// "spike" once real traffic exceeded 5 blobs/block).
-const CURRENT_TARGET_BLOBS = 12;
-const CURRENT_MAX_BLOBS = 18;
+// see the epoch boundaries in getDaBpoEpochStats(). Current epoch is BPO2
+// (block >= 25,042,056): target 14 blobs/block, max 21. Update these when the
+// next BPO fork lands, or thresholds silently drift stale again.
+const CURRENT_TARGET_BLOBS = 14;
+const CURRENT_MAX_BLOBS = 21;
 
 export function classifyRegime(maxBlobsInBlock: number): MarketRegime {
   if (maxBlobsInBlock < CURRENT_TARGET_BLOBS / 2) return "undersaturated";
