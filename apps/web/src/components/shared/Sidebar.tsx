@@ -83,16 +83,16 @@ export function Sidebar() {
       {/* ── Footer links ── */}
       <div className="sidebar-footer">
         <a
-          href="https://eipsinsight.com"
+          href="https://www.mywallet360.com/"
           target="_blank"
           rel="noreferrer"
           className="sidebar-footer-link"
         >
-          EIPsInsight ↗
+          MyWallet360 ↗
         </a>
         <span className="text-border">·</span>
         <a
-          href="https://github.com/AvarchLLC/EIPsInsight"
+          href="https://github.com/AvarchLLC/blob_lens"
           target="_blank"
           rel="noreferrer"
           className="sidebar-footer-link"

@@ -37,12 +37,12 @@ export function AppHeader({ active, regimeBadge }: Props) {
             <p className="wordmark-sub" style={{ letterSpacing: "0.1em" }}>
               an{" "}
               <a
-                href="https://eipsinsight.com"
+                href="https://www.mywallet360.com/"
                 target="_blank"
                 rel="noreferrer"
                 className="hover:text-[#10B981] transition-colors"
               >
-                EIPsInsight
+                MyWallet360
               </a>
               {" "}extension ↗
             </p>

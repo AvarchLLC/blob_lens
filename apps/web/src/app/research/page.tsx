@@ -40,20 +40,28 @@ const BPO_META: Record<string, {
     tagline: "Birth of the blob market — 3 target / 6 max blobs per block",
   },
   Pectra: {
-    eip: "EIP-7691", date: "Apr 2025", startBlock: 22_431_084,
+    eip: "EIP-7691", date: "May 7, 2025", startBlock: 22_431_084,
     bgStyle:     { background: "linear-gradient(135deg, rgba(139,92,246,0.10) 0%, transparent 100%)" },
     borderColor: "rgba(139,92,246,0.22)",
     badgeStyle:  { background: "rgba(139,92,246,0.10)", color: "#8B5CF6", borderColor: "rgba(139,92,246,0.22)" },
     dotColor:    "#8B5CF6",
     tagline: "2× blob throughput — 6 target / 9 max blobs per block",
   },
-  Fusaka: {
-    eip: "BPO2", date: "2025", startBlock: 24_833_256,
-    bgStyle:     { background: "linear-gradient(135deg, rgba(82,102,110,0.10) 0%, transparent 100%)" },
-    borderColor: "rgba(82,102,110,0.22)",
-    badgeStyle:  { background: "rgba(82,102,110,0.10)", color: "#6B8A94", borderColor: "rgba(82,102,110,0.22)" },
-    dotColor:    "#6B8A94",
-    tagline: "4× throughput from Dencun — 12 target / 18 max blobs per block",
+  BPO1: {
+    eip: "EIP-8134", date: "Dec 9, 2025", startBlock: 24_833_256,
+    bgStyle:     { background: "linear-gradient(135deg, rgba(14,165,233,0.10) 0%, transparent 100%)" },
+    borderColor: "rgba(14,165,233,0.22)",
+    badgeStyle:  { background: "rgba(14,165,233,0.10)", color: "#0EA5E9", borderColor: "rgba(14,165,233,0.22)" },
+    dotColor:    "#0EA5E9",
+    tagline: "3.3× blob throughput — 10 target / 15 max blobs per block",
+  },
+  BPO2: {
+    eip: "BPO2", date: "Jan 7, 2026", startBlock: 25_042_056,
+    bgStyle:     { background: "linear-gradient(135deg, rgba(16,185,129,0.10) 0%, transparent 100%)" },
+    borderColor: "rgba(16,185,129,0.22)",
+    badgeStyle:  { background: "rgba(16,185,129,0.10)", color: "#10B981", borderColor: "rgba(16,185,129,0.22)" },
+    dotColor:    "#10B981",
+    tagline: "4.6× blob throughput — 14 target / 21 max blobs per block",
   },
 };
 
@@ -146,7 +154,7 @@ function BpoEpochCard({ stat }: { stat: BpoEpochStat }) {
         <div className="pt-3.5 border-t border-dashed border-border/30">
           <p className="text-[9px] text-text-secondary/40 uppercase tracking-widest font-bold font-mono">
             Capacity vs Dencun: <span className="text-text-primary font-bold ml-1">
-              {stat.epoch === "Pectra" ? "2×" : "4×"} target · {stat.epoch === "Pectra" ? "1.5×" : "3×"} max
+              {stat.epoch === "Pectra" ? "2×" : stat.epoch === "BPO1" ? "3.3×" : "4.6×"} target · {stat.epoch === "Pectra" ? "1.5×" : stat.epoch === "BPO1" ? "2.5×" : "3.5×"} max
             </span>
           </p>
         </div>
@@ -417,7 +425,8 @@ export default async function ResearchPage({
                   {[
                     { label: "Dencun",  block: "19,426,587", eip: "EIP-4844",  dotColor: "#60A5FA" },
                     { label: "Pectra",  block: "22,431,084", eip: "EIP-7691",  dotColor: "#8B5CF6" },
-                    { label: "Fusaka",  block: "24,833,256", eip: "BPO2",      dotColor: "#6B8A94" },
+                    { label: "BPO1",    block: "24,833,256", eip: "EIP-8134",  dotColor: "#0EA5E9" },
+                    { label: "BPO2",    block: "25,042,056", eip: "BPO2",      dotColor: "#10B981" },
                   ].map((e) => (
                     <div key={e.label} className="flex items-center gap-1.5">
                       <span className="font-mono" style={{ color: e.dotColor }}>{e.label}</span>
@@ -468,7 +477,8 @@ export default async function ResearchPage({
                   {[
                     { epoch: "Dencun", eip: "EIP-4844", block: "19,426,587", target: 3, max: 6,  da: "768 KB",   fraction: "3,338,477",  dotColor: "#60A5FA" },
                     { epoch: "Pectra", eip: "EIP-7691", block: "22,431,084", target: 6, max: 9,  da: "1,152 KB", fraction: "5,007,716",  dotColor: "#8B5CF6" },
-                    { epoch: "Fusaka", eip: "BPO2",     block: "24,833,256", target: 12, max: 18, da: "2,304 KB", fraction: "11,684,671", dotColor: "#6B8A94" },
+                    { epoch: "BPO1",   eip: "EIP-8134", block: "24,833,256", target: 10, max: 15, da: "1,920 KB", fraction: "8,345,921",  dotColor: "#0EA5E9" },
+                    { epoch: "BPO2",   eip: "BPO2",     block: "25,042,056", target: 14, max: 21, da: "2,688 KB", fraction: "11,684,671", dotColor: "#10B981" },
                   ].map((row, i) => (
                     <tr key={row.epoch} className={`border-b border-border/15 hover:bg-surface/30 transition-colors ${i % 2 === 0 ? "" : "bg-surface/20"}`}>
                       <td className="px-5 py-4">
@@ -499,16 +509,16 @@ export default async function ResearchPage({
               {
                 title: "Dencun → Pectra",
                 subtitle: "The supply shock",
-                body: "EIP-7691 doubled the blob target and raised the max cap, dramatically reducing fee pressure. Blob base fees dropped by orders of magnitude as the market adapted to the expanded supply.",
+                body: "EIP-7691 doubled the blob target to 6 and raised the max cap to 9, dramatically reducing fee pressure. Blob base fees dropped by orders of magnitude as the market adapted to the expanded supply.",
                 dotColor: "#8B5CF6",
                 borderColor: "rgba(139,92,246,0.22)",
               },
               {
-                title: "Pectra → Fusaka",
+                title: "Pectra → BPO1 & BPO2",
                 subtitle: "Scaling with demand",
-                body: "The Fusaka BPO2 upgrade targets 12 blobs per block — 4× Dencun's original target — as rollup adoption continues to grow. The update fraction change also affects fee curve steepness.",
-                dotColor: "#6B8A94",
-                borderColor: "rgba(82,102,110,0.22)",
+                body: "The BPO1 and BPO2 parameter upgrades increased the target sequentially to 10 and 14 blobs per block (max 15 and 21) as rollup adoption continued to grow. This significantly expanded the network's data availability throughput.",
+                dotColor: "#10B981",
+                borderColor: "rgba(16,185,129,0.22)",
               },
               {
                 title: "What to watch",
