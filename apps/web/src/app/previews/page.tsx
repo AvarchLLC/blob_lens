@@ -15,6 +15,7 @@ const ROUTES = [
   { name: "OFAC Compliance", path: "/compliance/ofac" },
   { name: "Wallet 360 Portal", path: "/wallet-360" },
   { name: "Brand Assets & UI Kit", path: "/branding" },
+  { name: "404 Not Found Page", path: "/non-existent-route-for-404" },
 ];
 
 export default function PreviewsPage() {
