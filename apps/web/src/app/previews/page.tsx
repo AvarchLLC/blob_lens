@@ -29,13 +29,17 @@ export default function PreviewsPage() {
   };
 
   const captureViewport = async (iframeId: string, filename: string) => {
+    let originalIframeGetComputedStyle: any = null;
+    let originalWindowGetComputedStyle: any = null;
+    const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+    
     try {
       setCapturing(iframeId);
-      const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
       if (!iframe) return;
 
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!iframeDoc || !iframeDoc.body) {
+      const iframeWindow = iframe.contentWindow;
+      const iframeDoc = iframe.contentDocument || iframeWindow?.document;
+      if (!iframeDoc || !iframeDoc.body || !iframeWindow) {
         alert("Cannot access iframe content. Please make sure the page is loaded.");
         return;
       }
@@ -47,8 +51,65 @@ export default function PreviewsPage() {
       // Allow animations and charts to fully render
       await new Promise((resolve) => setTimeout(resolve, 300));
 
+      // Setup color converters
+      const colorCache = new Map<string, string>();
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const convertModernColor = (colorStr: string): string => {
+        if (!colorStr) return colorStr;
+        if (!colorStr.includes("oklab") && !colorStr.includes("oklch")) return colorStr;
+        if (colorCache.has(colorStr)) return colorCache.get(colorStr)!;
+        if (ctx) {
+          try {
+            ctx.fillStyle = colorStr;
+            const resolved = ctx.fillStyle;
+            colorCache.set(colorStr, resolved);
+            return resolved;
+          } catch (e) {
+            return "#914af8"; // Fallback
+          }
+        }
+        return "#914af8";
+      };
+
+      const wrapStyle = (style: CSSStyleDeclaration) => {
+        return new Proxy(style, {
+          get(target, prop) {
+            const value = Reflect.get(target, prop);
+            if (typeof value === "string" && (value.includes("oklab") || value.includes("oklch"))) {
+              return convertModernColor(value);
+            }
+            if (typeof value === "function") {
+              return function (...args: any[]) {
+                const res = value.apply(target, args);
+                if (typeof res === "string" && (res.includes("oklab") || res.includes("oklch"))) {
+                  return convertModernColor(res);
+                }
+                return res;
+              };
+            }
+            return value;
+          }
+        });
+      };
+
+      // Override getComputedStyle on iframe window
+      originalIframeGetComputedStyle = iframeWindow.getComputedStyle;
+      iframeWindow.getComputedStyle = function (elt, pseudoElt) {
+        const style = originalIframeGetComputedStyle.call(iframeWindow, elt, pseudoElt);
+        return wrapStyle(style);
+      };
+
+      // Override getComputedStyle on main window
+      originalWindowGetComputedStyle = window.getComputedStyle;
+      window.getComputedStyle = function (elt, pseudoElt) {
+        const style = originalWindowGetComputedStyle.call(window, elt, pseudoElt);
+        return wrapStyle(style);
+      };
+
       // Render the iframe body using html2canvas
-      const canvas = await html2canvas(iframeDoc.body, {
+      const capturedCanvas = await html2canvas(iframeDoc.body, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#07090E",
@@ -64,12 +125,19 @@ export default function PreviewsPage() {
       // Trigger download
       const link = document.createElement("a");
       link.download = `${filename}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = capturedCanvas.toDataURL("image/png");
       link.click();
     } catch (err) {
       console.error("Screenshot capture failed:", err);
       alert("Failed to capture screenshot. Please make sure the frame is fully loaded and try again.");
     } finally {
+      // Restore getComputedStyle
+      if (iframe && iframe.contentWindow && originalIframeGetComputedStyle) {
+        iframe.contentWindow.getComputedStyle = originalIframeGetComputedStyle;
+      }
+      if (originalWindowGetComputedStyle) {
+        window.getComputedStyle = originalWindowGetComputedStyle;
+      }
       setCapturing(null);
     }
   };
