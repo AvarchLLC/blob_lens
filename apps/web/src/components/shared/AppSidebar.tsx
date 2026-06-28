@@ -172,7 +172,7 @@ export function AppSidebar() {
                 {expanded && (
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
                 )}
-                <Link href="/" className="relative flex items-center gap-3 group w-full min-w-0">
+                <Link href="/" className={cn("relative flex items-center group", expanded ? "w-full min-w-0 gap-3" : "justify-center w-auto")}>
                     <div className={cn(
                         "flex items-center justify-center rounded-lg shrink-0 transition-all duration-300",
                         "h-8 w-8",
