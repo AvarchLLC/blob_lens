@@ -163,10 +163,10 @@ export function AppSidebar() {
     const activeSectionId = useSectionObserver(currentPageSections);
 
     const sidebarContent = (
-        <div className="flex flex-col h-full bg-[#090D16]/95 backdrop-blur-xl border-r border-white/5">
+        <div className="flex flex-col h-full bg-[#F0EDFF]/95 dark:bg-[#090D16]/95 backdrop-blur-xl border-r border-black/5 dark:border-white/5">
             {/* ── Brand Header (Aligned to h-14) ── */}
             <div className={cn(
-                "h-14 flex items-center shrink-0 border-b border-white/5 relative overflow-hidden",
+                "h-14 flex items-center shrink-0 border-b border-black/5 dark:border-white/5 relative overflow-hidden",
                 expanded ? "px-4" : "justify-center px-0"
             )}>
                 {expanded && (
@@ -231,13 +231,13 @@ export function AppSidebar() {
             </nav>
 
             {/* ── Bottom Utilities ── */}
-            <div className="border-t border-white/5 p-2 space-y-0.5">
+            <div className="border-t border-black/5 dark:border-white/5 p-2 space-y-0.5">
                 <a
                     href="https://github.com/dhanushlnaik/blob_lens"
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                        "flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-white/2 transition-all duration-200",
+                        "flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-black/3 dark:hover:bg-white/2 transition-all duration-200",
                         expanded ? "px-3 text-xs font-mono" : "justify-center px-0"
                     )}
                 >
@@ -249,7 +249,7 @@ export function AppSidebar() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                        "flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-white/2 transition-all duration-200",
+                        "flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-black/3 dark:hover:bg-white/2 transition-all duration-200",
                         expanded ? "px-3 text-xs font-mono" : "justify-center px-0"
                     )}
                 >
@@ -257,12 +257,12 @@ export function AppSidebar() {
                     {expanded && <span>Docs</span>}
                 </a>
 
-                <div className="h-px bg-white/5 my-1" />
+                <div className="h-px border-t border-black/5 dark:border-white/5 my-1" />
 
                 <button
                     onClick={() => setExpanded(!expanded)}
                     className={cn(
-                        "hidden md:flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-white/2 transition-all duration-200 w-full",
+                        "hidden md:flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-black/3 dark:hover:bg-white/2 transition-all duration-200 w-full",
                         expanded ? "px-3 text-xs font-mono" : "justify-center px-0"
                     )}
                 >
@@ -293,7 +293,7 @@ export function AppSidebar() {
             {/* ── Mobile Toggle ── */}
             <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="md:hidden fixed top-2.5 left-2.5 z-50 p-2 rounded-lg bg-[#090D16]/90 backdrop-blur-md border border-white/5 text-text-secondary hover:text-text-primary transition-colors"
+                className="md:hidden fixed top-2.5 left-2.5 z-50 p-2 rounded-lg bg-[#F0EDFF]/90 dark:bg-[#090D16]/90 backdrop-blur-md border border-black/5 dark:border-white/5 text-text-secondary hover:text-text-primary transition-colors"
                 aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             >
                 {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -375,7 +375,7 @@ function NavItemRow({
                     "group relative flex items-center gap-3 py-2 px-3 rounded-sm transition-all duration-150",
                     isActive 
                         ? "text-text-primary bg-gradient-to-r from-primary/8 via-primary/3 to-transparent font-medium" 
-                        : "text-text-secondary/70 hover:text-text-primary hover:bg-white/2",
+                        : "text-text-secondary/70 hover:text-text-primary hover:bg-black/3 dark:hover:bg-white/2",
                     !expanded && "justify-center px-0"
                 )}
             >
@@ -398,7 +398,7 @@ function NavItemRow({
                             setChildrenOpen(!childrenOpen);
                         }}
                         className="ml-auto p-0.5 rounded text-text-secondary/40 hover:text-text-primary transition-colors"
-                      aria-label="Toggle sections"
+                        aria-label="Toggle sections"
                     >
                         <motion.div
                             animate={{ rotate: childrenOpen ? 90 : 0 }}
@@ -421,7 +421,7 @@ function NavItemRow({
                         className="overflow-hidden relative"
                     >
                         {/* Tree line connector */}
-                        <div className="absolute left-5 top-1 bottom-2 w-px bg-white/5" />
+                        <div className="absolute left-5 top-1 bottom-2 w-px bg-black/5 dark:bg-white/5" />
 
                         <div className="ml-5 mr-1 my-1 pl-3 space-y-0.5">
                             {item.children!.map((child) => {
@@ -443,7 +443,7 @@ function NavItemRow({
                                                 "relative block py-1.5 px-2.5 rounded-sm transition-all duration-150 text-[11px] font-mono tracking-wide",
                                                 isChildActive
                                                     ? "text-primary font-semibold bg-primary/5"
-                                                    : "text-text-secondary/65 hover:text-text-primary hover:bg-white/2"
+                                                    : "text-text-secondary/65 hover:text-text-primary hover:bg-black/3 dark:hover:bg-white/2"
                                             )}
                                         >
                                             <span className="flex items-center gap-2">
