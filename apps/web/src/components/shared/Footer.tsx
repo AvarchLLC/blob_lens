@@ -20,7 +20,7 @@ const DATA_FACTS = [
 
 export function Footer() {
   return (
-    <footer className="relative mt-12 border-t border-border/20 bg-surface/30">
+    <footer className="relative mt-8 border-t border-border/20 bg-surface/30">
       {/* Subtle purple top-glow line */}
       <div
         className="absolute inset-x-0 top-0 h-px"
