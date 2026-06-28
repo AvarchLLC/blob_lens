@@ -18,19 +18,13 @@ import {
     X,
     ExternalLink,
     BookOpen,
-    Key,
-    Landmark,
     Wallet,
-    ShieldAlert,
-    ShieldCheck,
-    Sandwich,
-    Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSectionObserver } from '@/lib/useSectionObserver';
 
 /* ────────────────────────────────────────────────────────────
-   Navigation structure — pages → sections
+   Navigation structure
    ──────────────────────────────────────────────────────────── */
 
 interface NavChild {
@@ -148,74 +142,16 @@ const NAV_GROUPS: NavGroup[] = [
                     { label: 'Fee Projection', sectionId: 'fee-projection' },
                 ],
             },
-            {
-                href: '/research/security',
-                label: 'Security Comparison',
-                icon: ShieldCheck,
-            },
-            {
-                href: '/research/ai-insights',
-                label: 'AI Insights',
-                icon: Brain,
-            },
-            {
-                href: '/unknown',
-                label: 'Unknown Senders',
-                icon: Info,
-            },
-        ],
-    },
-    {
-        label: 'Developer',
-        items: [
-            {
-                href: '/wallet-360',
-                label: 'Wallet 360',
-                icon: Key,
-            },
-            {
-                href: '/mev',
-                label: 'MEV Sandwiches',
-                icon: Sandwich,
-            },
-        ],
-    },
-    {
-        label: 'Compliance',
-        items: [
-            {
-                href: '/compliance/ofac',
-                label: 'OFAC List',
-                icon: ShieldAlert,
-            },
         ],
     },
 ];
 
-/* ────────────────────────────────────────────────────────────
-   Sidebar component
-   ──────────────────────────────────────────────────────────── */
-
 export function AppSidebar() {
+    const pathname = usePathname();
     const [expanded, setExpanded] = useState(true);
     const [mobileOpen, setMobileOpen] = useState(false);
-    const pathname = usePathname();
 
-    // Close mobile menu on route change
-    useEffect(() => {
-        const handle = requestAnimationFrame(() => {
-            setMobileOpen(false);
-        });
-        return () => cancelAnimationFrame(handle);
-    }, [pathname]);
-
-    // Lock body scroll when mobile menu is open
-    useEffect(() => {
-        document.body.style.overflow = mobileOpen ? 'hidden' : '';
-        return () => { document.body.style.overflow = ''; };
-    }, [mobileOpen]);
-
-    // Collect all section IDs for the current page
+    // Dynamic section detection based on route
     const currentPageSections = useMemo(() => {
         const allItems = NAV_GROUPS.flatMap(g => g.items);
         const current = allItems.find(item =>
@@ -227,33 +163,28 @@ export function AppSidebar() {
     const activeSectionId = useSectionObserver(currentPageSections);
 
     const sidebarContent = (
-        <>
-            {/* ── Brand Header ── */}
+        <div className="flex flex-col h-full bg-[#090D16]/95 backdrop-blur-xl border-r border-white/5">
+            {/* ── Brand Header (Aligned to h-14) ── */}
             <div className={cn(
-                "h-16 flex items-center shrink-0 border-b border-border/50 relative overflow-hidden",
+                "h-14 flex items-center shrink-0 border-b border-white/5 relative overflow-hidden",
                 expanded ? "px-4" : "justify-center px-0"
             )}>
-                {/* subtle gradient backdrop */}
                 {expanded && (
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
                 )}
                 <Link href="/" className="relative flex items-center gap-3 group w-full min-w-0">
-                    {/* Logo icon */}
                     <div className={cn(
-                        "flex items-center justify-center rounded-xl shrink-0 transition-all duration-300",
-                        "h-9 w-9",
-                        "bg-gradient-to-br from-primary/20 to-accent/10",
-                        "shadow-[0_0_0_1px_rgba(0,167,181,0.12),0_2px_8px_rgba(0,167,181,0.12)]",
-                        "group-hover:shadow-[0_0_0_1px_rgba(0,167,181,0.2),0_4px_16px_rgba(0,167,181,0.2)]",
-                        "group-hover:from-primary/25 group-hover:to-accent/15"
+                        "flex items-center justify-center rounded-lg shrink-0 transition-all duration-300",
+                        "h-8 w-8",
+                        "bg-gradient-to-br from-primary/10 to-accent/5 border border-primary/15",
+                        "group-hover:border-primary/35 group-hover:from-primary/15"
                     )}>
                         <Image
                             src="/brand/bloblens-logo.svg"
                             alt="BlobLens"
-                            width={22}
-                            height={22}
+                            width={18}
+                            height={18}
                             priority
-                            className="rounded-md"
                         />
                     </div>
                     {expanded && (
@@ -263,11 +194,11 @@ export function AppSidebar() {
                             exit={{ opacity: 0, x: -6 }}
                             className="min-w-0"
                         >
-                            <p className="text-[15px] font-bold tracking-tight text-text-primary leading-none">
+                            <p className="text-[13px] font-mono font-bold tracking-tight text-text-primary leading-none">
                                 Blob<span className="text-primary">Lens</span>
                             </p>
-                            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-text-secondary/30 mt-0.5 leading-none">
-                                DA Intelligence
+                            <p className="text-[8px] font-mono font-bold uppercase tracking-[0.2em] text-text-secondary/40 mt-1 leading-none">
+                                DA Telemetry
                             </p>
                         </motion.div>
                     )}
@@ -275,11 +206,11 @@ export function AppSidebar() {
             </div>
 
             {/* ── Navigation ── */}
-            <nav className="flex-1 overflow-y-auto sidebar-scrollbar py-4">
+            <nav className="flex-1 overflow-y-auto sidebar-scrollbar py-3 space-y-4">
                 {NAV_GROUPS.map((group) => (
-                    <div key={group.label} className="mb-2">
+                    <div key={group.label} className="px-2">
                         {expanded && (
-                            <h3 className="sidebar-group-label">
+                            <h3 className="text-[9px] font-mono font-bold uppercase tracking-[0.25em] text-text-tertiary px-3 mb-1.5 opacity-80">
                                 {group.label}
                             </h3>
                         )}
@@ -300,60 +231,61 @@ export function AppSidebar() {
             </nav>
 
             {/* ── Bottom Utilities ── */}
-            <div className="border-t border-border/50 p-3 space-y-0.5">
-                {/* External links */}
+            <div className="border-t border-white/5 p-2 space-y-0.5">
                 <a
-                    href="https://github.com/AvarchLLC/blob_lens"
+                    href="https://github.com/dhanushlnaik/blob_lens"
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                        "flex items-center gap-3 py-2 rounded-lg text-text-secondary/70 hover:text-text-primary hover:bg-surface-elevated/50 transition-all duration-200",
-                        expanded ? "px-3" : "justify-center px-0"
+                        "flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-white/2 transition-all duration-200",
+                        expanded ? "px-3 text-xs font-mono" : "justify-center px-0"
                     )}
                 >
-                    <ExternalLink className="h-4 w-4 shrink-0" />
-                    {expanded && <span className="text-xs font-medium">GitHub</span>}
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    {expanded && <span>GitHub</span>}
                 </a>
                 <a
                     href="https://docs.bloblens.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                        "flex items-center gap-3 py-2 rounded-lg text-text-secondary/70 hover:text-text-primary hover:bg-surface-elevated/50 transition-all duration-200",
-                        expanded ? "px-3" : "justify-center px-0"
+                        "flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-white/2 transition-all duration-200",
+                        expanded ? "px-3 text-xs font-mono" : "justify-center px-0"
                     )}
                 >
-                    <BookOpen className="h-4 w-4 shrink-0" />
-                    {expanded && <span className="text-xs font-medium">Docs</span>}
+                    <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                    {expanded && <span>Docs</span>}
                 </a>
 
-                {/* Divider */}
-                <div className="h-px bg-border/30 my-1" />
+                <div className="h-px bg-white/5 my-1" />
 
-                {/* Collapse Toggle */}
                 <button
                     onClick={() => setExpanded(!expanded)}
                     className={cn(
-                        "hidden md:flex items-center gap-3 py-2 rounded-lg text-text-secondary/70 hover:text-text-primary hover:bg-surface-elevated/50 transition-all duration-200 w-full",
-                        expanded ? "px-3" : "justify-center px-0"
+                        "hidden md:flex items-center gap-3 py-1.5 rounded-sm text-text-secondary/60 hover:text-text-primary hover:bg-white/2 transition-all duration-200 w-full",
+                        expanded ? "px-3 text-xs font-mono" : "justify-center px-0"
                     )}
                 >
-                    {expanded
-                        ? <><ChevronLeft className="h-4 w-4 shrink-0" /><span className="text-xs font-medium">Collapse</span></>
-                        : <ChevronRight className="h-4 w-4 shrink-0" />
-                    }
+                    {expanded ? (
+                        <>
+                            <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+                            <span>Collapse</span>
+                        </>
+                    ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                    )}
                 </button>
             </div>
-        </>
+        </div>
     );
 
     return (
         <>
             {/* ── Desktop Sidebar ── */}
             <motion.aside
-                className="hidden md:flex flex-col h-screen bg-sidebar border-r border-border/50 shrink-0 overflow-hidden"
-                animate={{ width: expanded ? 260 : 64 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                className="hidden md:flex flex-col h-screen shrink-0 overflow-hidden z-30"
+                animate={{ width: expanded ? 240 : 56 }}
+                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             >
                 {sidebarContent}
             </motion.aside>
@@ -361,10 +293,10 @@ export function AppSidebar() {
             {/* ── Mobile Toggle ── */}
             <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="md:hidden fixed top-3 left-3 z-50 p-2 rounded-xl bg-sidebar/90 backdrop-blur-md border border-border/50 text-text-secondary hover:text-text-primary transition-colors"
+                className="md:hidden fixed top-2.5 left-2.5 z-50 p-2 rounded-lg bg-[#090D16]/90 backdrop-blur-md border border-white/5 text-text-secondary hover:text-text-primary transition-colors"
                 aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             >
-                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
 
             {/* ── Mobile Overlay ── */}
@@ -382,8 +314,8 @@ export function AppSidebar() {
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
-                            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                            className="fixed left-0 top-0 h-screen w-72 bg-sidebar border-r border-border/50 z-50 flex flex-col md:hidden overflow-hidden"
+                            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                            className="fixed left-0 top-0 h-screen w-64 z-50 flex flex-col md:hidden overflow-hidden"
                         >
                             {sidebarContent}
                         </motion.aside>
@@ -392,7 +324,7 @@ export function AppSidebar() {
             </AnimatePresence>
 
             {/* ── Mobile spacer ── */}
-            <div className="h-12 md:hidden" />
+            <div className="h-14 md:hidden" />
         </>
     );
 }
@@ -417,47 +349,47 @@ function NavItemRow({
     const Icon = item.icon;
     const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
     const hasChildren = item.children && item.children.length > 0;
-    const childActive = hasChildren && item.children!.some(c => c.sectionId === activeSectionId);
-
-    // Auto-expand children when on the route
     const [childrenOpen, setChildrenOpen] = useState(isActive);
+
     useEffect(() => {
-        const handle = requestAnimationFrame(() => {
-            if (isActive) setChildrenOpen(true);
-            else setChildrenOpen(false);
-        });
-        return () => cancelAnimationFrame(handle);
+        if (isActive) setChildrenOpen(true);
+        else setChildrenOpen(false);
     }, [isActive]);
 
     return (
-        <div>
+        <div className="relative">
+            {/* Active Highlight Line */}
+            {isActive && (
+                <motion.div 
+                    layoutId="active-sidebar-line"
+                    className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-primary rounded-r-full z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+            )}
+
             {/* Parent link */}
             <Link
                 href={item.href}
                 onClick={onMobileClose}
                 className={cn(
-                    "sidebar-nav-item group relative flex items-center gap-3 py-2 mx-2",
-                    !expanded && "justify-center px-0 mx-1"
+                    "group relative flex items-center gap-3 py-2 px-3 rounded-sm transition-all duration-150",
+                    isActive 
+                        ? "text-text-primary bg-gradient-to-r from-primary/8 via-primary/3 to-transparent font-medium" 
+                        : "text-text-secondary/70 hover:text-text-primary hover:bg-white/2",
+                    !expanded && "justify-center px-0"
                 )}
-                data-active={isActive ? "true" : "false"}
             >
-
                 <Icon className={cn(
-                    "h-[18px] w-[18px] shrink-0 transition-colors duration-200",
-                    isActive ? "text-primary" : "text-text-secondary/70 group-hover:text-text-primary"
+                    "h-4 w-4 shrink-0 transition-colors duration-150",
+                    isActive ? "text-primary" : "text-text-secondary/60 group-hover:text-text-primary"
                 )} />
 
                 {expanded && (
-                    <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis"
-                    >
+                    <span className="text-xs font-mono tracking-wide whitespace-nowrap overflow-hidden text-ellipsis">
                         {item.label}
-                    </motion.span>
+                    </span>
                 )}
 
-                {/* Expand/collapse chevron for items with children */}
                 {expanded && hasChildren && isActive && (
                     <button
                         onClick={(e) => {
@@ -465,11 +397,12 @@ function NavItemRow({
                             e.stopPropagation();
                             setChildrenOpen(!childrenOpen);
                         }}
-                        className="ml-auto p-0.5 rounded text-text-secondary/50 hover:text-text-primary transition-colors"
+                        className="ml-auto p-0.5 rounded text-text-secondary/40 hover:text-text-primary transition-colors"
+                      aria-label="Toggle sections"
                     >
                         <motion.div
                             animate={{ rotate: childrenOpen ? 90 : 0 }}
-                            transition={{ duration: 0.2 }}
+                            transition={{ duration: 0.15 }}
                         >
                             <ChevronRight className="h-3 w-3" />
                         </motion.div>
@@ -484,10 +417,13 @@ function NavItemRow({
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                        className="overflow-hidden"
+                        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                        className="overflow-hidden relative"
                     >
-                        <div className="ml-7 mr-2 my-1 pl-3 border-l border-border/40">
+                        {/* Tree line connector */}
+                        <div className="absolute left-5 top-1 bottom-2 w-px bg-white/5" />
+
+                        <div className="ml-5 mr-1 my-1 pl-3 space-y-0.5">
                             {item.children!.map((child) => {
                                 const isChildActive = activeSectionId === child.sectionId;
                                 return (
@@ -499,25 +435,20 @@ function NavItemRow({
                                                 const el = document.getElementById(child.sectionId);
                                                 if (el) {
                                                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                    // Update hash without scroll jump
                                                     history.replaceState(null, '', `#${child.sectionId}`);
                                                 }
                                                 onMobileClose();
                                             }}
                                             className={cn(
-                                                "sidebar-sub-item block rounded-md transition-all duration-200",
+                                                "relative block py-1.5 px-2.5 rounded-sm transition-all duration-150 text-[11px] font-mono tracking-wide",
                                                 isChildActive
-                                                    ? "text-primary font-semibold bg-primary/5 opacity-100"
-                                                    : "hover:text-text-primary hover:bg-surface-elevated/30"
+                                                    ? "text-primary font-semibold bg-primary/5"
+                                                    : "text-text-secondary/65 hover:text-text-primary hover:bg-white/2"
                                             )}
                                         >
                                             <span className="flex items-center gap-2">
                                                 {isChildActive && (
-                                                    <motion.span
-                                                        layoutId="section-dot"
-                                                        className="h-1.5 w-1.5 rounded-full bg-primary shrink-0"
-                                                        transition={{ duration: 0.2 }}
-                                                    />
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 shadow-[0_0_8px_var(--primary)]" />
                                                 )}
                                                 {child.label}
                                             </span>
