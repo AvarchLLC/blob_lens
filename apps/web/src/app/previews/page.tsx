@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Monitor, Tablet, Smartphone, RefreshCw, ZoomIn, Grid, Maximize2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Monitor, Tablet, Smartphone, RefreshCw, ZoomIn, Grid, Maximize2, ExternalLink, Camera, Loader2 } from "lucide-react";
+import html2canvas from "html2canvas";
 
 const ROUTES = [
   { name: "Overview Dashboard", path: "/" },
@@ -21,9 +22,56 @@ export default function PreviewsPage() {
   const [selectedRoute, setSelectedRoute] = useState<string>("/");
   const [zoomLevel, setZoomLevel] = useState<number>(0.75);
   const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [capturing, setCapturing] = useState<string | null>(null);
 
   const handleRefresh = () => {
     setRefreshKey((prev) => prev + 1);
+  };
+
+  const captureViewport = async (iframeId: string, filename: string) => {
+    try {
+      setCapturing(iframeId);
+      const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+      if (!iframe) return;
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc || !iframeDoc.body) {
+        alert("Cannot access iframe content. Please make sure the page is loaded.");
+        return;
+      }
+
+      // Hide scrollbars temporarily in the iframe during capture for a cleaner screenshot
+      const originalOverflow = iframeDoc.body.style.overflow;
+      iframeDoc.body.style.overflow = "hidden";
+
+      // Allow animations and charts to fully render
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Render the iframe body using html2canvas
+      const canvas = await html2canvas(iframeDoc.body, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#07090E",
+        scale: 2, // Use 2x scale for high-res Retina screenshots
+        logging: false,
+        width: iframe.offsetWidth || undefined,
+        height: iframe.offsetHeight || undefined,
+      });
+
+      // Restore overflow
+      iframeDoc.body.style.overflow = originalOverflow;
+
+      // Trigger download
+      const link = document.createElement("a");
+      link.download = `${filename}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (err) {
+      console.error("Screenshot capture failed:", err);
+      alert("Failed to capture screenshot. Please make sure the frame is fully loaded and try again.");
+    } finally {
+      setCapturing(null);
+    }
   };
 
   return (
@@ -111,52 +159,72 @@ export default function PreviewsPage() {
         {/* ── TAB 1: ALL-ROUTES DECK ── */}
         {activeTab === "deck" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-            {ROUTES.map((route) => (
-              <div key={route.path} className="flex flex-col bg-surface/20 border border-border/35 backdrop-blur-md overflow-hidden shadow-xl">
-                {/* Frame header */}
-                <div className="px-4 py-3 border-b border-border/20 bg-surface/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-primary/25 border border-primary/40 animate-pulse" />
-                    <span className="text-xs font-mono font-bold text-text-primary">{route.name}</span>
+            {ROUTES.map((route, index) => {
+              const iframeId = `deck-${index}`;
+              return (
+                <div key={route.path} className="flex flex-col bg-surface/20 border border-border/35 backdrop-blur-md overflow-hidden shadow-xl">
+                  {/* Frame header */}
+                  <div className="px-4 py-3 border-b border-border/20 bg-surface/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-primary/25 border border-primary/40 animate-pulse" />
+                      <span className="text-xs font-mono font-bold text-text-primary">{route.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 font-mono text-[10px]">
+                      <button 
+                        onClick={() => captureViewport(iframeId, `bloblens-${route.name.toLowerCase().replace(/\s+/g, "-")}`)}
+                        className="text-primary hover:text-accent disabled:text-text-tertiary transition-colors flex items-center gap-1 text-[10px] uppercase font-mono"
+                        disabled={!!capturing}
+                      >
+                        {capturing === iframeId ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Snapping...
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="h-3 w-3" />
+                            Screenshot
+                          </>
+                        )}
+                      </button>
+                      <a href={route.path} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-accent transition-colors flex items-center gap-0.5">
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 font-mono text-[10px]">
-                    <span className="text-text-tertiary">{route.path}</span>
-                    <a href={route.path} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-accent transition-colors flex items-center gap-0.5">
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-                
-                {/* Scaled iframe container */}
-                <div className="relative w-full aspect-video bg-[#07090E] overflow-hidden group">
-                  <iframe 
-                    key={`${route.path}-${refreshKey}`}
-                    src={route.path} 
-                    title={route.name}
-                    className="absolute inset-0 border-none pointer-events-none"
-                    style={{
-                      width: "200%",
-                      height: "200%",
-                      transform: "scale(0.5)",
-                      transformOrigin: "top left",
-                    }}
-                  />
                   
-                  {/* Overlay for easy click-to-full */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center pointer-events-none group-hover:pointer-events-auto cursor-pointer">
-                    <button 
-                      onClick={() => {
-                        setSelectedRoute(route.path);
-                        setActiveTab("simulator");
+                  {/* Scaled iframe container */}
+                  <div className="relative w-full aspect-video bg-[#07090E] overflow-hidden group">
+                    <iframe 
+                      id={iframeId}
+                      key={`${route.path}-${refreshKey}`}
+                      src={route.path} 
+                      title={route.name}
+                      className="absolute inset-0 border-none"
+                      style={{
+                        width: "200%",
+                        height: "200%",
+                        transform: "scale(0.5)",
+                        transformOrigin: "top left",
                       }}
-                      className="opacity-0 group-hover:opacity-100 bg-primary text-black font-mono font-bold text-xs uppercase tracking-wider px-4 py-2 shadow-lg transition-opacity duration-300"
-                    >
-                      Inspect Viewports
-                    </button>
+                    />
+                    
+                    {/* Overlay for easy click-to-full */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center pointer-events-none group-hover:pointer-events-auto cursor-pointer">
+                      <button 
+                        onClick={() => {
+                          setSelectedRoute(route.path);
+                          setActiveTab("simulator");
+                        }}
+                        className="opacity-0 group-hover:opacity-100 bg-primary text-black font-mono font-bold text-xs uppercase tracking-wider px-4 py-2 shadow-lg transition-opacity duration-300"
+                      >
+                        Inspect Viewports
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -168,9 +236,28 @@ export default function PreviewsPage() {
               
               {/* Desktop frame (1280 x 800) */}
               <div className="flex flex-col shrink-0 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs text-text-primary">
-                  <Monitor className="h-4 w-4 text-primary" />
-                  <span>Desktop Viewport (1280 × 800)</span>
+                <div className="flex items-center justify-between font-mono text-xs text-text-primary">
+                  <div className="flex items-center gap-2">
+                    <Monitor className="h-4 w-4 text-primary" />
+                    <span>Desktop Viewport (1280 × 800)</span>
+                  </div>
+                  <button 
+                    onClick={() => captureViewport("sim-desktop", `bloblens-desktop-${selectedRoute.replace(/[^a-zA-Z0-9]/g, "-")}`)}
+                    className="text-primary hover:text-accent disabled:text-text-tertiary transition-colors flex items-center gap-1 text-[10px] uppercase font-mono ml-4"
+                    disabled={!!capturing}
+                  >
+                    {capturing === "sim-desktop" ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Snapping...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-3 w-3" />
+                        Screenshot
+                      </>
+                    )}
+                  </button>
                 </div>
                 <div 
                   className="border border-border/40 bg-[#07090E] overflow-hidden shadow-2xl relative"
@@ -180,6 +267,7 @@ export default function PreviewsPage() {
                   }}
                 >
                   <iframe 
+                    id="sim-desktop"
                     key={`desktop-${selectedRoute}-${refreshKey}`}
                     src={selectedRoute} 
                     className="absolute inset-0 border-none"
@@ -195,9 +283,28 @@ export default function PreviewsPage() {
 
               {/* Tablet frame (768 x 1024) */}
               <div className="flex flex-col shrink-0 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs text-text-primary">
-                  <Tablet className="h-4 w-4 text-primary" />
-                  <span>Tablet Viewport (768 × 1024)</span>
+                <div className="flex items-center justify-between font-mono text-xs text-text-primary">
+                  <div className="flex items-center gap-2">
+                    <Tablet className="h-4 w-4 text-primary" />
+                    <span>Tablet Viewport (768 × 1024)</span>
+                  </div>
+                  <button 
+                    onClick={() => captureViewport("sim-tablet", `bloblens-tablet-${selectedRoute.replace(/[^a-zA-Z0-9]/g, "-")}`)}
+                    className="text-primary hover:text-accent disabled:text-text-tertiary transition-colors flex items-center gap-1 text-[10px] uppercase font-mono ml-4"
+                    disabled={!!capturing}
+                  >
+                    {capturing === "sim-tablet" ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Snapping...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-3 w-3" />
+                        Screenshot
+                      </>
+                    )}
+                  </button>
                 </div>
                 <div 
                   className="border border-border/40 bg-[#07090E] overflow-hidden shadow-2xl relative"
@@ -207,6 +314,7 @@ export default function PreviewsPage() {
                   }}
                 >
                   <iframe 
+                    id="sim-tablet"
                     key={`tablet-${selectedRoute}-${refreshKey}`}
                     src={selectedRoute} 
                     className="absolute inset-0 border-none"
@@ -222,9 +330,28 @@ export default function PreviewsPage() {
 
               {/* Mobile frame (375 x 812) */}
               <div className="flex flex-col shrink-0 space-y-3">
-                <div className="flex items-center gap-2 font-mono text-xs text-text-primary">
-                  <Smartphone className="h-4 w-4 text-primary" />
-                  <span>Mobile Viewport (375 × 812)</span>
+                <div className="flex items-center justify-between font-mono text-xs text-text-primary">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-primary" />
+                    <span>Mobile Viewport (375 × 812)</span>
+                  </div>
+                  <button 
+                    onClick={() => captureViewport("sim-mobile", `bloblens-mobile-${selectedRoute.replace(/[^a-zA-Z0-9]/g, "-")}`)}
+                    className="text-primary hover:text-accent disabled:text-text-tertiary transition-colors flex items-center gap-1 text-[10px] uppercase font-mono ml-4"
+                    disabled={!!capturing}
+                  >
+                    {capturing === "sim-mobile" ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Snapping...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-3 w-3" />
+                        Screenshot
+                      </>
+                    )}
+                  </button>
                 </div>
                 <div 
                   className="border border-border/40 bg-[#07090E] overflow-hidden shadow-2xl relative"
@@ -234,6 +361,7 @@ export default function PreviewsPage() {
                   }}
                 >
                   <iframe 
+                    id="sim-mobile"
                     key={`mobile-${selectedRoute}-${refreshKey}`}
                     src={selectedRoute} 
                     className="absolute inset-0 border-none"
