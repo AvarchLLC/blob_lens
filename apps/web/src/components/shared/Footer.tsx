@@ -1,4 +1,4 @@
-import { Activity, BarChart3, FlaskConical, Github, Globe, Layers, LayoutDashboard, Palette } from "lucide-react";
+import { Activity, BarChart3, FlaskConical, Github, Globe, Layers, LayoutDashboard, Palette, Monitor } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -81,6 +81,13 @@ export function Footer() {
               >
                 <Palette className="h-3.5 w-3.5" />
                 Brand Kit
+              </Link>
+              <Link
+                href="/previews"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-text-secondary/70 hover:text-primary transition-colors"
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                Preview Deck
               </Link>
             </div>
           </div>
