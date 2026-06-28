@@ -76,7 +76,7 @@ export function FloatingNav() {
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2.5 shrink-0">
                     <Image
-                        src="/brand/bloblogo.png"
+                        src="/brand/bloblens-logo.svg"
                         alt="BlobLens"
                         width={28}
                         height={28}

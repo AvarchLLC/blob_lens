@@ -37,12 +37,11 @@ export function Footer() {
           <div className="col-span-2 lg:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-3 group">
               <Image
-                src="/brand/bloblogo.png"
+                src="/brand/bloblens-logo.svg"
                 alt="BlobLens logo"
                 width={48}
                 height={48}
                 className="h-12 w-12 shrink-0 opacity-90 group-hover:opacity-100 transition-opacity"
-                style={{ mixBlendMode: "screen" }}
                 priority
               />
               <div>

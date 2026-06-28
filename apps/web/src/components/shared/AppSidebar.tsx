@@ -248,7 +248,7 @@ export function AppSidebar() {
                         "group-hover:from-primary/25 group-hover:to-accent/15"
                     )}>
                         <Image
-                            src="/brand/bloblogo.png"
+                            src="/brand/bloblens-logo.svg"
                             alt="BlobLens"
                             width={22}
                             height={22}

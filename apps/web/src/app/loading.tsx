@@ -7,7 +7,7 @@ export default function Loading() {
         {/* Outer pulse ring */}
         <span className="absolute inline-flex h-16 w-16 animate-ping rounded-full bg-[#10B981] opacity-10" />
         <Image
-          src="/brand/bloblogo.png"
+          src="/brand/bloblens-logo.svg"
           alt="BlobLens"
           width={52}
           height={52}

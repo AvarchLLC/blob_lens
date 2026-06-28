@@ -23,7 +23,7 @@ export function AppHeader({ active, regimeBadge }: Props) {
         <div className="flex items-end gap-3">
           <Link href="/" className="flex items-center gap-2.5">
             <Image
-              src="/brand/bloblogo.png"
+              src="/brand/bloblens-logo.svg"
               alt="BlobLens"
               width={44}
               height={44}
