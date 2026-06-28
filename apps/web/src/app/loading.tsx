@@ -2,12 +2,21 @@ import Image from "next/image";
 
 export default function Loading() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#07090E] relative overflow-hidden">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background relative overflow-hidden">
       {/* Radial ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Tech ticks / grid lines */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
+      {/* Tech ticks / grid lines - uses theme border variable */}
+      <div 
+        className="absolute inset-0 pointer-events-none" 
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px)
+          `,
+          backgroundSize: '4rem 4rem'
+        }}
+      />
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes scan-bar {
@@ -22,7 +31,7 @@ export default function Loading() {
       `}} />
 
       <div className="flex flex-col items-center gap-6 relative z-10">
-        <div className="relative flex items-center justify-center p-8 bg-surface/10 border border-white/5 backdrop-blur-xl shadow-2xl">
+        <div className="relative flex items-center justify-center p-8 bg-surface/30 border border-border/20 backdrop-blur-xl shadow-2xl">
           {/* Glowing rotating backdrop */}
           <div className="absolute -inset-8 bg-gradient-to-tr from-primary/10 via-transparent to-accent/5 rounded-full blur-xl animate-[spin_10s_linear_infinite] opacity-60 pointer-events-none" />
           
@@ -45,7 +54,7 @@ export default function Loading() {
           </p>
           
           {/* Infinite scanner progress bar */}
-          <div className="w-36 h-[1.5px] bg-white/5 overflow-hidden relative rounded-full">
+          <div className="w-36 h-[1.5px] bg-border/20 overflow-hidden relative rounded-full">
             <div 
               className="absolute top-0 bottom-0 bg-gradient-to-r from-primary to-accent rounded-full"
               style={{ animation: "scan-bar 2s infinite ease-in-out" }}

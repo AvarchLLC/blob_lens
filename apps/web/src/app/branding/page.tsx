@@ -54,7 +54,7 @@ export default function BrandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090E] text-text-secondary relative pb-20">
+    <div className="min-h-screen bg-background text-text-secondary relative">
       {/* Grid background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
       <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px] pointer-events-none" />
