@@ -28,7 +28,7 @@ export function Sidebar() {
         <Link href="/" className="flex flex-col items-center gap-2 group">
           <div className="sidebar-logo-ring">
             <Image
-              src="/brand/bloblogo.png"
+              src="/brand/bloblens-logo.svg"
               alt="BlobLens"
               width={46}
               height={46}

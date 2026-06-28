@@ -11,7 +11,7 @@ export const watermarkGraphic = [
     top: 'middle',
     z: -10,
     style: {
-      image: '/brand/bloblogo.png',
+      image: '/brand/bloblens-logo.svg',
       width: 48,
       height: 48,
       opacity: 0.07,

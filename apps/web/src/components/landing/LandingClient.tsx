@@ -263,7 +263,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
               transition={{ type: "spring", stiffness: 150, damping: 12 }}
               className="h-9 w-9 rounded-sm border border-primary/30 bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center shadow-[0_0_10px_rgba(139,92,246,0.15)] group-hover:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition-all duration-300"
             >
-              <Image src="/brand/bloblogo.png" alt="" width={18} height={18} className="brightness-150" />
+              <Image src="/brand/bloblens-logo.svg" alt="" width={18} height={18} />
             </motion.div>
             <motion.div initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
               <p className="text-[15px] font-bold tracking-tight leading-none">
@@ -929,7 +929,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
             <div className="md:col-span-2">
               <Link href="/" className="flex items-center gap-2.5 mb-4">
                 <div className="h-7 w-7 rounded-none border border-primary/30 bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center">
-                  <img src="/brand/bloblogo.png" alt="" className="h-4 w-4 brightness-150" />
+                  <img src="/brand/bloblens-logo.svg" alt="" className="h-4 w-4" />
                 </div>
                 <span className="font-bold">Blob<span className="text-primary">Lens</span></span>
               </Link>

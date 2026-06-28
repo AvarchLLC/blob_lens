@@ -1,4 +1,4 @@
-import { Activity, BarChart3, FlaskConical, Github, Globe, Layers, LayoutDashboard } from "lucide-react";
+import { Activity, BarChart3, FlaskConical, Github, Globe, Layers, LayoutDashboard, Palette, Monitor } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -37,12 +37,11 @@ export function Footer() {
           <div className="col-span-2 lg:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-3 group">
               <Image
-                src="/brand/bloblogo.png"
+                src="/brand/bloblens-logo.svg"
                 alt="BlobLens logo"
                 width={48}
                 height={48}
                 className="h-12 w-12 shrink-0 opacity-90 group-hover:opacity-100 transition-opacity"
-                style={{ mixBlendMode: "screen" }}
                 priority
               />
               <div>
@@ -57,7 +56,7 @@ export function Footer() {
             <p className="text-xs text-text-secondary/70 leading-relaxed max-w-[220px]">
               Real-time blob economics dashboard for Ethereum. Track fees, utilization, and rollup activity.
             </p>
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
               <a
                 href="https://github.com/AvarchLLC/blob_lens"
                 target="_blank"
@@ -76,6 +75,20 @@ export function Footer() {
                 <Globe className="h-3.5 w-3.5" />
                 MyWallet360
               </a>
+              <Link
+                href="/branding"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-text-secondary/70 hover:text-primary transition-colors"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                Brand Kit
+              </Link>
+              <Link
+                href="/previews"
+                className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-text-secondary/70 hover:text-primary transition-colors"
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                Preview Deck
+              </Link>
             </div>
           </div>
 
