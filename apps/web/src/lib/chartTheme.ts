@@ -3,34 +3,90 @@
  * Provides consistent, institutional-grade chart configurations
  */
 
-export const watermarkGraphic = [
-  {
-    type: 'image',
-    id: 'wm-logo',
-    left: 'center',
-    top: 'middle',
-    z: -10,
-    style: {
-      image: '/brand/bloblens-logo.svg',
-      width: 48,
-      height: 48,
-      opacity: 0.07,
+export function getWatermarkGraphic(isDark: boolean) {
+  const formattedTime = new Date().toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+
+  // Theme-aware colors
+  const textColor = isDark ? 'rgba(142, 142, 168, 0.35)' : 'rgba(88, 84, 122, 0.45)';
+  const logoOpacity = isDark ? 0.04 : 0.05;
+  const centralTextFill = isDark ? 'rgba(139, 92, 246, 0.07)' : 'rgba(124, 58, 237, 0.08)';
+  const centralSubFill = isDark ? 'rgba(139, 92, 246, 0.04)' : 'rgba(124, 58, 237, 0.05)';
+
+  return [
+    {
+      type: 'image',
+      id: 'wm-logo',
+      left: 'center',
+      top: 'middle',
+      z: -10,
+      style: {
+        image: '/brand/bloblens-logo.svg',
+        width: 72,
+        height: 72,
+        opacity: logoOpacity,
+      }
+    },
+    {
+      type: 'text',
+      id: 'wm-text',
+      left: 'center',
+      top: '57%',
+      z: -10,
+      style: {
+        text: 'BLOBLENS',
+        font: 'bold 12px var(--font-mono), monospace',
+        fill: centralTextFill,
+        textAlign: 'center',
+        letterSpacing: 4,
+      }
+    },
+    {
+      type: 'text',
+      id: 'wm-text-sub',
+      left: 'center',
+      top: '61%',
+      z: -10,
+      style: {
+        text: 'DATA AVAILABILITY TELEMETRY',
+        font: '600 7px var(--font-mono), monospace',
+        fill: centralSubFill,
+        textAlign: 'center',
+        letterSpacing: 2,
+      }
+    },
+    {
+      type: 'text',
+      id: 'chart-footer-left',
+      left: 10,
+      bottom: 8,
+      z: -10,
+      style: {
+        text: 'bloblens.com',
+        font: '8px var(--font-mono), monospace',
+        fill: textColor,
+      }
+    },
+    {
+      type: 'text',
+      id: 'chart-footer-right',
+      right: 10,
+      bottom: 8,
+      z: -10,
+      style: {
+        text: `UPDATED: ${formattedTime}`,
+        font: '8px var(--font-mono), monospace',
+        fill: textColor,
+      }
     }
-  },
-  {
-    type: 'text',
-    id: 'wm-text',
-    left: 'center',
-    top: '58%',
-    z: -10,
-    style: {
-      text: 'BlobLens',
-      font: 'bold 13px system-ui, sans-serif',
-      fill: 'rgba(139, 92, 246, 0.09)',
-      textAlign: 'center',
-    }
-  }
-];
+  ];
+}
+
+// Static fallback for backwards compatibility
+export const watermarkGraphic = getWatermarkGraphic(true);
 
 export const chartTheme = {
   dark: {
@@ -80,14 +136,14 @@ export const chartTheme = {
       },
       splitLine: {
         lineStyle: {
-          color: "var(--border)", // Border color
+          color: "var(--border)",
           opacity: 0.4,
           type: "dashed" as const,
         },
       },
     },
     lineStyle: {
-      color: "#8B5CF6", // Primary Purple
+      color: "#8B5CF6",
       width: 2,
     },
     areaGradient: {
@@ -107,18 +163,18 @@ export const chartTheme = {
       textStyle: { color: "#8E8EA8", fontSize: 10 },
       itemWidth: 8,
       itemHeight: 8,
-      selectedMode: true, // Allows deselecting individual L2s
+      selectedMode: true,
     },
     dataZoom: [
       {
         type: 'inside',
         start: 0,
         end: 100,
-        zoomOnMouseWheel: 'alt', // Professional zoom behavior
+        zoomOnMouseWheel: 'alt',
       },
       {
         type: 'slider',
-        show: true, // Show slider globally for time-series navigation
+        show: true,
         start: 0,
         end: 100,
         height: 20,
@@ -155,7 +211,7 @@ export const chartTheme = {
       },
     },
     gridDefaults: {
-      top: 40, // Increased for legend
+      top: 40,
       right: 16,
       bottom: 24,
       left: 0,
@@ -214,7 +270,7 @@ export const chartTheme = {
       },
       {
         type: 'slider',
-        show: true, // Show slider globally for time-series navigation
+        show: true,
         start: 0,
         end: 100,
         height: 20,
@@ -228,7 +284,11 @@ export const chartTheme = {
 };
 
 export function getChartTheme(isDark: boolean) {
-  return isDark ? chartTheme.dark : chartTheme.light;
+  const baseTheme = isDark ? chartTheme.dark : chartTheme.light;
+  return {
+    ...baseTheme,
+    graphic: getWatermarkGraphic(isDark)
+  };
 }
 
 export function createTooltipFormatter(isUsd: boolean, formatter: (v: number) => string) {

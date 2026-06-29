@@ -1,6 +1,6 @@
 "use client";
 
-import { getChartTheme, watermarkGraphic, animationConfig } from "@/lib/chartTheme";
+import { getChartTheme, getWatermarkGraphic, animationConfig } from "@/lib/chartTheme";
 import { rollupColor } from "@/lib/utils";
 import type { LeaderboardRow } from "@/types";
 import ReactECharts from "echarts-for-react";
@@ -74,7 +74,7 @@ export function RollupShareDonut({ data }: Props) {
       selectedMode: true,
     },
     graphic: [
-      ...watermarkGraphic,
+      ...getWatermarkGraphic(isDark),
       {
         type: "text",
         left: "center",
