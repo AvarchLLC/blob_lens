@@ -57,30 +57,6 @@ export function getWatermarkGraphic(isDark: boolean) {
         textAlign: 'center',
         letterSpacing: 2,
       }
-    },
-    {
-      type: 'text',
-      id: 'chart-footer-left',
-      left: 10,
-      bottom: 8,
-      z: -10,
-      style: {
-        text: 'bloblens.com',
-        font: '8px var(--font-mono), monospace',
-        fill: textColor,
-      }
-    },
-    {
-      type: 'text',
-      id: 'chart-footer-right',
-      right: 10,
-      bottom: 8,
-      z: -10,
-      style: {
-        text: `UPDATED: ${formattedTime}`,
-        font: '8px var(--font-mono), monospace',
-        fill: textColor,
-      }
     }
   ];
 }
