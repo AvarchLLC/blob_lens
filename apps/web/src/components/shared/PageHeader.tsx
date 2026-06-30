@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { ChartCardFooter } from './ChartCardFooter';
 
 interface PageHeaderProps {
   meta?: string;
@@ -96,11 +97,14 @@ export function PageSection({
       </div>
       
       <div className={cn(
-        "surface bg-surface border border-dashed border-border-dotted rounded-none flex-1 transition-colors duration-300 hover:border-primary/20",
+        "surface bg-surface border border-dashed border-border-dotted rounded-none flex-grow transition-colors duration-300 hover:border-primary/20 flex flex-col justify-between",
         !noPadding && "p-6",
-        fullHeight && "flex flex-col"
+        fullHeight && "h-full"
       )}>
-        {children}
+        <div className="flex-grow w-full">
+          {children}
+        </div>
+        <ChartCardFooter />
       </div>
       
       {interpretation && (

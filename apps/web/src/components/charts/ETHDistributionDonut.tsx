@@ -1,6 +1,6 @@
 "use client";
 
-import { getChartTheme, watermarkGraphic, animationConfig } from "@/lib/chartTheme";
+import { getChartTheme, getWatermarkGraphic, animationConfig } from "@/lib/chartTheme";
 import type { ETHLiquiditySnapshot } from "@/types";
 import ReactECharts from "echarts-for-react";
 import { useTheme } from "next-themes";
@@ -71,7 +71,7 @@ export function ETHDistributionDonut({ data }: Props) {
       selectedMode: true,
     },
     graphic: [
-      ...watermarkGraphic,
+      ...getWatermarkGraphic(isDark),
       {
         type: "text",
         left: "center",

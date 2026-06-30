@@ -2,25 +2,81 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-import { BlobFeeLineChart } from "@/components/charts/BlobFeeLineChart";
-import { CongestionForecast } from "@/components/charts/CongestionForecast";
-import { CostHeatmap } from "@/components/charts/CostHeatmap";
-import { CumulativeBlobGrowth } from "@/components/charts/CumulativeBlobGrowth";
-import { DACostCharts } from "@/components/charts/DACostCharts";
+import dynamic from "next/dynamic";
+
+const BlobFeeLineChart = dynamic(() => import("@/components/charts/BlobFeeLineChart").then(m => m.BlobFeeLineChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const CongestionForecast = dynamic(() => import("@/components/charts/CongestionForecast").then(m => m.CongestionForecast), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const CostHeatmap = dynamic(() => import("@/components/charts/CostHeatmap").then(m => m.CostHeatmap), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const CumulativeBlobGrowth = dynamic(() => import("@/components/charts/CumulativeBlobGrowth").then(m => m.CumulativeBlobGrowth), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const DACostCharts = dynamic(() => import("@/components/charts/DACostCharts").then(m => m.DACostCharts), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const EfficiencyScatterplot = dynamic(() => import("@/components/charts/EfficiencyScatterplot").then(m => m.EfficiencyScatterplot), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const FeeBlobScatter = dynamic(() => import("@/components/charts/FeeBlobScatter").then(m => m.FeeBlobScatter), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const FeePercentilesChart = dynamic(() => import("@/components/charts/FeePercentilesChart").then(m => m.FeePercentilesChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const HistoricalBlobCostChart = dynamic(() => import("@/components/charts/HistoricalBlobCostChart").then(m => m.HistoricalBlobCostChart), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const HistoricalBlobVolumeChart = dynamic(() => import("@/components/charts/HistoricalBlobVolumeChart").then(m => m.HistoricalBlobVolumeChart), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const MarketRegimeTimeline = dynamic(() => import("@/components/charts/MarketRegimeTimeline").then(m => m.MarketRegimeTimeline), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RegimeHeatmap = dynamic(() => import("@/components/charts/RegimeHeatmap").then(m => m.RegimeHeatmap), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RollupActivityLineChart = dynamic(() => import("@/components/charts/RollupActivityLineChart").then(m => m.RollupActivityLineChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RollupMetricLineChart = dynamic(() => import("@/components/charts/RollupMetricLineChart").then(m => m.RollupMetricLineChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RollupShareDonut = dynamic(() => import("@/components/charts/RollupShareDonut").then(m => m.RollupShareDonut), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RollupVolumeAreaChart = dynamic(() => import("@/components/charts/RollupVolumeAreaChart").then(m => m.RollupVolumeAreaChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const SlotUtilizationChart = dynamic(() => import("@/components/charts/SlotUtilizationChart").then(m => m.SlotUtilizationChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const SubmissionTimingHeatmap = dynamic(() => import("@/components/charts/SubmissionTimingHeatmap").then(m => m.SubmissionTimingHeatmap), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
 import { EfficiencyComparisonTable } from "@/components/charts/EfficiencyComparisonTable";
-import { EfficiencyScatterplot } from "@/components/charts/EfficiencyScatterplot";
-import { FeeBlobScatter } from "@/components/charts/FeeBlobScatter";
-import { FeePercentilesChart } from "@/components/charts/FeePercentilesChart";
-import { HistoricalBlobCostChart } from "@/components/charts/HistoricalBlobCostChart";
-import { HistoricalBlobVolumeChart } from "@/components/charts/HistoricalBlobVolumeChart";
-import { MarketRegimeTimeline } from "@/components/charts/MarketRegimeTimeline";
-import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
-import { RollupActivityLineChart } from "@/components/charts/RollupActivityLineChart";
-import { RollupMetricLineChart } from "@/components/charts/RollupMetricLineChart";
-import { RollupShareDonut } from "@/components/charts/RollupShareDonut";
-import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
-import { SlotUtilizationChart } from "@/components/charts/SlotUtilizationChart";
-import { SubmissionTimingHeatmap } from "@/components/charts/SubmissionTimingHeatmap";
 import { PageHeader, PageSection } from "@/components/shared/PageHeader";
 import { RegimeBadge } from "@/components/shared/RegimeBadge";
 import { TimeRangePicker } from "@/components/shared/TimeRangePicker";
