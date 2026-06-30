@@ -9,8 +9,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Reth full node with ExEx support
-reth-ethereum       = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", features = ["full", "cli"] }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0" }
+reth-ethereum       = { git = "https://github.com/paradigmxyz/reth", tag = "v2.3.0", features = ["full", "cli"] }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v2.3.0" }
 
 # ClickHouse HTTP client
 clickhouse = { version = "0.13", features = ["lz4"] }
@@ -19,10 +19,14 @@ clickhouse = { version = "0.13", features = ["lz4"] }
 tokio        = { version = "1",     features = ["full"] }
 futures-util = "0.3"
 
-# Alloy types — pinned to match reth v2.2.0
-alloy-consensus  = { version = "2.0.4", features = ["std"] }
-alloy-eips       = "2.0.4"
-alloy-primitives = "1.5.6"
+# Alloy types — pinned to match reth v2.3.0 exactly
+alloy-consensus        = { version = "=2.0.5", features = ["std"] }
+alloy-eips             = { version = "=2.0.5" }
+alloy-primitives       = { version = "=1.6.0" }
+alloy-rpc-types        = { version = "=2.0.5" }
+alloy-rpc-types-engine = { version = "=2.0.5" }
+alloy-provider         = { version = "=2.0.5" }
+alloy-network          = { version = "=2.0.5" }
 
 # Serialization
 serde      = { version = "1", features = ["derive"] }
