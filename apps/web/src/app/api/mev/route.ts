@@ -123,28 +123,28 @@ export async function GET(req: NextRequest) {
       const [main, pct] = await Promise.all([
         ch(`
           SELECT
-            count()                          AS total_sandwiches,
-            countDistinct(s.victim_tx)       AS unique_victims,
-            countDistinct(s.sandwicher)      AS unique_bots,
-            countDistinct(s.pool)            AS unique_pools,
-            min(s.block_number)              AS first_block,
-            max(s.block_number)              AS last_block,
-            countIf(s.protocol='uniswap_v3')   AS v3_count,
-            countIf(s.protocol='uniswap_v2')   AS v2_count,
-            countIf(s.protocol='sushiswap_v2') AS sushi_count,
-            countIf(s.protocol='curve')        AS curve_count,
-            countIf(s.protocol='dodo')         AS dodo_count,
-            round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS total_gross_profit_usd,
-            round(sum(${gasCostUsdSql()}))   AS total_gas_cost_usd
-          FROM blob_lens.mev_sandwiches s FINAL
-          LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
+            sum(s.sandwiches)                        AS total_sandwiches,
+            uniqMerge(s.unique_victims)              AS unique_victims,
+            uniqMerge(s.unique_bots)                 AS unique_bots,
+            uniqMerge(s.unique_pools)                AS unique_pools,
+            min(s.first_block)                       AS first_block,
+            max(s.last_block)                        AS last_block,
+            sumIf(s.sandwiches, s.protocol='uniswap_v3')   AS v3_count,
+            sumIf(s.sandwiches, s.protocol='uniswap_v2')   AS v2_count,
+            sumIf(s.sandwiches, s.protocol='sushiswap_v2') AS sushi_count,
+            sumIf(s.sandwiches, s.protocol='curve')        AS curve_count,
+            sumIf(s.sandwiches, s.protocol='dodo')         AS dodo_count,
+            round(sum(s.gross_profit_usd) + sum(s.gross_profit_weth * coalesce(p.price_usd, 2000.0))) AS total_gross_profit_usd,
+            round(sum(s.gas_cost_weth * coalesce(p.price_usd, 2000.0))) AS total_gas_cost_usd
+          FROM blob_lens.mev_daily_stats s
+          LEFT JOIN blob_lens.eth_daily_price p ON s.date = p.date
         `),
         ch(`
           SELECT
-            countDistinct(s.block_number) AS sandwich_blocks,
+            uniqMerge(s.unique_blocks) AS sandwich_blocks,
             (SELECT count() FROM ethereum.blocks WHERE timestamp >= now() - INTERVAL 30 DAY AND is_deleted=0) AS total_blocks
-          FROM blob_lens.mev_sandwiches s FINAL
-          WHERE block_timestamp >= now() - INTERVAL 30 DAY
+          FROM blob_lens.mev_daily_stats s
+          WHERE s.date >= toDate(now() - INTERVAL 30 DAY)
         `),
       ]);
       return NextResponse.json({
@@ -158,23 +158,23 @@ export async function GET(req: NextRequest) {
       const weeks = Number(req.nextUrl.searchParams.get("weeks") ?? "16");
       const rows = await ch(`
         SELECT
-          toStartOfWeek(s.block_timestamp)         AS week,
-          count()                                  AS sandwiches,
-          countDistinct(s.sandwicher)              AS active_bots,
-          countDistinct(s.block_number)            AS blocks_sandwiched,
-          countIf(s.protocol='uniswap_v3')         AS v3_count,
-          countIf(s.protocol='uniswap_v2')         AS v2_count,
-          countIf(s.protocol='sushiswap_v2')       AS sushi_count,
-          countIf(s.protocol='curve')              AS curve_count,
-          countIf(s.protocol='dodo')               AS dodo_count,
-          round(sum(${victimUsdSql()}))            AS victim_usd_total,
-          countIf(${victimUsdSql()} > 0)           AS usd_count,
-          countDistinct(s.victim_tx)               AS weekly_victims,
-          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS bot_profit_usd,
-          round(sum(${gasCostUsdSql()}))           AS bot_gas_usd
-        FROM blob_lens.mev_sandwiches s FINAL
-        LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
-        WHERE s.block_timestamp >= now() - INTERVAL ${weeks} WEEK
+          toStartOfWeek(s.date)                    AS week,
+          sum(s.sandwiches)                        AS sandwiches,
+          uniqMerge(s.unique_bots)                 AS active_bots,
+          uniqMerge(s.unique_blocks)               AS blocks_sandwiched,
+          sumIf(s.sandwiches, s.protocol='uniswap_v3')   AS v3_count,
+          sumIf(s.sandwiches, s.protocol='uniswap_v2')   AS v2_count,
+          sumIf(s.sandwiches, s.protocol='sushiswap_v2') AS sushi_count,
+          sumIf(s.sandwiches, s.protocol='curve')        AS curve_count,
+          sumIf(s.sandwiches, s.protocol='dodo')         AS dodo_count,
+          round(sum(s.victim_volume_usd) + sum(s.victim_volume_weth * coalesce(p.price_usd, 2000.0))) AS victim_usd_total,
+          sum(s.victim_usd_count)                  AS usd_count,
+          uniqMerge(s.unique_victims)              AS weekly_victims,
+          round(sum(s.gross_profit_usd) + sum(s.gross_profit_weth * coalesce(p.price_usd, 2000.0))) AS bot_profit_usd,
+          round(sum(s.gas_cost_weth * coalesce(p.price_usd, 2000.0))) AS bot_gas_usd
+        FROM blob_lens.mev_daily_stats s
+        LEFT JOIN blob_lens.eth_daily_price p ON s.date = p.date
+        WHERE s.date >= toDate(now() - INTERVAL ${weeks} WEEK)
         GROUP BY week
         ORDER BY week ASC
       `);
