@@ -1,15 +1,46 @@
-import { BlobFeeGauge } from "@/components/charts/BlobFeeGauge";
-import { BlobFeeLineChartSelector } from "@/components/charts/BlobFeeLineChartSelector";
-import { BlobsPerBlockChart } from "@/components/charts/BlobsPerBlockChart";
-import { BlobUtilizationChart } from "@/components/charts/BlobUtilizationChart";
-import { CongestionForecast } from "@/components/charts/CongestionForecast";
-import { CostHeatmap } from "@/components/charts/CostHeatmap";
-import { EfficiencyComparisonTable } from "@/components/charts/EfficiencyComparisonTable";
-import { EfficiencyScatterplot } from "@/components/charts/EfficiencyScatterplot";
-import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
-import { RollupNetworkGraphD3 } from "@/components/charts/RollupNetworkGraphD3";
-import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
+import dynamic from "next/dynamic";
+
+const BlobFeeGauge = dynamic(() => import("@/components/charts/BlobFeeGauge").then(m => m.BlobFeeGauge), {
+  loading: () => <div className="h-[200px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const BlobFeeLineChartSelector = dynamic(() => import("@/components/charts/BlobFeeLineChartSelector").then(m => m.BlobFeeLineChartSelector), {
+  loading: () => <div className="h-[400px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const BlobsPerBlockChart = dynamic(() => import("@/components/charts/BlobsPerBlockChart").then(m => m.BlobsPerBlockChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const BlobUtilizationChart = dynamic(() => import("@/components/charts/BlobUtilizationChart").then(m => m.BlobUtilizationChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const CongestionForecast = dynamic(() => import("@/components/charts/CongestionForecast").then(m => m.CongestionForecast), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const CostHeatmap = dynamic(() => import("@/components/charts/CostHeatmap").then(m => m.CostHeatmap), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const EfficiencyScatterplot = dynamic(() => import("@/components/charts/EfficiencyScatterplot").then(m => m.EfficiencyScatterplot), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RegimeHeatmap = dynamic(() => import("@/components/charts/RegimeHeatmap").then(m => m.RegimeHeatmap), {
+  loading: () => <div className="h-[350px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RollupNetworkGraphD3 = dynamic(() => import("@/components/charts/RollupNetworkGraphD3").then(m => m.RollupNetworkGraphD3), {
+  loading: () => <div className="h-[500px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
+
+const RollupVolumeAreaChart = dynamic(() => import("@/components/charts/RollupVolumeAreaChart").then(m => m.RollupVolumeAreaChart), {
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-surface-elevated/30 rounded-none border border-dashed border-border/20" />
+});
 import { BlockFeed } from "@/components/shared/BlockFeed";
+import { EfficiencyComparisonTable } from "@/components/charts/EfficiencyComparisonTable";
 import { EfficiencyLeaderboardMini } from "@/components/shared/EfficiencyLeaderboardMini";
 import { FeeActionCard } from "@/components/shared/FeeActionCard";
 import { LiveBlobFeed } from "@/components/shared/LiveBlobFeed";
