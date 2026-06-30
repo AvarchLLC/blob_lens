@@ -41,24 +41,27 @@ interface MevStats {
   unique_pools: string; first_block: string; last_block: string;
   sandwich_blocks: string; total_blocks: string;
   v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
+  total_gross_profit_usd: string; total_gas_cost_usd: string;
 }
 interface WeekRow {
   week: string; sandwiches: string; active_bots: string; blocks_sandwiched: string;
   v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
   victim_usd_total: string; usd_count: string; weekly_victims: string;
+  bot_profit_usd: string; bot_gas_usd: string;
 }
 interface BlockPctRow { week: string; total_blocks: string; sandwich_blocks: string; }
 interface BotRow {
   sandwicher: string; sandwiches: string; unique_victims: string;
-  unique_pools: string; first_seen_block: string; last_seen_block: string; total_gas_cost_usd: string;
+  unique_pools: string; first_seen_block: string; last_seen_block: string;
+  total_gas_cost_usd: string; total_profit_usd: string; net_profit_usd: string;
 }
-interface PoolRow { pool: string; token0: string; token1: string; protocol: string; sandwiches: string; unique_victims: string; unique_bots: string; }
-interface PairRow { token0: string; token1: string; protocol: string; sandwiches: string; unique_victims: string; unique_pools: string; unique_bots: string; victim_usd_total: string; }
+interface PoolRow { pool: string; token0: string; token1: string; protocol: string; sandwiches: string; unique_victims: string; unique_bots: string; bot_profit_usd: string; }
+interface PairRow { token0: string; token1: string; protocol: string; sandwiches: string; unique_victims: string; unique_pools: string; unique_bots: string; victim_usd_total: string; bot_profit_usd: string; }
 interface TokenRow { token: string; sandwiches: string; unique_victims: string; unique_bots: string; }
 interface RecentRow {
   block_number: string; block_timestamp: string; sandwicher: string; pool: string; protocol: string;
   frontrun_tx: string; frontrun_idx: string; victim_tx: string; victim_idx: string; backrun_tx: string; backrun_idx: string;
-  token0: string; token1: string; victim_usd: string;
+  token0: string; token1: string; victim_usd: string; bot_profit_usd: string; gas_cost_usd: string;
 }
 interface Progress { last_block: string; total_sandwiches: string; dencun_start: number; }
 type TabId = "overview" | "tokens" | "pairs" | "bots" | "pools" | "recent";
@@ -109,13 +112,13 @@ const LIGHT: TC = {
 
 /* ─── protocol config ──────────────────────────────────────────────────── */
 const PROTO_CONFIG: Record<string, { label: string; color: string; dark: string; light: string }> = {
-  uniswap_v3:   { label: "Uni v3",  color: "#e91e8c", dark: "bg-pink-500/15 text-pink-400 border-pink-500/30",    light: "bg-pink-50 text-pink-600 border-pink-200" },
-  uniswap_v2:   { label: "Uni v2",  color: "#8b5cf6", dark: "bg-violet-500/15 text-violet-400 border-violet-500/30", light: "bg-violet-50 text-violet-600 border-violet-200" },
-  sushiswap_v2: { label: "Sushi",   color: "#f97316", dark: "bg-orange-500/15 text-orange-400 border-orange-500/30", light: "bg-orange-50 text-orange-600 border-orange-200" },
-  curve:        { label: "Curve",   color: "#10b981", dark: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", light: "bg-emerald-50 text-emerald-600 border-emerald-200" },
-  dodo:         { label: "DODO",    color: "#eab308", dark: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",  light: "bg-yellow-50 text-yellow-600 border-yellow-200" },
+  uniswap_v3: { label: "Uni v3", color: "#e91e8c", dark: "bg-pink-500/15 text-pink-400 border-pink-500/30", light: "bg-pink-50 text-pink-600 border-pink-200" },
+  uniswap_v2: { label: "Uni v2", color: "#8b5cf6", dark: "bg-violet-500/15 text-violet-400 border-violet-500/30", light: "bg-violet-50 text-violet-600 border-violet-200" },
+  sushiswap_v2: { label: "Sushi", color: "#f97316", dark: "bg-orange-500/15 text-orange-400 border-orange-500/30", light: "bg-orange-50 text-orange-600 border-orange-200" },
+  curve: { label: "Curve", color: "#10b981", dark: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", light: "bg-emerald-50 text-emerald-600 border-emerald-200" },
+  dodo: { label: "DODO", color: "#eab308", dark: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30", light: "bg-yellow-50 text-yellow-600 border-yellow-200" },
 };
-const CHART_COLORS = ["#e91e8c","#8b5cf6","#f97316","#10b981","#eab308","#06b6d4","#ef4444","#22c55e","#a855f7","#f43f5e","#3b82f6","#f59e0b"];
+const CHART_COLORS = ["#e91e8c", "#8b5cf6", "#f97316", "#10b981", "#eab308", "#06b6d4", "#ef4444", "#22c55e", "#a855f7", "#f43f5e", "#3b82f6", "#f59e0b"];
 
 /* ─── helpers ──────────────────────────────────────────────────────────── */
 const API = "/api/mev";
@@ -285,6 +288,7 @@ export default function MevClient() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     const iv = setInterval(load, 30_000);
     return () => clearInterval(iv);
@@ -331,6 +335,8 @@ export default function MevClient() {
     bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? 0),
     usd: Number(r.victim_usd_total),
     usdPct: r.usd_count && r.sandwiches ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100) : 0,
+    bot_profit_usd: Number(r.bot_profit_usd),
+    bot_gas_usd: Number(r.bot_gas_usd),
   }));
 
   const shareData = weekly.map((r) => {
@@ -363,9 +369,9 @@ export default function MevClient() {
   const protoPie = [
     { name: "Uniswap v3", value: v3T, fill: "#e91e8c" },
     { name: "Uniswap v2", value: v2T, fill: "#8b5cf6" },
-    { name: "SushiSwap",  value: sushiT, fill: "#f97316" },
-    { name: "Curve",      value: curveT, fill: "#10b981" },
-    { name: "DODO",       value: dodoT, fill: "#eab308" },
+    { name: "SushiSwap", value: sushiT, fill: "#f97316" },
+    { name: "Curve", value: curveT, fill: "#10b981" },
+    { name: "DODO", value: dodoT, fill: "#eab308" },
   ].filter((e) => e.value > 0);
 
   const pairsTot = pairs.reduce((s, p) => s + Number(p.sandwiches), 0) || 1;
@@ -381,11 +387,11 @@ export default function MevClient() {
 
   const TABS: { id: TabId; label: string }[] = [
     { id: "overview", label: "Overview" },
-    { id: "tokens",   label: "Tokens" },
-    { id: "pairs",    label: "Token Pairs" },
-    { id: "bots",     label: "Bots" },
-    { id: "pools",    label: "Pools" },
-    { id: "recent",   label: "Live Feed" },
+    { id: "tokens", label: "Tokens" },
+    { id: "pairs", label: "Token Pairs" },
+    { id: "bots", label: "Bots" },
+    { id: "pools", label: "Pools" },
+    { id: "recent", label: "Live Feed" },
   ];
 
   return (
@@ -405,267 +411,153 @@ export default function MevClient() {
         </div>
       </PageHeader>
 
-        {/* ── backfill banner ─────────────────────────────────────────── */}
-        {backfilling && progress && stats && (
-          <div className={`rounded-none border border-dashed ${tc.bannerBorder} ${tc.bannerBg} px-5 py-3 font-mono`}>
-            <div className="flex items-center justify-between text-sm">
-              <span className={`font-bold ${tc.bannerText} uppercase tracking-wide`}>Historical backfill running — {bfPct}% complete</span>
-              <span className={`text-xs ${tc.bannerSub}`}>block {fmt(progress.last_block)} / {fmt(stats.last_block)}</span>
-            </div>
-            <div className={`mt-2 h-1.5 rounded-none bg-background border border-border/30 overflow-hidden`}>
-              <div className={`h-full rounded-none ${tc.bannerBar} transition-all`} style={{ width: `${bfPct}%` }} />
-            </div>
-            <p className={`mt-1.5 text-xs ${tc.bannerSub}`}>{fmt(progress.total_sandwiches)} sandwiches detected so far</p>
+      {/* ── backfill banner ─────────────────────────────────────────── */}
+      {backfilling && progress && stats && (
+        <div className={`rounded-none border border-dashed ${tc.bannerBorder} ${tc.bannerBg} px-5 py-3 font-mono`}>
+          <div className="flex items-center justify-between text-sm">
+            <span className={`font-bold ${tc.bannerText} uppercase tracking-wide`}>Historical backfill running — {bfPct}% complete</span>
+            <span className={`text-xs ${tc.bannerSub}`}>block {fmt(progress.last_block)} / {fmt(stats.last_block)}</span>
           </div>
-        )}
-
-        {/* ── KPIs ────────────────────────────────────────────────────── */}
-        {stats && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Kpi tc={tc} label="Total Sandwiches" value={fmtK(stats.total_sandwiches)} sub="since Dencun" accent="text-pink-500" />
-            <Kpi tc={tc} label="Unique Victims"   value={fmtK(stats.unique_victims)}   sub="distinct txs targeted" />
-            <Kpi tc={tc} label="MEV Bots"         value={fmt(stats.unique_bots)}        sub="unique sandwichers" accent="text-red-500" />
-            <Kpi tc={tc} label="Pools Targeted"   value={fmtK(stats.unique_pools)} />
-            <Kpi tc={tc} label="Blocks Sandwiched" value={`${pctBlocks}%`}             sub="of blocks, last 30d" accent="text-amber-500" />
-            <Kpi tc={tc} label="Rate"
-              value={`${((Number(stats.total_sandwiches) / Math.max(1, Number(stats.last_block) - Number(stats.first_block))) * 1000).toFixed(2)}/1K`}
-              sub="per 1000 blocks"
-            />
+          <div className={`mt-2 h-1.5 rounded-none bg-background border border-border/30 overflow-hidden`}>
+            <div className={`h-full rounded-none ${tc.bannerBar} transition-all`} style={{ width: `${bfPct}%` }} />
           </div>
-        )}
-
-        {/* ── tab bar ─────────────────────────────────────────────────── */}
-        <div className={`flex gap-0.5 border-b ${tc.tabBar} font-mono`}>
-          {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 text-[12px] font-bold uppercase tracking-wider transition-all rounded-none ${tab === t.id ? tc.tabActive : tc.tabInactive}`}
-            >
-              {t.label}
-            </button>
-          ))}
+          <p className={`mt-1.5 text-xs ${tc.bannerSub}`}>{fmt(progress.total_sandwiches)} sandwiches detected so far</p>
         </div>
+      )}
 
-        {/* ╔══════════════════════ OVERVIEW ══════════════════════════════╗ */}
-        {tab === "overview" && (
-          <div className="space-y-5">
+      {/* ── KPIs ────────────────────────────────────────────────────── */}
+      {stats && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          <Kpi tc={tc} label="Total Sandwiches" value={fmtK(stats.total_sandwiches)} sub="since Dencun" accent="text-pink-500" />
+          <Kpi tc={tc} label="Gross Revenue" value={fmtUsd(stats.total_gross_profit_usd)} sub="estimated bot revenue" accent="text-emerald-500" />
+          <Kpi tc={tc} label="Net Bot Profit" value={fmtUsd(Number(stats.total_gross_profit_usd) - Number(stats.total_gas_cost_usd))} sub="revenue minus gas" accent="text-cyan-400" />
+          <Kpi tc={tc} label="MEV Bots" value={fmt(stats.unique_bots)} sub="unique sandwichers" accent="text-red-500" />
+          <Kpi tc={tc} label="Unique Victims" value={fmtK(stats.unique_victims)} sub="distinct txs targeted" />
+          <Kpi tc={tc} label="Pools Targeted" value={fmtK(stats.unique_pools)} />
+          <Kpi tc={tc} label="Blocks Sandwiched" value={`${pctBlocks}%`} sub="of blocks, last 30d" accent="text-amber-500" />
+          <Kpi tc={tc} label="Rate"
+            value={`${((Number(stats.total_sandwiches) / Math.max(1, Number(stats.last_block) - Number(stats.first_block))) * 1000).toFixed(2)}/1K`}
+            sub="per 1000 blocks"
+          />
+        </div>
+      )}
 
-            {/* absolute stacked area */}
-            <Card tc={tc} title="Sandwiched Transactions" sub="ethereum, Weekly">
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={weeklyData}>
-                  <defs>
-                    {[["gv3","#e91e8c"],["gv2","#8b5cf6"],["gs","#f97316"],["gc","#10b981"],["gd","#eab308"]].map(([id,c]) => (
-                      <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%"   stopColor={c} stopOpacity={0.55} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0.04} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                  <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
-                  <Tooltip {...TIP} />
-                  <Legend wrapperStyle={LEG} />
-                  <Area type="monotone" dataKey="v3"    name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="url(#gv3)" strokeWidth={1.5} />
-                  <Area type="monotone" dataKey="v2"    name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="url(#gv2)" strokeWidth={1.5} />
-                  <Area type="monotone" dataKey="sushi" name="SushiSwap"  stackId="1" stroke="#f97316" fill="url(#gs)"  strokeWidth={1.5} />
-                  <Area type="monotone" dataKey="curve" name="Curve"      stackId="1" stroke="#10b981" fill="url(#gc)"  strokeWidth={1.5} />
-                  <Area type="monotone" dataKey="dodo"  name="DODO"       stackId="1" stroke="#eab308" fill="url(#gd)"  strokeWidth={1.5} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Card>
+      {/* ── tab bar ─────────────────────────────────────────────────── */}
+      <div className={`flex gap-0.5 border-b ${tc.tabBar} font-mono`}>
+        {TABS.map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-4 py-2.5 text-[12px] font-bold uppercase tracking-wider transition-all rounded-none ${tab === t.id ? tc.tabActive : tc.tabInactive}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-            {/* 100% share + protocol donut */}
-            <div className="grid gap-5 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <Card tc={tc} title="Sandwiched Transactions per Protocol" sub="ethereum, % share, Weekly">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={shareData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                      <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={(v) => `${v}%`} />
-                      <Tooltip {...TIP} formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name]} />
-                      <Legend wrapperStyle={LEG} />
-                      <Area type="monotone" dataKey="v3"    name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="#e91e8c30" strokeWidth={1.5} />
-                      <Area type="monotone" dataKey="v2"    name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="#8b5cf630" strokeWidth={1.5} />
-                      <Area type="monotone" dataKey="sushi" name="SushiSwap"  stackId="1" stroke="#f97316" fill="#f9731630" strokeWidth={1.5} />
-                      <Area type="monotone" dataKey="curve" name="Curve"      stackId="1" stroke="#10b981" fill="#10b98130" strokeWidth={1.5} />
-                      <Area type="monotone" dataKey="dodo"  name="DODO"       stackId="1" stroke="#eab308" fill="#eab30830" strokeWidth={1.5} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </Card>
-              </div>
-              <DonutCard tc={tc} title="Protocol Split" sub="all-time" data={protoPie} total={protoTot} />
-            </div>
+      {/* ╔══════════════════════ OVERVIEW ══════════════════════════════╗ */}
+      {tab === "overview" && (
+        <div className="space-y-5">
 
-            {/* victim addresses + blocks % */}
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Card tc={tc} title="Sandwiched DEX Trading Addresses" sub="ethereum, Weekly (unique victim txs)">
-                {weeklyData.some((r) => r.victims > 0) ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={weeklyData}>
-                      <defs>
-                        <linearGradient id="gvic" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%"   stopColor="#f87171" stopOpacity={0.5} />
-                          <stop offset="100%" stopColor="#f87171" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                      <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
-                      <Tooltip {...TIP} formatter={(v: number) => [fmtK(v), "Unique victim txs"]} />
-                      <Area type="monotone" dataKey="victims" name="Victim Txs" stroke="#f87171" fill="url(#gvic)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : <EmptyState tc={tc} msg="Available after backfill" />}
-              </Card>
+          {/* absolute stacked area */}
+          <Card tc={tc} title="Sandwiched Transactions" sub="ethereum, Weekly">
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={weeklyData}>
+                <defs>
+                  {[["gv3", "#e91e8c"], ["gv2", "#8b5cf6"], ["gs", "#f97316"], ["gc", "#10b981"], ["gd", "#eab308"]].map(([id, c]) => (
+                    <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={c} stopOpacity={0.55} />
+                      <stop offset="100%" stopColor={c} stopOpacity={0.04} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
+                <Tooltip {...TIP} />
+                <Legend wrapperStyle={LEG} />
+                <Area type="monotone" dataKey="v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="url(#gv3)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="url(#gv2)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="url(#gs)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="curve" name="Curve" stackId="1" stroke="#10b981" fill="url(#gc)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="dodo" name="DODO" stackId="1" stroke="#eab308" fill="url(#gd)" strokeWidth={1.5} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
 
-              <Card tc={tc} title="Portion of Blocks with Sandwich Trades" sub="ethereum, % weekly">
-                {blkData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={blkData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                      <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={(v) => `${v}%`} />
-                      <Tooltip
-                        {...TIP}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: number, name: string, entry: any) =>
-                          name === "Sandwich"
-                            ? [`${v}%  (${fmt(entry.payload?.sw ?? 0)} / ${fmt(entry.payload?.total ?? 0)} blocks)`, "Blocks w/ sandwich"]
-                            : [`${v}%`, "Other blocks"]
-                        }
-                      />
-                      <Legend wrapperStyle={LEG} />
-                      <Area type="monotone" dataKey="other"    name="Other"    stackId="1" stroke="#10b981" fill="#10b98125" strokeWidth={1} />
-                      <Area type="monotone" dataKey="sandwich" name="Sandwich" stackId="1" stroke="#f43f5e" fill="#f43f5e55" strokeWidth={1.5} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : <EmptyState tc={tc} />}
-              </Card>
-            </div>
-
-            {/* bots weekly + USD */}
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Card tc={tc} title="Sandwich Bots" sub="ethereum, Weekly (active bots)">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={weeklyData} barSize={14}>
+          {/* 100% share + protocol donut */}
+          <div className="grid gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Card tc={tc} title="Sandwiched Transactions per Protocol" sub="ethereum, % share, Weekly">
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={shareData}>
                     <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
                     <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                    <YAxis tick={TICK} tickLine={false} axisLine={false} />
-                    <Tooltip {...TIP} />
-                    <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={0} />
-                  </BarChart>
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip {...TIP} formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name]} />
+                    <Legend wrapperStyle={LEG} />
+                    <Area type="monotone" dataKey="v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="#e91e8c30" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="#8b5cf630" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="#f9731630" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="curve" name="Curve" stackId="1" stroke="#10b981" fill="#10b98130" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="dodo" name="DODO" stackId="1" stroke="#eab308" fill="#eab30830" strokeWidth={1.5} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </Card>
-
-              <Card tc={tc} title="Weekly Victim Volume (USD)" sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}>
-                {weeklyData.some((r) => r.usd > 0) ? (
-                  <>
-                    <p className={`mb-2 text-xs font-mono opacity-60 ${tc.faint}`}>
-                      {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% priced in latest week
-                    </p>
-                    <ResponsiveContainer width="100%" height={170}>
-                      <BarChart data={weeklyData} barSize={14}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                        <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                        <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
-                        <Tooltip {...TIP} formatter={(v: number) => [fmtUsd(v), "Victim Volume"]} />
-                        <Bar dataKey="usd" name="Victim USD" fill="#34d399" radius={0} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </>
-                ) : <EmptyState tc={tc} msg="No USD data yet" />}
-              </Card>
             </div>
+            <DonutCard tc={tc} title="Protocol Split" sub="all-time" data={protoPie} total={protoTot} />
           </div>
-        )}
 
-        {/* ╔══════════════════════ TOKENS ════════════════════════════════╗ */}
-        {tab === "tokens" && (
+          {/* victim addresses + blocks % */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card tc={tc} title="Sandwiched DEX Trading Addresses" sub="ethereum, Weekly (unique victim txs)">
+              {weeklyData.some((r) => r.victims > 0) ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={weeklyData}>
+                    <defs>
+                      <linearGradient id="gvic" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f87171" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#f87171" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
+                    <Tooltip {...TIP} formatter={(v: number) => [fmtK(v), "Unique victim txs"]} />
+                    <Area type="monotone" dataKey="victims" name="Victim Txs" stroke="#f87171" fill="url(#gvic)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : <EmptyState tc={tc} msg="Available after backfill" />}
+            </Card>
+
+            <Card tc={tc} title="Portion of Blocks with Sandwich Trades" sub="ethereum, % weekly">
+              {blkData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={blkData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip
+                      {...TIP}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(v: number, name: string, entry: any) =>
+                        name === "Sandwich"
+                          ? [`${v}%  (${fmt(entry.payload?.sw ?? 0)} / ${fmt(entry.payload?.total ?? 0)} blocks)`, "Blocks w/ sandwich"]
+                          : [`${v}%`, "Other blocks"]
+                      }
+                    />
+                    <Legend wrapperStyle={LEG} />
+                    <Area type="monotone" dataKey="other" name="Other" stackId="1" stroke="#10b981" fill="#10b98125" strokeWidth={1} />
+                    <Area type="monotone" dataKey="sandwich" name="Sandwich" stackId="1" stroke="#f43f5e" fill="#f43f5e55" strokeWidth={1.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : <EmptyState tc={tc} />}
+            </Card>
+          </div>
+
+          {/* bots weekly + USD */}
           <div className="grid gap-5 lg:grid-cols-3">
-            <DonutCard tc={tc} title="Sandwiched Tokens" sub="ethereum, Top 12" data={tokensPie} total={tokensTot} />
-            <div className="lg:col-span-2">
-              <TableShell
-                tc={tc} title="Sandwiched Tokens" sub="ethereum — token appears in either leg of the sandwich"
-                head={
-                  <>
-                    <th className="px-4 py-3 text-left w-8">#</th>
-                    <th className="px-4 py-3 text-left">Token</th>
-                    <th className="px-4 py-3 text-right">Sandwiches</th>
-                    <th className="px-4 py-3 text-right">Share</th>
-                    <th className="px-4 py-3 text-right">Victims</th>
-                    <th className="px-4 py-3 text-right">Bots</th>
-                  </>
-                }
-              >
-                {tokens.map((t, i) => (
-                  <tr key={t.token} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
-                    <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-none flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                        <span className={`font-bold ${tc.text}`}>{tokenSymbol(t.token)}</span>
-                        <span className={`text-[10px] ${tc.faint}`}>{short(t.token)}</span>
-                      </div>
-                    </td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(t.sandwiches)}</td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(t.sandwiches) / tokensTot) * 100).toFixed(1)}%</td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_victims)}</td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_bots)}</td>
-                  </tr>
-                ))}
-              </TableShell>
-            </div>
-          </div>
-        )}
-
-        {/* ╔══════════════════════ PAIRS ═════════════════════════════════╗ */}
-        {tab === "pairs" && (
-          <div className="grid gap-5 lg:grid-cols-3">
-            <DonutCard tc={tc} title="Sandwiched Token Pairs" sub="ethereum, Top 12" data={pairsPie} total={pairsTot} />
-            <div className="lg:col-span-2">
-              <TableShell
-                tc={tc} title="Sandwiched Token Pairs" sub="ethereum · 74.7% pool coverage (post-Dencun factory events)"
-                head={
-                  <>
-                    <th className="px-4 py-3 text-left w-8">#</th>
-                    <th className="px-4 py-3 text-left">Token Pair</th>
-                    <th className="px-4 py-3 text-left">DEX</th>
-                    <th className="px-4 py-3 text-right">Sandwiches</th>
-                    <th className="px-4 py-3 text-right">Share</th>
-                    <th className="px-4 py-3 text-right">Victim Vol</th>
-                    <th className="px-4 py-3 text-right">Victims</th>
-                    <th className="px-4 py-3 text-right">Bots</th>
-                  </>
-                }
-              >
-                {pairs.map((p, i) => {
-                  const tot = pairs.reduce((s, r) => s + Number(r.sandwiches), 0) || 1;
-                  return (
-                    <tr key={`${p.token0}-${p.token1}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
-                      <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
-                      <td className={`px-4 py-2.5 font-bold ${tc.text}`}>{tokenSymbol(p.token0)}/{tokenSymbol(p.token1)}</td>
-                      <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
-                      <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
-                      <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(p.sandwiches) / tot) * 100).toFixed(1)}%</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums font-bold text-emerald-500">{fmtUsd(p.victim_usd_total)}</td>
-                      <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
-                      <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
-                    </tr>
-                  );
-                })}
-              </TableShell>
-            </div>
-          </div>
-        )}
-
-        {/* ╔══════════════════════ BOTS ══════════════════════════════════╗ */}
-        {tab === "bots" && (
-          <div className="space-y-5">
-            <Card tc={tc} title="Active Sandwich Bots" sub="ethereum, Weekly">
+            <Card tc={tc} title="Sandwich Bots" sub="ethereum, Weekly (active bots)">
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weeklyData} barSize={14}>
+                <BarChart data={weeklyData} barSize={10}>
                   <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
                   <XAxis dataKey="week" tick={TICK} tickLine={false} />
                   <YAxis tick={TICK} tickLine={false} axisLine={false} />
@@ -674,126 +566,278 @@ export default function MevClient() {
                 </BarChart>
               </ResponsiveContainer>
             </Card>
+
+            <Card tc={tc} title="Weekly Bot Profits & Gas (USD)" sub="estimated gross profit vs gas costs">
+              {weeklyData.some((r) => r.bot_profit_usd > 0) ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={weeklyData} barSize={10}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
+                    <Tooltip {...TIP} formatter={(v: number, name: string) => [fmtUsd(v), name]} />
+                    <Legend wrapperStyle={LEG} />
+                    <Bar dataKey="bot_profit_usd" name="Net Profit" stackId="a" fill="#06b6d4" radius={0} />
+                    <Bar dataKey="bot_gas_usd" name="Gas Cost" stackId="a" fill="#f97316" radius={0} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <EmptyState tc={tc} msg="No profit data yet" />}
+            </Card>
+
+            <Card tc={tc} title="Weekly Victim Volume (USD)" sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}>
+              {weeklyData.some((r) => r.usd > 0) ? (
+                <>
+                  <p className={`mb-2 text-xs font-mono opacity-60 ${tc.faint}`}>
+                    {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% priced in latest week
+                  </p>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <BarChart data={weeklyData} barSize={10}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                      <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                      <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
+                      <Tooltip {...TIP} formatter={(v: number) => [fmtUsd(v), "Victim Volume"]} />
+                      <Bar dataKey="usd" name="Victim USD" fill="#34d399" radius={0} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </>
+              ) : <EmptyState tc={tc} msg="No USD data yet" />}
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ╔══════════════════════ TOKENS ════════════════════════════════╗ */}
+      {tab === "tokens" && (
+        <div className="grid gap-5 lg:grid-cols-3">
+          <DonutCard tc={tc} title="Sandwiched Tokens" sub="ethereum, Top 12" data={tokensPie} total={tokensTot} />
+          <div className="lg:col-span-2">
             <TableShell
-              tc={tc} title="Top Sandwich Bots" sub="ethereum, all-time, ranked by sandwich count"
+              tc={tc} title="Sandwiched Tokens" sub="ethereum — token appears in either leg of the sandwich"
               head={
                 <>
                   <th className="px-4 py-3 text-left w-8">#</th>
-                  <th className="px-4 py-3 text-left">Address</th>
+                  <th className="px-4 py-3 text-left">Token</th>
                   <th className="px-4 py-3 text-right">Sandwiches</th>
+                  <th className="px-4 py-3 text-right">Share</th>
                   <th className="px-4 py-3 text-right">Victims</th>
-                  <th className="px-4 py-3 text-right">Gas Cost (USD)</th>
-                  <th className="px-4 py-3 text-right">Pools</th>
-                  <th className="px-4 py-3 text-right">Active Range</th>
+                  <th className="px-4 py-3 text-right">Bots</th>
                 </>
               }
             >
-              {bots.map((b, i) => (
-                <tr key={b.sandwicher} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
+              {tokens.map((t, i) => (
+                <tr key={t.token} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
                   <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
                   <td className="px-4 py-2.5">
-                    <a href={ethAddr(b.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 font-bold transition-colors">
-                      {short(b.sandwicher)}
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-none flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className={`font-bold ${tc.text}`}>{tokenSymbol(t.token)}</span>
+                      <span className={`text-[10px] ${tc.faint}`}>{short(t.token)}</span>
+                    </div>
                   </td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(b.sandwiches)}</td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_victims)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-bold text-orange-500">{fmtUsd(b.total_gas_cost_usd)}</td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_pools)}</td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.faint}`}>{fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(t.sandwiches)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(t.sandwiches) / tokensTot) * 100).toFixed(1)}%</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_victims)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(t.unique_bots)}</td>
                 </tr>
               ))}
             </TableShell>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ╔══════════════════════ POOLS ═════════════════════════════════╗ */}
-        {tab === "pools" && (
+      {/* ╔══════════════════════ PAIRS ═════════════════════════════════╗ */}
+      {tab === "pairs" && (
+        <div className="grid gap-5 lg:grid-cols-3">
+          <DonutCard tc={tc} title="Sandwiched Token Pairs" sub="ethereum, Top 12" data={pairsPie} total={pairsTot} />
+          <div className="lg:col-span-2">
+            <TableShell
+              tc={tc} title="Sandwiched Token Pairs" sub="ethereum · 74.7% pool coverage (post-Dencun factory events)"
+              head={
+                <>
+                  <th className="px-4 py-3 text-left w-8">#</th>
+                  <th className="px-4 py-3 text-left">Token Pair</th>
+                  <th className="px-4 py-3 text-left">DEX</th>
+                  <th className="px-4 py-3 text-right">Sandwiches</th>
+                  <th className="px-4 py-3 text-right">Share</th>
+                  <th className="px-4 py-3 text-right">Victim Vol</th>
+                  <th className="px-4 py-3 text-right">Bot Profits</th>
+                  <th className="px-4 py-3 text-right">Victims</th>
+                  <th className="px-4 py-3 text-right">Bots</th>
+                </>
+              }
+            >
+              {pairs.map((p, i) => {
+                const tot = pairs.reduce((s, r) => s + Number(r.sandwiches), 0) || 1;
+                return (
+                  <tr key={`${p.token0}-${p.token1}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
+                    <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+                    <td className={`px-4 py-2.5 font-bold ${tc.text}`}>{tokenSymbol(p.token0)}/{tokenSymbol(p.token1)}</td>
+                    <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{((Number(p.sandwiches) / tot) * 100).toFixed(1)}%</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-emerald-500">{fmtUsd(p.victim_usd_total)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-bold text-cyan-400">{fmtUsd(p.bot_profit_usd)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
+                  </tr>
+                );
+              })}
+            </TableShell>
+          </div>
+        </div>
+      )}
+
+      {/* ╔══════════════════════ BOTS ══════════════════════════════════╗ */}
+      {tab === "bots" && (
+        <div className="space-y-5">
+          <Card tc={tc} title="Active Sandwich Bots" sub="ethereum, Weekly">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={weeklyData} barSize={14}>
+                <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                <YAxis tick={TICK} tickLine={false} axisLine={false} />
+                <Tooltip {...TIP} />
+                <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={0} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
           <TableShell
-            tc={tc} title="Top Sandwiched Pools" sub="ethereum, all-time, ranked by sandwich count"
+            tc={tc} title="Top Sandwich Bots" sub="ethereum, all-time, ranked by sandwich count"
             head={
               <>
                 <th className="px-4 py-3 text-left w-8">#</th>
-                <th className="px-4 py-3 text-left">Pool</th>
-                <th className="px-4 py-3 text-left">Pair</th>
-                <th className="px-4 py-3 text-left">DEX</th>
+                <th className="px-4 py-3 text-left">Address</th>
                 <th className="px-4 py-3 text-right">Sandwiches</th>
                 <th className="px-4 py-3 text-right">Victims</th>
-                <th className="px-4 py-3 text-right">Bots</th>
+                <th className="px-4 py-3 text-right">Gross Profit</th>
+                <th className="px-4 py-3 text-right">Gas Cost</th>
+                <th className="px-4 py-3 text-right">Net Profit</th>
+                <th className="px-4 py-3 text-right">Pools</th>
+                <th className="px-4 py-3 text-right">Active Range</th>
               </>
             }
           >
-            {pools.map((p, i) => (
-              <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
+            {bots.map((b, i) => (
+              <tr key={b.sandwicher} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
                 <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
                 <td className="px-4 py-2.5">
-                  <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors font-bold`}>{short(p.pool)}</a>
+                  <a href={ethAddr(b.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 font-bold transition-colors">
+                    {short(b.sandwicher)}
+                  </a>
                 </td>
-                <td className={`px-4 py-2.5 font-bold ${tc.text}`}>
-                  {p.token0 && p.token1
-                    ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`
-                    : <span className={tc.veryFaint}>unknown</span>}
-                </td>
-                <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
-                <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
-                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
-                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(b.sandwiches)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_victims)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-bold text-emerald-500">{fmtUsd(b.total_profit_usd)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-bold text-orange-500">{fmtUsd(b.total_gas_cost_usd)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${Number(b.net_profit_usd) >= 0 ? "text-cyan-400" : "text-red-400"}`}>{fmtUsd(b.net_profit_usd)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(b.unique_pools)}</td>
+                <td className={`px-4 py-2.5 text-right tabular-nums ${tc.faint}`}>{fmt(b.first_seen_block)} → {fmt(b.last_seen_block)}</td>
               </tr>
             ))}
           </TableShell>
-        )}
+        </div>
+      )}
 
-        {/* ╔══════════════════════ LIVE FEED ═════════════════════════════╗ */}
-        {tab === "recent" && (
-          <TableShell
-            tc={tc} title="Live Sandwich Feed" sub="50 most recent · auto-refreshes every 30s"
-            head={
-              <>
-                <th className="px-3 py-3 text-left">Block</th>
-                <th className="px-3 py-3 text-left">Bot</th>
-                <th className="px-3 py-3 text-left">Pair</th>
-                <th className="px-3 py-3 text-left">DEX</th>
-                <th className="px-3 py-3 text-right">Victim $</th>
-                <th className="px-3 py-3 text-left">Frontrun</th>
-                <th className="px-3 py-3 text-left">Victim</th>
-                <th className="px-3 py-3 text-left">Backrun</th>
-              </>
-            }
-          >
-            {recent.map((r, i) => (
-              <tr key={`${r.frontrun_tx}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors text-xs font-mono`}>
-                <td className={`px-3 py-2.5 tabular-nums ${tc.muted}`}>{fmt(r.block_number)}</td>
-                <td className="px-3 py-2.5">
-                  <a href={ethAddr(r.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 font-bold">{short(r.sandwicher)}</a>
-                </td>
-                <td className={`px-3 py-2.5 font-bold ${tc.text}`}>
-                  {r.token0 && r.token1 ? `${tokenSymbol(r.token0)}/${tokenSymbol(r.token1)}` : short(r.pool)}
-                </td>
-                <td className="px-3 py-2.5"><Proto p={r.protocol} isDark={isDark} /></td>
-                <td className="px-3 py-2.5 text-right tabular-nums">
-                  {Number(r.victim_usd) > 0
-                    ? <span className="text-emerald-500 font-bold">{fmtUsd(r.victim_usd)}</span>
-                    : <span className={tc.veryFaint}>—</span>}
-                </td>
-                <td className="px-3 py-2.5">
-                  <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 font-bold">
-                    {short(r.frontrun_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.frontrun_idx}</span>
-                  </a>
-                </td>
-                <td className="px-3 py-2.5">
-                  <a href={ethTx(r.victim_tx)} target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:text-yellow-400 font-bold">
-                    {short(r.victim_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.victim_idx}</span>
-                  </a>
-                </td>
-                <td className="px-3 py-2.5">
-                  <a href={ethTx(r.backrun_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 font-bold">
-                    {short(r.backrun_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.backrun_idx}</span>
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </TableShell>
-        )}
+      {/* ╔══════════════════════ POOLS ═════════════════════════════════╗ */}
+      {tab === "pools" && (
+        <TableShell
+          tc={tc} title="Top Sandwiched Pools" sub="ethereum, all-time, ranked by sandwich count"
+          head={
+            <>
+              <th className="px-4 py-3 text-left w-8">#</th>
+              <th className="px-4 py-3 text-left">Pool</th>
+              <th className="px-4 py-3 text-left">Pair</th>
+              <th className="px-4 py-3 text-left">DEX</th>
+              <th className="px-4 py-3 text-right">Sandwiches</th>
+              <th className="px-4 py-3 text-right">Bot Profits</th>
+              <th className="px-4 py-3 text-right">Victims</th>
+              <th className="px-4 py-3 text-right">Bots</th>
+            </>
+          }
+        >
+          {pools.map((p, i) => (
+            <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
+              <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+              <td className="px-4 py-2.5">
+                <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors font-bold`}>{short(p.pool)}</a>
+              </td>
+              <td className={`px-4 py-2.5 font-bold ${tc.text}`}>
+                {p.token0 && p.token1
+                  ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`
+                  : <span className={tc.veryFaint}>unknown</span>}
+              </td>
+              <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
+              <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums font-bold text-cyan-400">{fmtUsd(p.bot_profit_usd)}</td>
+              <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
+              <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
+            </tr>
+          ))}
+        </TableShell>
+      )}
+
+      {/* ╔══════════════════════ LIVE FEED ═════════════════════════════╗ */}
+      {tab === "recent" && (
+        <TableShell
+          tc={tc} title="Live Sandwich Feed" sub="50 most recent · auto-refreshes every 30s"
+          head={
+            <>
+              <th className="px-3 py-3 text-left">Block</th>
+              <th className="px-3 py-3 text-left">Bot</th>
+              <th className="px-3 py-3 text-left">Pair</th>
+              <th className="px-3 py-3 text-left">DEX</th>
+              <th className="px-3 py-3 text-right">Victim $</th>
+              <th className="px-3 py-3 text-right">Bot Profit</th>
+              <th className="px-3 py-3 text-right">Gas Cost</th>
+              <th className="px-3 py-3 text-left">Frontrun</th>
+              <th className="px-3 py-3 text-left">Victim</th>
+              <th className="px-3 py-3 text-left">Backrun</th>
+            </>
+          }
+        >
+          {recent.map((r, i) => (
+            <tr key={`${r.frontrun_tx}-${i}`} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors text-xs font-mono`}>
+              <td className={`px-3 py-2.5 tabular-nums ${tc.muted}`}>{fmt(r.block_number)}</td>
+              <td className="px-3 py-2.5">
+                <a href={ethAddr(r.sandwicher)} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-400 font-bold">{short(r.sandwicher)}</a>
+              </td>
+              <td className={`px-3 py-2.5 font-bold ${tc.text}`}>
+                {r.token0 && r.token1 ? `${tokenSymbol(r.token0)}/${tokenSymbol(r.token1)}` : short(r.pool)}
+              </td>
+              <td className="px-3 py-2.5"><Proto p={r.protocol} isDark={isDark} /></td>
+              <td className="px-3 py-2.5 text-right tabular-nums">
+                {Number(r.victim_usd) > 0
+                  ? <span className="text-emerald-500 font-bold">{fmtUsd(r.victim_usd)}</span>
+                  : <span className={tc.veryFaint}>—</span>}
+              </td>
+              <td className="px-3 py-2.5 text-right tabular-nums">
+                {Number(r.bot_profit_usd) > 0
+                  ? <span className="text-cyan-400 font-bold">{fmtUsd(r.bot_profit_usd)}</span>
+                  : <span className={tc.veryFaint}>—</span>}
+              </td>
+              <td className="px-3 py-2.5 text-right tabular-nums">
+                {Number(r.gas_cost_usd) > 0
+                  ? <span className="text-orange-500 font-bold">{fmtUsd(r.gas_cost_usd)}</span>
+                  : <span className={tc.veryFaint}>—</span>}
+              </td>
+              <td className="px-3 py-2.5">
+                <a href={ethTx(r.frontrun_tx)} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 font-bold">
+                  {short(r.frontrun_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.frontrun_idx}</span>
+                </a>
+              </td>
+              <td className="px-3 py-2.5">
+                <a href={ethTx(r.victim_tx)} target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:text-yellow-400 font-bold">
+                  {short(r.victim_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.victim_idx}</span>
+                </a>
+              </td>
+              <td className="px-3 py-2.5">
+                <a href={ethTx(r.backrun_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 font-bold">
+                  {short(r.backrun_tx)}<span className={`ml-0.5 text-[10px] ${tc.veryFaint}`}>#{r.backrun_idx}</span>
+                </a>
+              </td>
+            </tr>
+          ))}
+        </TableShell>
+      )}
     </div>
   );
 }

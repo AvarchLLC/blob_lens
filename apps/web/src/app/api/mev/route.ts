@@ -59,6 +59,61 @@ function gasCostUsdSql(s = "s", p = "p"): string {
           * coalesce(${p}.price_usd, 2000.0)`;
 }
 
+// SQL expression for bot profit in USD (clamped to >= 0 per sandwich to account for multi-pool routing)
+function botProfitUsdSql(s = "s", p = "p"): string {
+  return `multiIf(
+    -- V2-based: token0 is stable/WETH
+    ${s}.protocol IN ('uniswap_v2', 'sushiswap_v2', 'other_v2') AND lower(${s}.token0) IN ('${USDC}','${USDT}','${DAI}','${WETH}') AND ${s}.fr_data0 > 0 AND ${s}.br_data2 > 0,
+      multiIf(
+        lower(${s}.token0) IN ('${USDC}','${USDT}'),
+          (toFloat64(${s}.br_data2) - toFloat64(${s}.fr_data0)) / 1000000.0,
+        lower(${s}.token0) = '${DAI}',
+          (toFloat64(${s}.br_data2) - toFloat64(${s}.fr_data0)) / 1e18,
+        lower(${s}.token0) = '${WETH}',
+          (toFloat64(${s}.br_data2) - toFloat64(${s}.fr_data0)) / 1e18 * coalesce(${p}.price_usd, 2000.0),
+        0.0
+      ),
+      
+    -- V2-based: token1 is stable/WETH
+    ${s}.protocol IN ('uniswap_v2', 'sushiswap_v2', 'other_v2') AND lower(${s}.token1) IN ('${USDC}','${USDT}','${DAI}','${WETH}') AND ${s}.fr_data1 > 0 AND ${s}.br_data3 > 0,
+      multiIf(
+        lower(${s}.token1) IN ('${USDC}','${USDT}'),
+          (toFloat64(${s}.br_data3) - toFloat64(${s}.fr_data1)) / 1000000.0,
+        lower(${s}.token1) = '${DAI}',
+          (toFloat64(${s}.br_data3) - toFloat64(${s}.fr_data1)) / 1e18,
+        lower(${s}.token1) = '${WETH}',
+          (toFloat64(${s}.br_data3) - toFloat64(${s}.fr_data1)) / 1e18 * coalesce(${p}.price_usd, 2000.0),
+        0.0
+      ),
+
+    -- V3-based: token0 is stable/WETH
+    ${s}.protocol = 'uniswap_v3' AND lower(${s}.token0) IN ('${USDC}','${USDT}','${DAI}','${WETH}'),
+      multiIf(
+        lower(${s}.token0) IN ('${USDC}','${USDT}'),
+          toFloat64(-(reinterpretAsInt256(${s}.fr_data0) + reinterpretAsInt256(${s}.br_data0))) / 1000000.0,
+        lower(${s}.token0) = '${DAI}',
+          toFloat64(-(reinterpretAsInt256(${s}.fr_data0) + reinterpretAsInt256(${s}.br_data0))) / 1e18,
+        lower(${s}.token0) = '${WETH}',
+          toFloat64(-(reinterpretAsInt256(${s}.fr_data0) + reinterpretAsInt256(${s}.br_data0))) / 1e18 * coalesce(${p}.price_usd, 2000.0),
+        0.0
+      ),
+
+    -- V3-based: token1 is stable/WETH
+    ${s}.protocol = 'uniswap_v3' AND lower(${s}.token1) IN ('${USDC}','${USDT}','${DAI}','${WETH}'),
+      multiIf(
+        lower(${s}.token1) IN ('${USDC}','${USDT}'),
+          toFloat64(-(reinterpretAsInt256(${s}.fr_data1) + reinterpretAsInt256(${s}.br_data1))) / 1000000.0,
+        lower(${s}.token1) = '${DAI}',
+          toFloat64(-(reinterpretAsInt256(${s}.fr_data1) + reinterpretAsInt256(${s}.br_data1))) / 1e18,
+        lower(${s}.token1) = '${WETH}',
+          toFloat64(-(reinterpretAsInt256(${s}.fr_data1) + reinterpretAsInt256(${s}.br_data1))) / 1e18 * coalesce(${p}.price_usd, 2000.0),
+        0.0
+      ),
+      
+    0.0
+  )`;
+}
+
 /* ── handler ───────────────────────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get("type") ?? "stats";
@@ -69,17 +124,20 @@ export async function GET(req: NextRequest) {
         ch(`
           SELECT
             count()                          AS total_sandwiches,
-            countDistinct(victim_tx)         AS unique_victims,
-            countDistinct(sandwicher)        AS unique_bots,
-            countDistinct(pool)              AS unique_pools,
-            min(block_number)                AS first_block,
-            max(block_number)                AS last_block,
-            countIf(protocol='uniswap_v3')   AS v3_count,
-            countIf(protocol='uniswap_v2')   AS v2_count,
-            countIf(protocol='sushiswap_v2') AS sushi_count,
-            countIf(protocol='curve')        AS curve_count,
-            countIf(protocol='dodo')         AS dodo_count
-          FROM blob_lens.mev_sandwiches FINAL
+            countDistinct(s.victim_tx)       AS unique_victims,
+            countDistinct(s.sandwicher)      AS unique_bots,
+            countDistinct(s.pool)            AS unique_pools,
+            min(s.block_number)              AS first_block,
+            max(s.block_number)              AS last_block,
+            countIf(s.protocol='uniswap_v3')   AS v3_count,
+            countIf(s.protocol='uniswap_v2')   AS v2_count,
+            countIf(s.protocol='sushiswap_v2') AS sushi_count,
+            countIf(s.protocol='curve')        AS curve_count,
+            countIf(s.protocol='dodo')         AS dodo_count,
+            round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS total_gross_profit_usd,
+            round(sum(${gasCostUsdSql()}))   AS total_gas_cost_usd
+          FROM blob_lens.mev_sandwiches s FINAL
+          LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         `),
         ch(`
           SELECT
@@ -111,7 +169,9 @@ export async function GET(req: NextRequest) {
           countIf(s.protocol='dodo')               AS dodo_count,
           round(sum(${victimUsdSql()}))            AS victim_usd_total,
           countIf(${victimUsdSql()} > 0)           AS usd_count,
-          countDistinct(s.victim_tx)               AS weekly_victims
+          countDistinct(s.victim_tx)               AS weekly_victims,
+          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS bot_profit_usd,
+          round(sum(${gasCostUsdSql()}))           AS bot_gas_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         WHERE s.block_timestamp >= now() - INTERVAL ${weeks} WEEK
@@ -131,7 +191,9 @@ export async function GET(req: NextRequest) {
           countDistinct(s.pool)               AS unique_pools,
           min(s.block_number)                 AS first_seen_block,
           max(s.block_number)                 AS last_seen_block,
-          round(sum(${gasCostUsdSql()}))      AS total_gas_cost_usd
+          round(sum(${gasCostUsdSql()}))      AS total_gas_cost_usd,
+          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS total_profit_usd,
+          round(sum(greatest(0.0, ${botProfitUsdSql()}) - ${gasCostUsdSql()})) AS net_profit_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         GROUP BY s.sandwicher
@@ -151,9 +213,11 @@ export async function GET(req: NextRequest) {
           any(s.protocol)                               AS protocol,
           count()                                  AS sandwiches,
           countDistinct(s.victim_tx)               AS unique_victims,
-          countDistinct(s.sandwicher)              AS unique_bots
+          countDistinct(s.sandwicher)              AS unique_bots,
+          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS bot_profit_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
+        LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         GROUP BY s.pool, s.token0, s.token1
         ORDER BY sandwiches DESC
         LIMIT ${limit}
@@ -172,7 +236,8 @@ export async function GET(req: NextRequest) {
           countDistinct(s.victim_tx)               AS unique_victims,
           countDistinct(s.sandwicher)              AS unique_bots,
           countDistinct(s.pool)                    AS unique_pools,
-          round(sum(${victimUsdSql()}))            AS victim_usd_total
+          round(sum(${victimUsdSql()}))            AS victim_usd_total,
+          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS bot_profit_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
         WHERE s.token0 != '' AND s.token1 != ''
@@ -191,7 +256,9 @@ export async function GET(req: NextRequest) {
           s.frontrun_tx, s.frontrun_idx, s.victim_tx, s.victim_idx, s.backrun_tx, s.backrun_idx,
           coalesce(nullIf(s.token0,''), pt.token0, '') AS token0,
           coalesce(nullIf(s.token1,''), pt.token1, '') AS token1,
-          round(${victimUsdSql()})                     AS victim_usd
+          round(${victimUsdSql()})                     AS victim_usd,
+          round(greatest(0.0, ${botProfitUsdSql()}))   AS bot_profit_usd,
+          round(${gasCostUsdSql()})                    AS gas_cost_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
