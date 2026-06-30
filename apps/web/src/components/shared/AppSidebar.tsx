@@ -19,6 +19,7 @@ import {
     ExternalLink,
     BookOpen,
     Wallet,
+    Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSectionObserver } from '@/lib/useSectionObserver';
@@ -111,6 +112,11 @@ const NAV_GROUPS: NavGroup[] = [
                 href: '/whale-watch',
                 label: 'Whale Watch',
                 icon: Activity,
+            },
+            {
+                href: '/mev',
+                label: 'MEV Tracker',
+                icon: Zap,
             },
             {
                 href: '/market',

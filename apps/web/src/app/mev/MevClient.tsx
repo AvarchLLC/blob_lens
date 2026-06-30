@@ -186,13 +186,30 @@ const ethTx = (tx: string) => `https://etherscan.io/tx/${tx}`;
 const ethAddr = (a: string) => `https://etherscan.io/address/${a}`;
 
 /* ─── sub-components ────────────────────────────────────────────────────── */
-function Card({ tc, title, sub, children, className = "" }: {
-  tc: TC; title: string; sub?: string; children: React.ReactNode; className?: string;
+function InfoTooltip({ text, tc }: { text: string; tc: TC }) {
+  return (
+    <div className="relative inline-block group ml-1 align-middle">
+      <span className={`cursor-help text-[9px] font-bold border rounded-full h-3.5 w-3.5 inline-flex items-center justify-center opacity-40 hover:opacity-90 transition-opacity font-mono ${tc.text} ${tc.cardBorder}`}>
+        i
+      </span>
+      <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-3 text-[11px] font-mono leading-relaxed border z-50 shadow-2xl rounded-none ${tc.card} ${tc.cardBorder} ${tc.text}`}>
+        {text}
+        <div className={`absolute top-full left-1/2 -translate-x-1/2 border-r border-b w-2 h-2 rotate-45 -mt-1 ${tc.card} ${tc.cardBorder}`} />
+      </div>
+    </div>
+  );
+}
+
+function Card({ tc, title, sub, children, className = "", tooltip }: {
+  tc: TC; title: string; sub?: string; children: React.ReactNode; className?: string; tooltip?: string;
 }) {
   return (
     <div className={`rounded-none border ${tc.card} ${tc.cardBorder} p-5 ${className}`}>
       <div className="mb-4">
-        <p className={`text-[13px] font-bold uppercase tracking-wider font-mono ${tc.text}`}>{title}</p>
+        <div className={`text-[13px] font-bold uppercase tracking-wider font-mono ${tc.text}`}>
+          {title}
+          {tooltip && <InfoTooltip text={tooltip} tc={tc} />}
+        </div>
         {sub && <p className={`text-xs mt-0.5 font-mono opacity-60 ${tc.faint}`}>{sub}</p>}
       </div>
       {children}
@@ -200,10 +217,13 @@ function Card({ tc, title, sub, children, className = "" }: {
   );
 }
 
-function Kpi({ tc, label, value, sub, accent }: { tc: TC; label: string; value: string; sub?: string; accent?: string }) {
+function Kpi({ tc, label, value, sub, accent, borderAccent, tooltip }: { tc: TC; label: string; value: string; sub?: string; accent?: string; borderAccent?: string; tooltip?: string }) {
   return (
-    <div className={`rounded-none border ${tc.kpiBg} ${tc.kpiBorder} px-5 py-4`}>
-      <p className={`text-[10px] font-bold uppercase tracking-widest font-mono ${tc.muted}`}>{label}</p>
+    <div className={`rounded-none border ${tc.kpiBg} ${tc.kpiBorder} ${borderAccent ?? "border-t border-t-white/10"} px-5 py-4 hover:scale-[1.02] hover:shadow-md transition-all duration-200`}>
+      <div className="flex items-center justify-between">
+        <p className={`text-[10px] font-bold uppercase tracking-widest font-mono ${tc.muted}`}>{label}</p>
+        {tooltip && <InfoTooltip text={tooltip} tc={tc} />}
+      </div>
       <p className={`mt-1.5 text-2xl font-bold tabular-nums font-mono ${accent ?? tc.text}`}>{value}</p>
       {sub && <p className={`mt-0.5 text-xs font-mono opacity-60 ${tc.faint}`}>{sub}</p>}
     </div>
@@ -252,13 +272,13 @@ function TableShell({ tc, title, sub, head, children }: {
   );
 }
 
-function DonutCard({ tc, title, sub, data, total, className = "" }: {
+function DonutCard({ tc, title, sub, data, total, className = "", tooltip }: {
   tc: TC; title: string; sub?: string;
   data: { name: string; value: number; fill: string }[];
-  total: number; className?: string;
+  total: number; className?: string; tooltip?: string;
 }) {
   return (
-    <Card tc={tc} title={title} sub={sub} className={className}>
+    <Card tc={tc} title={title} sub={sub} className={className} tooltip={tooltip}>
       <div className="flex flex-col items-center gap-3">
         <PieChart width={180} height={180}>
           <Pie data={data} cx={87} cy={87} innerRadius={52} outerRadius={84} dataKey="value" strokeWidth={0}>
@@ -367,16 +387,21 @@ export default function MevClient() {
   const LEG = { color: tc.ttColor, fontSize: 12, opacity: 0.65, fontFamily: "var(--font-geist-mono)" };
 
   /* ── chart data ─────────────────────────────────────────────────────── */
-  const weeklyData = weekly.map((r) => ({
-    week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
-    v3: Number(r.v3_count), v2: Number(r.v2_count), sushi: Number(r.sushi_count),
-    curve: Number(r.curve_count), dodo: Number(r.dodo_count),
-    bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? 0),
-    usd: Number(r.victim_usd_total),
-    usdPct: r.usd_count && r.sandwiches ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100) : 0,
-    bot_profit_usd: Number(r.bot_profit_usd),
-    bot_gas_usd: Number(r.bot_gas_usd),
-  }));
+  const weeklyData = weekly.map((r) => {
+    const gross = Number(r.bot_profit_usd);
+    const gas = Number(r.bot_gas_usd);
+    return {
+      week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      v3: Number(r.v3_count), v2: Number(r.v2_count), sushi: Number(r.sushi_count),
+      curve: Number(r.curve_count), dodo: Number(r.dodo_count),
+      bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? 0),
+      usd: Number(r.victim_usd_total),
+      usdPct: r.usd_count && r.sandwiches ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100) : 0,
+      bot_profit_usd: gross,
+      bot_gas_usd: gas,
+      bot_net_profit_usd: Math.max(0, gross - gas),
+    };
+  });
 
   const shareData = weekly.map((r) => {
     const tot = Number(r.v3_count) + Number(r.v2_count) + Number(r.sushi_count) + Number(r.curve_count) + Number(r.dodo_count) || 1;
@@ -464,19 +489,77 @@ export default function MevClient() {
         </div>
       )}
 
-      {/* ── KPIs ────────────────────────────────────────────────────── */}
+      {/* ── KPIs (4x2 Grid) ── */}
       {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-          <Kpi tc={tc} label="Total Sandwiches" value={fmtK(stats.total_sandwiches)} sub="since Dencun" accent="text-pink-500" />
-          <Kpi tc={tc} label="Gross Revenue" value={fmtUsd(stats.total_gross_profit_usd)} sub="estimated bot revenue" accent="text-emerald-500" />
-          <Kpi tc={tc} label="Net Bot Profit" value={fmtUsd(Number(stats.total_gross_profit_usd) - Number(stats.total_gas_cost_usd))} sub="revenue minus gas" accent="text-cyan-400" />
-          <Kpi tc={tc} label="MEV Bots" value={fmt(stats.unique_bots)} sub="unique sandwichers" accent="text-red-500" />
-          <Kpi tc={tc} label="Unique Victims" value={fmtK(stats.unique_victims)} sub="distinct txs targeted" />
-          <Kpi tc={tc} label="Pools Targeted" value={fmtK(stats.unique_pools)} />
-          <Kpi tc={tc} label="Blocks Sandwiched" value={`${pctBlocks}%`} sub="of blocks, last 30d" accent="text-amber-500" />
-          <Kpi tc={tc} label="Rate"
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Kpi
+            tc={tc}
+            label="Total Sandwiches"
+            value={fmtK(stats.total_sandwiches)}
+            sub="since Dencun"
+            accent="text-pink-500"
+            borderAccent="border-t-2 border-t-pink-500"
+            tooltip="Total EIP-4844 sandwich transactions detected since the Dencun upgrade (block 19,426,587)."
+          />
+          <Kpi
+            tc={tc}
+            label="Gross Revenue"
+            value={fmtUsd(stats.total_gross_profit_usd)}
+            sub="estimated bot revenue"
+            accent="text-emerald-500"
+            borderAccent="border-t-2 border-t-emerald-500"
+            tooltip="Estimated total USD value extracted by sandwich searcher contracts from victim slippage."
+          />
+          <Kpi
+            tc={tc}
+            label="Net Bot Profit"
+            value={fmtUsd(Number(stats.total_gross_profit_usd) - Number(stats.total_gas_cost_usd))}
+            sub="revenue minus gas"
+            accent="text-cyan-400"
+            borderAccent="border-t-2 border-t-cyan-400"
+            tooltip="Net sandwich bot profit: gross revenue minus the gas fees paid to block builders for frontrun and backrun transactions."
+          />
+          <Kpi
+            tc={tc}
+            label="MEV Bots"
+            value={fmt(stats.unique_bots)}
+            sub="unique sandwichers"
+            accent="text-red-500"
+            borderAccent="border-t-2 border-t-red-500"
+            tooltip="Number of unique searcher contract addresses executing sandwich attacks."
+          />
+          <Kpi
+            tc={tc}
+            label="Unique Victims"
+            value={fmtK(stats.unique_victims)}
+            sub="distinct txs targeted"
+            borderAccent="border-t border-t-slate-200 dark:border-t-white/15"
+            tooltip="Number of unique victim transactions targeted by sandwich attacks."
+          />
+          <Kpi
+            tc={tc}
+            label="Pools Targeted"
+            value={fmtK(stats.unique_pools)}
+            sub="distinct DEX pools"
+            borderAccent="border-t border-t-slate-200 dark:border-t-white/15"
+            tooltip="Number of unique decentralized exchange liquidity pools where sandwich attacks were executed."
+          />
+          <Kpi
+            tc={tc}
+            label="Blocks Sandwiched"
+            value={`${pctBlocks}%`}
+            sub="of blocks, last 30d"
+            accent="text-amber-500"
+            borderAccent="border-t-2 border-t-amber-500"
+            tooltip="Percentage of Ethereum blocks containing at least one sandwich transaction over the last 30 days."
+          />
+          <Kpi
+            tc={tc}
+            label="Rate"
             value={`${((Number(stats.total_sandwiches) / Math.max(1, Number(stats.last_block) - Number(stats.first_block))) * 1000).toFixed(2)}/1K`}
             sub="per 1000 blocks"
+            borderAccent="border-t border-t-slate-200 dark:border-t-white/15"
+            tooltip="Average number of sandwich transactions per 1,000 Ethereum blocks."
           />
         </div>
       )}
@@ -497,7 +580,12 @@ export default function MevClient() {
         <div className="space-y-5">
 
           {/* absolute stacked area */}
-          <Card tc={tc} title="Sandwiched Transactions" sub="ethereum, Weekly">
+          <Card
+            tc={tc}
+            title="Sandwiched Transactions"
+            sub="ethereum, Weekly"
+            tooltip="Weekly count of EIP-4844 sandwich transactions, broken down by decentralized exchange (DEX) protocol."
+          >
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={weeklyData}>
                 <defs>
@@ -525,7 +613,12 @@ export default function MevClient() {
           {/* 100% share + protocol donut */}
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Card tc={tc} title="Sandwiched Transactions per Protocol" sub="ethereum, % share, Weekly">
+              <Card
+                tc={tc}
+                title="Sandwiched Transactions per Protocol"
+                sub="ethereum, % share, Weekly"
+                tooltip="Weekly percentage share of sandwich volume across Uniswap v2/v3, SushiSwap, Curve, and DODO."
+              >
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={shareData}>
                     <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
@@ -542,12 +635,24 @@ export default function MevClient() {
                 </ResponsiveContainer>
               </Card>
             </div>
-            <DonutCard tc={tc} title="Protocol Split" sub="all-time" data={protoPie} total={protoTot} />
+            <DonutCard
+              tc={tc}
+              title="Protocol Split"
+              sub="all-time"
+              data={protoPie}
+              total={protoTot}
+              tooltip="All-time distribution of sandwich transactions across DEX protocols."
+            />
           </div>
 
           {/* victim addresses + blocks % */}
           <div className="grid gap-5 lg:grid-cols-2">
-            <Card tc={tc} title="Sandwiched DEX Trading Addresses" sub="ethereum, Weekly (unique victim txs)">
+            <Card
+              tc={tc}
+              title="Sandwiched DEX Trading Addresses"
+              sub="ethereum, Weekly (unique victim txs)"
+              tooltip="Weekly count of unique victim transactions. Indicates the number of retail/institutional traders affected."
+            >
               {weeklyData.some((r) => r.victims > 0) ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={weeklyData}>
@@ -567,7 +672,12 @@ export default function MevClient() {
               ) : <EmptyState tc={tc} msg="Available after backfill" />}
             </Card>
 
-            <Card tc={tc} title="Portion of Blocks with Sandwich Trades" sub="ethereum, % weekly">
+            <Card
+              tc={tc}
+              title="Portion of Blocks with Sandwich Trades"
+              sub="ethereum, % weekly"
+              tooltip="Weekly percentage of Ethereum blocks containing at least one sandwich trade."
+            >
               {blkData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={blkData}>
@@ -594,7 +704,12 @@ export default function MevClient() {
 
           {/* bots weekly + USD */}
           <div className="grid gap-5 lg:grid-cols-3">
-            <Card tc={tc} title="Sandwich Bots" sub="ethereum, Weekly (active bots)">
+            <Card
+              tc={tc}
+              title="Sandwich Bots"
+              sub="ethereum, Weekly (active bots)"
+              tooltip="Weekly count of unique, active sandwich bot contracts executing trades."
+            >
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={weeklyData} barSize={10}>
                   <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
@@ -606,7 +721,12 @@ export default function MevClient() {
               </ResponsiveContainer>
             </Card>
 
-            <Card tc={tc} title="Weekly Bot Profits & Gas (USD)" sub="estimated gross profit vs gas costs">
+            <Card
+              tc={tc}
+              title="Weekly Bot Profits & Gas (USD)"
+              sub="estimated gross profit vs gas costs"
+              tooltip="Weekly breakdown of estimated bot net profits (cyan) vs. gas costs (orange). The total height of each bar represents the estimated gross revenue."
+            >
               {weeklyData.some((r) => r.bot_profit_usd > 0) ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={weeklyData} barSize={10}>
@@ -615,14 +735,19 @@ export default function MevClient() {
                     <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
                     <Tooltip {...TIP} formatter={(v: number, name: string) => [fmtUsd(v), name]} />
                     <Legend wrapperStyle={LEG} />
-                    <Bar dataKey="bot_profit_usd" name="Net Profit" stackId="a" fill="#06b6d4" radius={0} />
+                    <Bar dataKey="bot_net_profit_usd" name="Net Profit" stackId="a" fill="#06b6d4" radius={0} />
                     <Bar dataKey="bot_gas_usd" name="Gas Cost" stackId="a" fill="#f97316" radius={0} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : <EmptyState tc={tc} msg="No profit data yet" />}
             </Card>
 
-            <Card tc={tc} title="Weekly Victim Volume (USD)" sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}>
+            <Card
+              tc={tc}
+              title="Weekly Victim Volume (USD)"
+              sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}
+              tooltip="Weekly estimate of the total USD volume of victim trades that were sandwiched (only includes priced pairs)."
+            >
               {weeklyData.some((r) => r.usd > 0) ? (
                 <>
                   <p className={`mb-2 text-xs font-mono opacity-60 ${tc.faint}`}>
@@ -647,7 +772,14 @@ export default function MevClient() {
       {/* ╔══════════════════════ TOKENS ════════════════════════════════╗ */}
       {tab === "tokens" && (
         <div className="grid gap-5 lg:grid-cols-3">
-          <DonutCard tc={tc} title="Sandwiched Tokens" sub="ethereum, Top 12" data={tokensPie} total={tokensTot} />
+          <DonutCard
+            tc={tc}
+            title="Sandwiched Tokens"
+            sub="ethereum, Top 12"
+            data={tokensPie}
+            total={tokensTot}
+            tooltip="Distribution of sandwich transactions across the top 12 targeted ERC-20 tokens."
+          />
           <div className="lg:col-span-2">
             <TableShell
               tc={tc} title="Sandwiched Tokens" sub="ethereum — token appears in either leg of the sandwich"
@@ -686,7 +818,14 @@ export default function MevClient() {
       {/* ╔══════════════════════ PAIRS ═════════════════════════════════╗ */}
       {tab === "pairs" && (
         <div className="grid gap-5 lg:grid-cols-3">
-          <DonutCard tc={tc} title="Sandwiched Token Pairs" sub="ethereum, Top 12" data={pairsPie} total={pairsTot} />
+          <DonutCard
+            tc={tc}
+            title="Sandwiched Token Pairs"
+            sub="ethereum, Top 12"
+            data={pairsPie}
+            total={pairsTot}
+            tooltip="Distribution of sandwich transactions across the top 12 targeted token pairs."
+          />
           <div className="lg:col-span-2">
             <TableShell
               tc={tc} title="Sandwiched Token Pairs" sub="ethereum · 74.7% pool coverage (post-Dencun factory events)"
@@ -728,7 +867,12 @@ export default function MevClient() {
       {/* ╔══════════════════════ BOTS ══════════════════════════════════╗ */}
       {tab === "bots" && (
         <div className="space-y-5">
-          <Card tc={tc} title="Active Sandwich Bots" sub="ethereum, Weekly">
+          <Card
+            tc={tc}
+            title="Active Sandwich Bots"
+            sub="ethereum, Weekly"
+            tooltip="Weekly count of unique, active sandwich bot contracts executing trades."
+          >
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={weeklyData} barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
@@ -778,40 +922,69 @@ export default function MevClient() {
 
       {/* ╔══════════════════════ POOLS ═════════════════════════════════╗ */}
       {tab === "pools" && (
-        <TableShell
-          tc={tc} title="Top Sandwiched Pools" sub="ethereum, all-time, ranked by sandwich count"
-          head={
-            <>
-              <th className="px-4 py-3 text-left w-8">#</th>
-              <th className="px-4 py-3 text-left">Pool</th>
-              <th className="px-4 py-3 text-left">Pair</th>
-              <th className="px-4 py-3 text-left">DEX</th>
-              <th className="px-4 py-3 text-right">Sandwiches</th>
-              <th className="px-4 py-3 text-right">Bot Profits</th>
-              <th className="px-4 py-3 text-right">Victims</th>
-              <th className="px-4 py-3 text-right">Bots</th>
-            </>
-          }
-        >
-          {pools.map((p, i) => (
-            <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
-              <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
-              <td className="px-4 py-2.5">
-                <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors font-bold`}>{short(p.pool)}</a>
-              </td>
-              <td className={`px-4 py-2.5 font-bold ${tc.text}`}>
-                {p.token0 && p.token1
-                  ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`
-                  : <span className={tc.veryFaint}>unknown</span>}
-              </td>
-              <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
-              <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums font-bold text-cyan-400">{fmtUsd(p.bot_profit_usd)}</td>
-              <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
-              <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
-            </tr>
-          ))}
-        </TableShell>
+        <div className="grid gap-5 lg:grid-cols-3">
+          <Card
+            tc={tc}
+            title="Top Pools by Sandwiches"
+            sub="DEX pools ranked by sandwich count"
+            tooltip="DEX pools ranked by the total number of sandwich transactions executed in them."
+          >
+            {pools.length > 0 ? (
+              <ResponsiveContainer width="100%" height={380}>
+                <BarChart
+                  data={pools.slice(0, 10).map((p) => ({
+                    name: p.token0 && p.token1 ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}` : short(p.pool),
+                    sandwiches: Number(p.sandwiches),
+                  }))}
+                  layout="vertical"
+                  barSize={12}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                  <XAxis type="number" tick={TICK} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" tick={TICK} tickLine={false} width={90} />
+                  <Tooltip {...TIP} formatter={(v: number) => [fmt(v), "Sandwiches"]} />
+                  <Bar dataKey="sandwiches" fill="#e91e8c" radius={0} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyState tc={tc} />}
+          </Card>
+          <div className="lg:col-span-2">
+            <TableShell
+              tc={tc} title="Top Sandwiched Pools" sub="ethereum, all-time, ranked by sandwich count"
+              head={
+                <>
+                  <th className="px-4 py-3 text-left w-8">#</th>
+                  <th className="px-4 py-3 text-left">Pool</th>
+                  <th className="px-4 py-3 text-left">Pair</th>
+                  <th className="px-4 py-3 text-left">DEX</th>
+                  <th className="px-4 py-3 text-right">Sandwiches</th>
+                  <th className="px-4 py-3 text-right">Bot Profits</th>
+                  <th className="px-4 py-3 text-right">Victims</th>
+                  <th className="px-4 py-3 text-right">Bots</th>
+                </>
+              }
+            >
+              {pools.map((p, i) => (
+                <tr key={p.pool} className={`border-b ${tc.tableBorder} ${tc.tableRow} transition-colors font-mono text-xs`}>
+                  <td className={`px-4 py-2.5 tabular-nums ${tc.veryFaint}`}>{i + 1}</td>
+                  <td className="px-4 py-2.5">
+                    <a href={ethAddr(p.pool)} target="_blank" rel="noopener noreferrer" className={`${tc.muted} hover:text-pink-500 transition-colors font-bold`}>{short(p.pool)}</a>
+                  </td>
+                  <td className={`px-4 py-2.5 font-bold ${tc.text}`}>
+                    {p.token0 && p.token1
+                      ? `${tokenSymbol(p.token0)}/${tokenSymbol(p.token1)}`
+                      : <span className={tc.veryFaint}>unknown</span>}
+                  </td>
+                  <td className="px-4 py-2.5"><Proto p={p.protocol} isDark={isDark} /></td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums font-bold ${tc.text}`}>{fmt(p.sandwiches)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-bold text-cyan-400">{fmtUsd(p.bot_profit_usd)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_victims)}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums ${tc.muted}`}>{fmt(p.unique_bots)}</td>
+                </tr>
+              ))}
+            </TableShell>
+          </div>
+        </div>
       )}
 
       {/* ╔══════════════════════ LIVE FEED ═════════════════════════════╗ */}
