@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
@@ -7,21 +8,84 @@ import { useEthPrice } from "@/lib/useEthPrice";
 import { rollupColor, shortHash, timeAgo } from "@/lib/utils";
 import type { BlobTransaction } from "@/types";
 import { ExternalLink } from "lucide-react";
-import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const REFRESH_MS = Number(process.env.NEXT_PUBLIC_MARKET_REFRESH_MS ?? 12000);
 
 export function LiveBlobFeed() {
   const ethUsd = useEthPrice();
-  const { data, isLoading } = useSWR<{ data: BlobTransaction[] }>(
-    "/api/blobs",
-    fetcher,
-    { refreshInterval: REFRESH_MS }
-  );
+  const [blobs, setBlobs] = useState<BlobTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
 
-  if (isLoading && !data) {
+  useEffect(() => {
+    let eventSource: EventSource | null = null;
+    let fallbackInterval: NodeJS.Timeout | null = null;
+
+    const startStreaming = () => {
+      eventSource = new EventSource("/api/blobs/stream");
+
+      eventSource.onopen = () => {
+        setIsStreaming(true);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.data) {
+            setBlobs(parsed.data);
+          }
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Failed to parse SSE blobs data:", err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        console.warn("SSE blobs stream disconnected. Falling back to HTTP polling...");
+        setIsStreaming(false);
+        if (eventSource) {
+          eventSource.close();
+        }
+        startPolling();
+      };
+    };
+
+    const startPolling = () => {
+      const fetchBlobs = async () => {
+        try {
+          const res = await fetch("/api/blobs");
+          const json = await res.json();
+          if (json.data) {
+            setBlobs(json.data);
+          }
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Failed to fetch blobs via fallback polling:", err);
+        }
+      };
+
+      // Fetch immediately, then poll every 12 seconds
+      fetchBlobs();
+      fallbackInterval = setInterval(fetchBlobs, 12000);
+    };
+
+    // Attempt streaming first, otherwise fall back to polling
+    if (typeof window !== "undefined" && "EventSource" in window) {
+      startStreaming();
+    } else {
+      startPolling();
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+      }
+    };
+  }, []);
+
+  if (isLoading && !blobs.length) {
     return (
       <div className="p-6 space-y-4">
         {Array.from({ length: 10 }).map((_, i) => (
@@ -31,14 +95,18 @@ export function LiveBlobFeed() {
     );
   }
 
-  const blobs = data?.data ?? [];
-
   if (!blobs.length) {
     return <p className="py-20 text-center text-xs text-text-secondary opacity-50 italic font-mono">No blob transactions available.</p>;
   }
 
   return (
     <div className="w-full min-w-[768px] flex flex-col text-sm font-mono">
+      {/* Streaming Indicator */}
+      <div className="flex items-center justify-end px-6 py-1 text-[8px] text-text-secondary/40 gap-1.5 uppercase tracking-widest bg-sidebar/20 select-none">
+        <span className={`h-1 w-1 rounded-full ${isStreaming ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+        {isStreaming ? "Real-time stream active" : "HTTP Polling Mode"}
+      </div>
+
       {/* Table Header */}
       <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-sidebar/50 border-b border-border/40 select-none">
         <div className="col-span-3 text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary">Transaction</div>

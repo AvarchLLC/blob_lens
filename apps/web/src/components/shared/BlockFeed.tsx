@@ -1,16 +1,13 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { RollupBadge } from "@/components/shared/RollupBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { blobCostUsd, formatUsd } from "@/lib/ethPrice";
 import { useEthPrice } from "@/lib/useEthPrice";
 import { timeAgo } from "@/lib/utils";
 import type { BlockRow } from "@/types";
-import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const REFRESH_MS = Number(process.env.NEXT_PUBLIC_MARKET_REFRESH_MS ?? 12000);
 
 function UtilizationBar({ pct }: { pct: number }) {
   const clamped = Math.min(100, Math.max(0, pct));
@@ -59,13 +56,80 @@ function UtilizationBar({ pct }: { pct: number }) {
 
 export function BlockFeed() {
   const ethUsd = useEthPrice();
-  const { data, isLoading } = useSWR<{ data: BlockRow[] }>(
-    "/api/blocks",
-    fetcher,
-    { refreshInterval: REFRESH_MS }
-  );
+  const [blocks, setBlocks] = useState<BlockRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
 
-  if (isLoading && !data) {
+  useEffect(() => {
+    let eventSource: EventSource | null = null;
+    let fallbackInterval: NodeJS.Timeout | null = null;
+
+    const startStreaming = () => {
+      eventSource = new EventSource("/api/blocks/stream");
+
+      eventSource.onopen = () => {
+        setIsStreaming(true);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.data) {
+            setBlocks(parsed.data);
+          }
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Failed to parse SSE blocks data:", err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        console.warn("SSE blocks stream disconnected. Falling back to HTTP polling...");
+        setIsStreaming(false);
+        if (eventSource) {
+          eventSource.close();
+        }
+        startPolling();
+      };
+    };
+
+    const startPolling = () => {
+      const fetchBlocks = async () => {
+        try {
+          const res = await fetch("/api/blocks");
+          const json = await res.json();
+          if (json.data) {
+            setBlocks(json.data);
+          }
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Failed to fetch blocks via fallback polling:", err);
+        }
+      };
+
+      // Fetch immediately, then poll every 12 seconds
+      fetchBlocks();
+      fallbackInterval = setInterval(fetchBlocks, 12000);
+    };
+
+    // Attempt streaming first, otherwise fall back to polling
+    if (typeof window !== "undefined" && "EventSource" in window) {
+      startStreaming();
+    } else {
+      startPolling();
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+      }
+    };
+  }, []);
+
+  if (isLoading && !blocks.length) {
     return (
       <div className="p-6 space-y-4">
         {Array.from({ length: 8 }).map((_, i) => (
@@ -75,14 +139,18 @@ export function BlockFeed() {
     );
   }
 
-  const blocks = data?.data ?? [];
-
   if (!blocks.length) {
     return <p className="py-20 text-center text-xs text-text-secondary opacity-50 italic font-mono">No block data available.</p>;
   }
 
   return (
     <div className="w-full min-w-[768px] flex flex-col text-sm font-mono">
+      {/* Streaming Indicator */}
+      <div className="flex items-center justify-end px-6 py-1 text-[8px] text-text-secondary/40 gap-1.5 uppercase tracking-widest bg-sidebar/20 select-none">
+        <span className={`h-1 w-1 rounded-full ${isStreaming ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+        {isStreaming ? "Real-time stream active" : "HTTP Polling Mode"}
+      </div>
+
       {/* Table Header */}
       <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-sidebar/50 border-b border-border/40 select-none">
         <div className="col-span-2 text-[10px] font-bold uppercase tracking-[0.15em] text-text-secondary">Block</div>
