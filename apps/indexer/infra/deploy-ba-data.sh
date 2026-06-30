@@ -40,33 +40,18 @@ echo "ClickHouse ready."
 echo "=== [2/5] Build blob-indexer image ==="
 # apps/exex-node's Dockerfile just COPYs a pre-built binary (no builder
 # stage), so the release binary must exist on the host before building.
-(cd "$EXEX_NODE_DIR" && cargo build --release --bin blob-indexer)
+CARGO_BIN="/home/badmin/.cargo/bin/cargo"
+if [ ! -f "$CARGO_BIN" ]; then
+    CARGO_BIN="cargo"
+fi
+(cd "$EXEX_NODE_DIR" && sudo -u badmin "$CARGO_BIN" build --release --bin blob-indexer)
 docker build -t blob-indexer:latest "$EXEX_NODE_DIR"
 
 echo "=== [3/5] Stop vanilla reth ==="
 # Graceful stop — Reth flushes DB on SIGTERM; give it 5 minutes
 docker stop --time=300 reth 2>/dev/null || echo "reth not running, continuing"
-docker rm reth 2>/dev/null || true
-
-echo "=== [4/5] Start blob-indexer (Reth + ExEx) ==="
-docker run -d \
-    --name reth \
-    --restart unless-stopped \
-    --stop-timeout 300 \
-    --network ethereum_eth-net \
-    -p 30303:30303/tcp \
-    -p 30303:30303/udp \
-    -p 0.0.0.0:8545:8545 \
-    -p 0.0.0.0:8546:8546 \
-    -p 0.0.0.0:9001:9001 \
-    -v "$ETH_DIR/data/reth:/data" \
-    -v "$ETH_DIR/jwt:/jwt:ro" \
-    -e CLICKHOUSE_URL="http://clickhouse:8123" \
-    -e CLICKHOUSE_DB="blob_lens" \
-    -e CLICKHOUSE_USER="blob_lens" \
-    -e CLICKHOUSE_PASSWORD="changeme" \
-    -e RUST_LOG="info,reth=warn" \
-    blob-indexer:latest
+echo "=== [3/5] Start blob-indexer (Reth + ExEx) via Docker Compose ==="
+docker compose -f "/ethereum/reth-docker-compose/docker-compose.yml" up -d --no-deps reth
 
 echo "=== [5/5] Optional: run backfill (Dencun → head, or to fill a gap) ==="
 echo "The live ExEx container started above already keeps blob_lens.* and"
