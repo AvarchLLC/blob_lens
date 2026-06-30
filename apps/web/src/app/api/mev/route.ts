@@ -34,19 +34,19 @@ const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
 // SQL expression for victim USD. Requires:
 //   s = alias for mev_sandwiches
 //   p = alias for eth_daily_price joined ON toDate(s.block_timestamp) = p.date
-function victimUsdSql(s = "s", p = "p"): string {
+function victimUsdSql(s = "s", p = "p", t0 = `${s}.token0`, t1 = `${s}.token1`): string {
   return `multiIf(
-    lower(${s}.token0) IN ('${USDC}','${USDT}') AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
+    lower(${t0}) IN ('${USDC}','${USDT}') AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
       toFloat64(${s}.victim_data0) / 1000000.0,
-    lower(${s}.token0) = '${DAI}' AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
+    lower(${t0}) = '${DAI}' AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
       toFloat64(${s}.victim_data0) / 1e18,
-    lower(${s}.token0) = '${WETH}' AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
+    lower(${t0}) = '${WETH}' AND ${s}.victim_data0 > 0 AND ${s}.victim_data0 < toUInt256(${HALF_U256}),
       toFloat64(${s}.victim_data0) / 1e18 * coalesce(${p}.price_usd, 2000.0),
-    lower(${s}.token1) IN ('${USDC}','${USDT}') AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
+    lower(${t1}) IN ('${USDC}','${USDT}') AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
       toFloat64(${s}.victim_data1) / 1000000.0,
-    lower(${s}.token1) = '${DAI}' AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
+    lower(${t1}) = '${DAI}' AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
       toFloat64(${s}.victim_data1) / 1e18,
-    lower(${s}.token1) = '${WETH}' AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
+    lower(${t1}) = '${WETH}' AND ${s}.victim_data1 > 0 AND ${s}.victim_data1 < toUInt256(${HALF_U256}),
       toFloat64(${s}.victim_data1) / 1e18 * coalesce(${p}.price_usd, 2000.0),
     0.0
   )`;
@@ -60,52 +60,52 @@ function gasCostUsdSql(s = "s", p = "p"): string {
 }
 
 // SQL expression for bot profit in USD (clamped to >= 0 per sandwich to account for multi-pool routing)
-function botProfitUsdSql(s = "s", p = "p"): string {
+function botProfitUsdSql(s = "s", p = "p", t0 = `${s}.token0`, t1 = `${s}.token1`): string {
   return `multiIf(
     -- V2-based: token0 is stable/WETH
-    ${s}.protocol IN ('uniswap_v2', 'sushiswap_v2', 'other_v2') AND lower(${s}.token0) IN ('${USDC}','${USDT}','${DAI}','${WETH}') AND ${s}.fr_data0 > 0 AND ${s}.br_data2 > 0,
+    ${s}.protocol IN ('uniswap_v2', 'sushiswap_v2', 'other_v2') AND lower(${t0}) IN ('${USDC}','${USDT}','${DAI}','${WETH}') AND ${s}.fr_data0 > 0 AND ${s}.br_data2 > 0,
       multiIf(
-        lower(${s}.token0) IN ('${USDC}','${USDT}'),
+        lower(${t0}) IN ('${USDC}','${USDT}'),
           (toFloat64(${s}.br_data2) - toFloat64(${s}.fr_data0)) / 1000000.0,
-        lower(${s}.token0) = '${DAI}',
+        lower(${t0}) = '${DAI}',
           (toFloat64(${s}.br_data2) - toFloat64(${s}.fr_data0)) / 1e18,
-        lower(${s}.token0) = '${WETH}',
+        lower(${t0}) = '${WETH}',
           (toFloat64(${s}.br_data2) - toFloat64(${s}.fr_data0)) / 1e18 * coalesce(${p}.price_usd, 2000.0),
         0.0
       ),
       
     -- V2-based: token1 is stable/WETH
-    ${s}.protocol IN ('uniswap_v2', 'sushiswap_v2', 'other_v2') AND lower(${s}.token1) IN ('${USDC}','${USDT}','${DAI}','${WETH}') AND ${s}.fr_data1 > 0 AND ${s}.br_data3 > 0,
+    ${s}.protocol IN ('uniswap_v2', 'sushiswap_v2', 'other_v2') AND lower(${t1}) IN ('${USDC}','${USDT}','${DAI}','${WETH}') AND ${s}.fr_data1 > 0 AND ${s}.br_data3 > 0,
       multiIf(
-        lower(${s}.token1) IN ('${USDC}','${USDT}'),
+        lower(${t1}) IN ('${USDC}','${USDT}'),
           (toFloat64(${s}.br_data3) - toFloat64(${s}.fr_data1)) / 1000000.0,
-        lower(${s}.token1) = '${DAI}',
+        lower(${t1}) = '${DAI}',
           (toFloat64(${s}.br_data3) - toFloat64(${s}.fr_data1)) / 1e18,
-        lower(${s}.token1) = '${WETH}',
+        lower(${t1}) = '${WETH}',
           (toFloat64(${s}.br_data3) - toFloat64(${s}.fr_data1)) / 1e18 * coalesce(${p}.price_usd, 2000.0),
         0.0
       ),
 
     -- V3-based: token0 is stable/WETH
-    ${s}.protocol = 'uniswap_v3' AND lower(${s}.token0) IN ('${USDC}','${USDT}','${DAI}','${WETH}'),
+    ${s}.protocol = 'uniswap_v3' AND lower(${t0}) IN ('${USDC}','${USDT}','${DAI}','${WETH}'),
       multiIf(
-        lower(${s}.token0) IN ('${USDC}','${USDT}'),
+        lower(${t0}) IN ('${USDC}','${USDT}'),
           toFloat64(-(reinterpretAsInt256(${s}.fr_data0) + reinterpretAsInt256(${s}.br_data0))) / 1000000.0,
-        lower(${s}.token0) = '${DAI}',
+        lower(${t0}) = '${DAI}',
           toFloat64(-(reinterpretAsInt256(${s}.fr_data0) + reinterpretAsInt256(${s}.br_data0))) / 1e18,
-        lower(${s}.token0) = '${WETH}',
+        lower(${t0}) = '${WETH}',
           toFloat64(-(reinterpretAsInt256(${s}.fr_data0) + reinterpretAsInt256(${s}.br_data0))) / 1e18 * coalesce(${p}.price_usd, 2000.0),
         0.0
       ),
 
     -- V3-based: token1 is stable/WETH
-    ${s}.protocol = 'uniswap_v3' AND lower(${s}.token1) IN ('${USDC}','${USDT}','${DAI}','${WETH}'),
+    ${s}.protocol = 'uniswap_v3' AND lower(${t1}) IN ('${USDC}','${USDT}','${DAI}','${WETH}'),
       multiIf(
-        lower(${s}.token1) IN ('${USDC}','${USDT}'),
+        lower(${t1}) IN ('${USDC}','${USDT}'),
           toFloat64(-(reinterpretAsInt256(${s}.fr_data1) + reinterpretAsInt256(${s}.br_data1))) / 1000000.0,
-        lower(${s}.token1) = '${DAI}',
+        lower(${t1}) = '${DAI}',
           toFloat64(-(reinterpretAsInt256(${s}.fr_data1) + reinterpretAsInt256(${s}.br_data1))) / 1e18,
-        lower(${s}.token1) = '${WETH}',
+        lower(${t1}) = '${WETH}',
           toFloat64(-(reinterpretAsInt256(${s}.fr_data1) + reinterpretAsInt256(${s}.br_data1))) / 1e18 * coalesce(${p}.price_usd, 2000.0),
         0.0
       ),
@@ -214,7 +214,7 @@ export async function GET(req: NextRequest) {
           count()                                  AS sandwiches,
           countDistinct(s.victim_tx)               AS unique_victims,
           countDistinct(s.sandwicher)              AS unique_bots,
-          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS bot_profit_usd
+          round(sum(greatest(0.0, ${botProfitUsdSql("s", "p", "coalesce(nullIf(s.token0,''), pt.token0, '')", "coalesce(nullIf(s.token1,''), pt.token1, '')")}))) AS bot_profit_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
@@ -229,19 +229,20 @@ export async function GET(req: NextRequest) {
       const limit = Number(req.nextUrl.searchParams.get("limit") ?? "20");
       const rows = await ch(`
         SELECT
-          s.token0,
-          s.token1,
+          coalesce(nullIf(s.token0,''), pt.token0, '') AS token0,
+          coalesce(nullIf(s.token1,''), pt.token1, '') AS token1,
           any(s.protocol)                          AS protocol,
           count()                                  AS sandwiches,
           countDistinct(s.victim_tx)               AS unique_victims,
           countDistinct(s.sandwicher)              AS unique_bots,
           countDistinct(s.pool)                    AS unique_pools,
-          round(sum(${victimUsdSql()}))            AS victim_usd_total,
-          round(sum(greatest(0.0, ${botProfitUsdSql()}))) AS bot_profit_usd
+          round(sum(${victimUsdSql("s", "p", "coalesce(nullIf(s.token0,''), pt.token0, '')", "coalesce(nullIf(s.token1,''), pt.token1, '')")}))            AS victim_usd_total,
+          round(sum(greatest(0.0, ${botProfitUsdSql("s", "p", "coalesce(nullIf(s.token0,''), pt.token0, '')", "coalesce(nullIf(s.token1,''), pt.token1, '')")}))) AS bot_profit_usd
         FROM blob_lens.mev_sandwiches s FINAL
+        LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
         LEFT JOIN blob_lens.eth_daily_price p ON toDate(s.block_timestamp) = p.date
-        WHERE s.token0 != '' AND s.token1 != ''
-        GROUP BY s.token0, s.token1
+        WHERE coalesce(nullIf(s.token0,''), pt.token0, '') != '' AND coalesce(nullIf(s.token1,''), pt.token1, '') != ''
+        GROUP BY token0, token1
         ORDER BY sandwiches DESC
         LIMIT ${limit}
       `);
@@ -256,8 +257,8 @@ export async function GET(req: NextRequest) {
           s.frontrun_tx, s.frontrun_idx, s.victim_tx, s.victim_idx, s.backrun_tx, s.backrun_idx,
           coalesce(nullIf(s.token0,''), pt.token0, '') AS token0,
           coalesce(nullIf(s.token1,''), pt.token1, '') AS token1,
-          round(${victimUsdSql()})                     AS victim_usd,
-          round(greatest(0.0, ${botProfitUsdSql()}))   AS bot_profit_usd,
+          round(${victimUsdSql("s", "p", "coalesce(nullIf(s.token0,''), pt.token0, '')", "coalesce(nullIf(s.token1,''), pt.token1, '')")})                     AS victim_usd,
+          round(greatest(0.0, ${botProfitUsdSql("s", "p", "coalesce(nullIf(s.token0,''), pt.token0, '')", "coalesce(nullIf(s.token1,''), pt.token1, '')")}))   AS bot_profit_usd,
           round(${gasCostUsdSql()})                    AS gas_cost_usd
         FROM blob_lens.mev_sandwiches s FINAL
         LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
@@ -301,14 +302,15 @@ export async function GET(req: NextRequest) {
           countDistinct(victim_tx)   AS unique_victims,
           countDistinct(sandwicher)  AS unique_bots
         FROM (
-          SELECT token0 AS token, victim_tx, sandwicher
-          FROM blob_lens.mev_sandwiches FINAL
-          WHERE token0 != ''
+          SELECT coalesce(nullIf(s.token0, ''), pt.token0, '') AS token, s.victim_tx, s.sandwicher
+          FROM blob_lens.mev_sandwiches s FINAL
+          LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
           UNION ALL
-          SELECT token1 AS token, victim_tx, sandwicher
-          FROM blob_lens.mev_sandwiches FINAL
-          WHERE token1 != ''
+          SELECT coalesce(nullIf(s.token1, ''), pt.token1, '') AS token, s.victim_tx, s.sandwicher
+          FROM blob_lens.mev_sandwiches s FINAL
+          LEFT JOIN blob_lens.pool_tokens pt FINAL ON s.pool = pt.pool
         )
+        WHERE token != ''
         GROUP BY token
         ORDER BY sandwiches DESC
         LIMIT ${limit}
