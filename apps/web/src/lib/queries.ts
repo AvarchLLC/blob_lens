@@ -370,7 +370,7 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           NULL AS avg_fullness_pct,
           0    AS ghost_blob_count,
           NULL AS total_bytes_used,
-          NULL AS cost_per_byte_eth,
+          b.cost_per_blob_gwei / 1e9 * 1024.0 AS cost_per_byte_eth,
           least(100, greatest(0,
             (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
           )) AS timing_score,
@@ -1383,7 +1383,7 @@ export async function getDaLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           NULL AS avg_fullness_pct,
           0    AS ghost_blob_count,
           NULL AS total_bytes_used,
-          NULL AS cost_per_byte_eth,
+          b.cost_per_blob_gwei / 1e9 * 1024.0 AS cost_per_byte_eth,
           least(100, greatest(0,
             (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
           )) AS timing_score,
