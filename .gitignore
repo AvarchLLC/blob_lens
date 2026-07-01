@@ -49,6 +49,7 @@ env/
 venv/
 
 # ── Planning / scratch docs (not for version control) ────────────────────────
+MEV_DATA_COMPARISON.md
 DATA_ANALYTICS_AUDIT.md
 DASHBOARD_PLAN.md
 STATUS.md
