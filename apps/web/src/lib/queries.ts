@@ -961,6 +961,30 @@ export async function getHistoricalDailyStats(): Promise<HistoricalDailyStat[]> 
   return result.json<HistoricalDailyStat>();
 }
 
+export interface TransactionTypeStat {
+  date: string;
+  tx_type: number;
+  tx_count: number;
+}
+
+export async function getTransactionTypeStats(): Promise<TransactionTypeStat[]> {
+  const result = await ch.query({
+    query: `
+      SELECT
+        toString(toDate(block_timestamp)) AS date,
+        tx_type,
+        toUInt64(count()) AS tx_count
+      FROM ethereum.transactions FINAL
+      WHERE block_timestamp >= now() - INTERVAL 30 DAY
+        AND is_deleted = 0
+      GROUP BY date, tx_type
+      ORDER BY date ASC, tx_type ASC
+    `,
+    format: "JSONEachRow",
+  });
+  return result.json<TransactionTypeStat>();
+}
+
 export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
   const result = await ch.query({
     query: `
