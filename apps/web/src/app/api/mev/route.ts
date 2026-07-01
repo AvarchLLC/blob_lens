@@ -154,6 +154,33 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    if (type === "daily-trend") {
+      const days = Number(req.nextUrl.searchParams.get("days") ?? "30");
+      const rows = await ch(`
+        SELECT
+          s.date                                   AS date,
+          sum(s.sandwiches)                        AS sandwiches,
+          uniqMerge(s.unique_bots)                 AS active_bots,
+          uniqMerge(s.unique_blocks)               AS blocks_sandwiched,
+          sumIf(s.sandwiches, s.protocol='uniswap_v3')   AS v3_count,
+          sumIf(s.sandwiches, s.protocol='uniswap_v2')   AS v2_count,
+          sumIf(s.sandwiches, s.protocol='sushiswap_v2') AS sushi_count,
+          sumIf(s.sandwiches, s.protocol='curve')        AS curve_count,
+          sumIf(s.sandwiches, s.protocol='dodo')         AS dodo_count,
+          round(sum(s.victim_volume_usd) + sum(s.victim_volume_weth * coalesce(p.price_usd, 2000.0))) AS victim_usd_total,
+          sum(s.victim_usd_count)                  AS usd_count,
+          uniqMerge(s.unique_victims)              AS daily_victims,
+          round(sum(s.gross_profit_usd) + sum(s.gross_profit_weth * coalesce(p.price_usd, 2000.0))) AS bot_profit_usd,
+          round(sum(s.gas_cost_weth * coalesce(p.price_usd, 2000.0))) AS bot_gas_usd
+        FROM blob_lens.mev_daily_stats s
+        LEFT JOIN blob_lens.eth_daily_price p ON s.date = p.date
+        WHERE s.date >= toDate(now() - INTERVAL ${days} DAY)
+        GROUP BY date
+        ORDER BY date ASC
+      `);
+      return NextResponse.json(rows);
+    }
+
     if (type === "weekly-trend") {
       const weeks = Number(req.nextUrl.searchParams.get("weeks") ?? "16");
       const rows = await ch(`
