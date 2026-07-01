@@ -83,9 +83,9 @@ interface MevStats {
   total_gross_profit_usd: string; total_gas_cost_usd: string;
 }
 interface WeekRow {
-  week: string; sandwiches: string; active_bots: string; blocks_sandwiched: string;
+  week?: string; date?: string; sandwiches: string; active_bots: string; blocks_sandwiched: string;
   v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
-  victim_usd_total: string; usd_count: string; weekly_victims: string;
+  victim_usd_total: string; usd_count: string; weekly_victims?: string; daily_victims?: string;
   bot_profit_usd: string; bot_gas_usd: string;
 }
 interface BlockPctRow { week: string; total_blocks: string; sandwich_blocks: string; }
@@ -323,12 +323,13 @@ export default function MevClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("overview");
+  const [timeframe, setTimeframe] = useState<"daily" | "weekly">("weekly");
 
   const load = useCallback(async () => {
     try {
       const [s, w, bp, b, po, pa, tk, r, pr] = await Promise.all([
         apiFetch<MevStats>("stats"),
-        apiFetch<WeekRow[]>("weekly-trend", "&weeks=16"),
+        apiFetch<WeekRow[]>(timeframe === "daily" ? "daily-trend" : "weekly-trend", timeframe === "daily" ? "&days=30" : "&weeks=16"),
         apiFetch<BlockPctRow[]>("blocks-pct", "&weeks=16"),
         apiFetch<BotRow[]>("top-bots", "&limit=25"),
         apiFetch<PoolRow[]>("top-pools", "&limit=25"),
@@ -344,7 +345,7 @@ export default function MevClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeframe]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -390,11 +391,12 @@ export default function MevClient() {
   const weeklyData = weekly.map((r) => {
     const gross = Number(r.bot_profit_usd);
     const gas = Number(r.bot_gas_usd);
+    const dateVal = r.week || r.date || "";
     return {
-      week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      week: new Date(dateVal).toLocaleDateString("en", { month: "short", day: "numeric" }),
       v3: Number(r.v3_count), v2: Number(r.v2_count), sushi: Number(r.sushi_count),
       curve: Number(r.curve_count), dodo: Number(r.dodo_count),
-      bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? 0),
+      bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? r.daily_victims ?? 0),
       usd: Number(r.victim_usd_total),
       usdPct: r.usd_count && r.sandwiches ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100) : 0,
       bot_profit_usd: gross,
@@ -405,8 +407,9 @@ export default function MevClient() {
 
   const shareData = weekly.map((r) => {
     const tot = Number(r.v3_count) + Number(r.v2_count) + Number(r.sushi_count) + Number(r.curve_count) + Number(r.dodo_count) || 1;
+    const dateVal = r.week || r.date || "";
     return {
-      week: new Date(r.week).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      week: new Date(dateVal).toLocaleDateString("en", { month: "short", day: "numeric" }),
       v3: +((Number(r.v3_count) / tot) * 100).toFixed(1),
       v2: +((Number(r.v2_count) / tot) * 100).toFixed(1),
       sushi: +((Number(r.sushi_count) / tot) * 100).toFixed(1),
@@ -578,6 +581,25 @@ export default function MevClient() {
       {/* ╔══════════════════════ OVERVIEW ══════════════════════════════╗ */}
       {tab === "overview" && (
         <div className="space-y-5">
+          {/* Timeframe Granularity Toggle */}
+          <div className={`flex justify-between items-center ${tc.card} border ${tc.cardBorder} px-4 py-3 font-mono text-[10px]`}>
+            <span className={`font-bold ${tc.muted} uppercase tracking-wider`}>Chart Timeframe Granularity</span>
+            <div className="flex gap-1">
+              {(["weekly", "daily"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTimeframe(t)}
+                  className={`px-3 py-1 font-bold uppercase tracking-wider transition-all border text-[9px] ${
+                    timeframe === t
+                      ? "bg-pink-500 text-white border-pink-500"
+                      : `${tc.text} border-transparent hover:${tc.kpiBg} hover:${tc.cardBorder}`
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* absolute stacked area */}
           <Card
