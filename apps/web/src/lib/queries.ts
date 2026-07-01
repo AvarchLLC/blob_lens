@@ -370,7 +370,7 @@ export async function getLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           NULL AS avg_fullness_pct,
           0    AS ghost_blob_count,
           NULL AS total_bytes_used,
-          NULL AS cost_per_byte_eth,
+          b.cost_per_blob_gwei / 1e9 * 1024.0 AS cost_per_byte_eth,
           least(100, greatest(0,
             (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
           )) AS timing_score,
@@ -961,6 +961,30 @@ export async function getHistoricalDailyStats(): Promise<HistoricalDailyStat[]> 
   return result.json<HistoricalDailyStat>();
 }
 
+export interface TransactionTypeStat {
+  date: string;
+  tx_type: number;
+  tx_count: number;
+}
+
+export async function getTransactionTypeStats(): Promise<TransactionTypeStat[]> {
+  const result = await ch.query({
+    query: `
+      SELECT
+        toString(toDate(block_timestamp)) AS date,
+        tx_type,
+        toUInt64(count()) AS tx_count
+      FROM ethereum.transactions FINAL
+      WHERE block_timestamp >= now() - INTERVAL 30 DAY
+        AND is_deleted = 0
+      GROUP BY date, tx_type
+      ORDER BY date ASC, tx_type ASC
+    `,
+    format: "JSONEachRow",
+  });
+  return result.json<TransactionTypeStat>();
+}
+
 export async function getBpoEpochStats(): Promise<BpoEpochStat[]> {
   const result = await ch.query({
     query: `
@@ -1359,7 +1383,7 @@ export async function getDaLeaderboard(hours = 24): Promise<LeaderboardRow[]> {
           NULL AS avg_fullness_pct,
           0    AS ghost_blob_count,
           NULL AS total_bytes_used,
-          NULL AS cost_per_byte_eth,
+          b.cost_per_blob_gwei / 1e9 * 1024.0 AS cost_per_byte_eth,
           least(100, greatest(0,
             (1.0 - b.cost_per_blob_gwei * 1e9 / greatest(na.network_avg_fee, 1)) * 50.0 + 50.0
           )) AS timing_score,

@@ -8,6 +8,7 @@ import { PackingHistogram } from "@/components/charts/PackingHistogram";
 import { RegimeHeatmap } from "@/components/charts/RegimeHeatmap";
 import { RollupShareDonut } from "@/components/charts/RollupShareDonut";
 import { RollupVolumeAreaChart } from "@/components/charts/RollupVolumeAreaChart";
+import { TransactionTypesChart } from "@/components/charts/TransactionTypesChart";
 import { PageHeader, PageSection } from "@/components/shared/PageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import {
@@ -18,8 +19,10 @@ import {
   getLeaderboard,
   getMarketActivity,
   getBpoEpochStats,
+  getTransactionTypeStats,
   type BpoEpochStat,
   type HistoricalDailyStat,
+  type TransactionTypeStat,
 } from "@/lib/queries";
 import { BarChart3, FlaskConical, TrendingUp, Cpu, ChevronRight, Clock, Coins, Database, Gauge, Zap } from "lucide-react";
 import Link from "next/link";
@@ -176,7 +179,7 @@ export default async function ResearchPage({
   const isHistory = tab === "history";
   const isMarket  = !isBpo && !isHistory;
 
-  const [market7d, market30d, leaderboard30d, dailyBreakdown, forecast, fullnessHistogram, bpoStats, historicalStats] =
+  const [market7d, market30d, leaderboard30d, dailyBreakdown, forecast, fullnessHistogram, bpoStats, historicalStats, txTypeStats] =
     await Promise.all([
       isMarket   ? getMarketActivity(720).catch(() => [])                      : Promise.resolve([]),
       isMarket   ? getMarketActivity(2160).catch(() => [])                     : Promise.resolve([]),
@@ -186,6 +189,7 @@ export default async function ResearchPage({
       isMarket   ? getFullnessHistogram(30).catch(() => [])                    : Promise.resolve([]),
       isBpo      ? getBpoEpochStats().catch(() => [] as BpoEpochStat[])        : Promise.resolve([] as BpoEpochStat[]),
       isHistory  ? getHistoricalDailyStats().catch(() => [] as HistoricalDailyStat[]) : Promise.resolve([] as HistoricalDailyStat[]),
+      isMarket   ? getTransactionTypeStats().catch(() => [] as TransactionTypeStat[])  : Promise.resolve([] as TransactionTypeStat[]),
     ]);
 
   const totalBlobs30d = leaderboard30d.reduce((s, r) => s + Number(r.total_blobs), 0);
@@ -400,6 +404,18 @@ export default async function ResearchPage({
           >
             <div className="min-h-[350px]">
               <PackingHistogram data={fullnessHistogram} />
+            </div>
+          </PageSection>
+
+          {/* Section 5: Transaction Types Distribution */}
+          <PageSection
+            label="Standardization"
+            title="Transaction Types Distribution"
+            description="Historical analysis of EIP transaction types over the last 30 days."
+            interpretation="Type 2 (EIP-1559 dynamic fee) represents modern flexible transactions. Type 0 (Legacy) are older gas structures. Type 3 (Blob) carries Layer-2 DA data, and Type 4 represents experimental delegations."
+          >
+            <div className="cosmic-card p-6">
+              <TransactionTypesChart data={txTypeStats} />
             </div>
           </PageSection>
         </div>

@@ -458,7 +458,7 @@ export default async function OverviewPage({
               </div>
               <p className="text-xs text-text-secondary opacity-70">Ranking all active rollups by their combined packing density and timing performance compared to the network baseline.</p>
             </div>
-            <EfficiencyComparisonTable leaderboard={leaderboard} networkAvgGwei={networkAvgGwei} />
+            <EfficiencyComparisonTable leaderboard={leaderboard} networkAvgGwei={networkAvgGwei} ethUsd={ethUsd ?? undefined} />
             <ChartCardFooter />
           </div>
 
