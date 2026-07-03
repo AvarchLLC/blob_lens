@@ -161,6 +161,14 @@ export interface WhaleWallet {
   last_updated: string;
 }
 
+export interface WhaleHistory {
+  address: string;
+  label: string | null;
+  balance_eth: number;
+  timestamp: string;
+}
+
+
 export interface WhaleActivity {
   tx_hash: string;
   from_addr: string;

@@ -2,21 +2,32 @@
 
 import { getChartTheme, animationConfig } from "@/lib/chartTheme";
 import ReactECharts from "echarts-for-react";
+
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+
+import { WhaleHistory } from "@/types";
+
+/** Shape ECharts passes to an array-mode tooltip formatter. */
+interface TooltipParam {
+  axisValue: string;
+  seriesName: string;
+  value: number | null | undefined;
+  color: string;
+  marker: string;
+}
 
 interface Props {
-  data: any[];
+  data: WhaleHistory[];
 }
 
 const COLORS = ["#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#EC4899", "#EF4444"];
 
 export function WhaleHistoryLineChart({ data }: Props) {
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const { resolvedTheme } = useTheme();
 
-  if (!mounted) {
+  // resolvedTheme is undefined until next-themes has hydrated on the client.
+  // Using it as a hydration guard avoids any useState/useEffect/useRef mounting hacks.
+  if (!resolvedTheme) {
     return <div className="h-[350px] w-full animate-pulse bg-surface-elevated rounded-none border border-dashed border-border" />;
   }
 
@@ -24,7 +35,7 @@ export function WhaleHistoryLineChart({ data }: Props) {
     return <p className="py-8 text-center text-xs text-text-secondary opacity-50 italic font-mono">No historical whale balance data available</p>;
   }
 
-  const isDark = theme !== "light";
+  const isDark = resolvedTheme !== "light";
   const t = getChartTheme(isDark);
 
   const ttText = isDark ? "#F0F4F5" : "#0D1618";
@@ -125,7 +136,7 @@ export function WhaleHistoryLineChart({ data }: Props) {
           type: "dashed" as const 
         } 
       },
-      formatter: (params: any[]) => {
+      formatter: (params: TooltipParam[]) => {
         if (!params.length) return "";
 
         const dayIdx = xLabels.findIndex((l) => l === params[0].axisValue);
@@ -136,7 +147,7 @@ export function WhaleHistoryLineChart({ data }: Props) {
         });
 
         // Sort so the highest balance displays on top
-        const sortedParams = [...params].sort((a, b) => (b.value || 0) - (a.value || 0));
+        const sortedParams = [...params].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
         return `
           <div style="min-width:260px;display:flex;flex-direction:column;gap:8px;padding:4px;">
