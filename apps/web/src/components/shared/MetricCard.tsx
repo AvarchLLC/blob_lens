@@ -11,10 +11,11 @@ import {
   Clock, 
   Coins, 
   Gauge, 
-  ArrowUpRight 
+  ArrowUpRight,
+  LucideIcon
 } from 'lucide-react';
 
-const ICON_MAP: Record<string, React.ComponentType<any>> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   database: Database,
   zap: Zap,
   cpu: Cpu,

@@ -80,13 +80,22 @@ interface MevStats {
   unique_pools: string; first_block: string; last_block: string;
   sandwich_blocks: string; total_blocks: string;
   v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
+  other_v2_count?: string; v4_count?: string;
   total_gross_profit_usd: string; total_gas_cost_usd: string;
+  total_victim_volume_usd: string;
 }
 interface WeekRow {
   week?: string; date?: string; sandwiches: string; active_bots: string; blocks_sandwiched: string;
   v3_count: string; v2_count: string; sushi_count: string; curve_count: string; dodo_count: string;
+  other_v2_count?: string; v4_count?: string;
   victim_usd_total: string; usd_count: string; weekly_victims?: string; daily_victims?: string;
   bot_profit_usd: string; bot_gas_usd: string;
+  victim_usd_v3: string;
+  victim_usd_v2: string;
+  victim_usd_sushi: string;
+  victim_usd_curve: string;
+  victim_usd_dodo: string;
+  victim_usd_other_v2: string;
 }
 interface BlockPctRow { week: string; total_blocks: string; sandwich_blocks: string; }
 interface BotRow {
@@ -103,10 +112,10 @@ interface RecentRow {
   token0: string; token1: string; victim_usd: string; bot_profit_usd: string; gas_cost_usd: string;
 }
 interface Progress { last_block: string; total_sandwiches: string; dencun_start: number; }
-type TabId = "overview" | "tokens" | "pairs" | "bots" | "pools" | "recent";
+type TabId = "overview" | "details";
+type SubTabId = "tokens" | "pairs" | "bots" | "pools" | "recent";
 
 /* ─── theme ─────────────────────────────────────────────────────────────── */
-type Theme = "dark" | "light";
 interface TC {
   pageBg: string; pageText: string;
   card: string; cardBorder: string;
@@ -153,9 +162,11 @@ const LIGHT: TC = {
 const PROTO_CONFIG: Record<string, { label: string; color: string; dark: string; light: string }> = {
   uniswap_v3: { label: "Uni v3", color: "#e91e8c", dark: "bg-pink-500/15 text-pink-400 border-pink-500/30", light: "bg-pink-50 text-pink-600 border-pink-200" },
   uniswap_v2: { label: "Uni v2", color: "#8b5cf6", dark: "bg-violet-500/15 text-violet-400 border-violet-500/30", light: "bg-violet-50 text-violet-600 border-violet-200" },
-  sushiswap_v2: { label: "Sushi", color: "#f97316", dark: "bg-orange-500/15 text-orange-400 border-orange-500/30", light: "bg-orange-50 text-orange-600 border-orange-200" },
+  sushiswap_v2: { label: "SushiSwap", color: "#f97316", dark: "bg-orange-500/15 text-orange-400 border-orange-500/30", light: "bg-orange-50 text-orange-600 border-orange-200" },
   curve: { label: "Curve", color: "#10b981", dark: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", light: "bg-emerald-50 text-emerald-600 border-emerald-200" },
   dodo: { label: "DODO", color: "#eab308", dark: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30", light: "bg-yellow-50 text-yellow-600 border-yellow-200" },
+  other_v2: { label: "Other v2", color: "#6b7280", dark: "bg-gray-500/15 text-gray-400 border-gray-500/30", light: "bg-gray-50 text-gray-600 border-gray-200" },
+  uniswap_v4: { label: "Uni v4 (Soon)", color: "#ec4899", dark: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30", light: "bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200" },
 };
 const CHART_COLORS = ["#e91e8c", "#8b5cf6", "#f97316", "#10b981", "#eab308", "#06b6d4", "#ef4444", "#22c55e", "#a855f7", "#f43f5e", "#3b82f6", "#f59e0b"];
 
@@ -176,6 +187,7 @@ function fmtK(n: string | number) {
 function fmtUsd(n: string | number) {
   const v = Number(n);
   if (!v) return "—";
+  if (v >= 1_000_000_000_000) return `$${(v / 1_000_000_000_000).toFixed(2)}T`;
   if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(2)}B`;
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
   if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
@@ -323,7 +335,8 @@ export default function MevClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("overview");
-  const [timeframe, setTimeframe] = useState<"daily" | "weekly">("weekly");
+  const [timeframe, setTimeframe] = useState<"daily" | "weekly">("daily");
+  const [subTab, setSubTab] = useState<SubTabId>("tokens");
 
   const load = useCallback(async () => {
     try {
@@ -394,19 +407,32 @@ export default function MevClient() {
     const dateVal = r.week || r.date || "";
     return {
       week: new Date(dateVal).toLocaleDateString("en", { month: "short", day: "numeric" }),
-      v3: Number(r.v3_count), v2: Number(r.v2_count), sushi: Number(r.sushi_count),
-      curve: Number(r.curve_count), dodo: Number(r.dodo_count),
+      v3: Number(r.v3_count),
+      v2: Number(r.v2_count),
+      sushi: Number(r.sushi_count),
+      curve: Number(r.curve_count),
+      dodo: Number(r.dodo_count),
+      other_v2: Number(r.other_v2_count ?? 0),
+      v4: Number(r.v4_count ?? 0),
       bots: Number(r.active_bots), victims: Number(r.weekly_victims ?? r.daily_victims ?? 0),
       usd: Number(r.victim_usd_total),
       usdPct: r.usd_count && r.sandwiches ? Math.round((Number(r.usd_count) / Number(r.sandwiches)) * 100) : 0,
       bot_profit_usd: gross,
       bot_gas_usd: gas,
       bot_net_profit_usd: Math.max(0, gross - gas),
+      
+      victim_usd_v3: Number(r.victim_usd_v3 ?? 0),
+      victim_usd_v2: Number(r.victim_usd_v2 ?? 0),
+      victim_usd_sushi: Number(r.victim_usd_sushi ?? 0),
+      victim_usd_curve: Number(r.victim_usd_curve ?? 0),
+      victim_usd_dodo: Number(r.victim_usd_dodo ?? 0),
+      victim_usd_other_v2: Number(r.victim_usd_other_v2 ?? 0),
+      victim_usd_v4: 0,
     };
   });
 
   const shareData = weekly.map((r) => {
-    const tot = Number(r.v3_count) + Number(r.v2_count) + Number(r.sushi_count) + Number(r.curve_count) + Number(r.dodo_count) || 1;
+    const tot = Number(r.v3_count) + Number(r.v2_count) + Number(r.sushi_count) + Number(r.curve_count) + Number(r.dodo_count) + Number(r.other_v2_count ?? 0) + Number(r.v4_count ?? 0) || 1;
     const dateVal = r.week || r.date || "";
     return {
       week: new Date(dateVal).toLocaleDateString("en", { month: "short", day: "numeric" }),
@@ -415,6 +441,8 @@ export default function MevClient() {
       sushi: +((Number(r.sushi_count) / tot) * 100).toFixed(1),
       curve: +((Number(r.curve_count) / tot) * 100).toFixed(1),
       dodo: +((Number(r.dodo_count) / tot) * 100).toFixed(1),
+      other_v2: +((Number(r.other_v2_count ?? 0) / tot) * 100).toFixed(1),
+      v4: +((Number(r.v4_count ?? 0) / tot) * 100).toFixed(1),
     };
   });
 
@@ -432,14 +460,17 @@ export default function MevClient() {
   /* ── donut data ─────────────────────────────────────────────────────── */
   const v3T = Number(stats?.v3_count ?? 0), v2T = Number(stats?.v2_count ?? 0);
   const sushiT = Number(stats?.sushi_count ?? 0), curveT = Number(stats?.curve_count ?? 0), dodoT = Number(stats?.dodo_count ?? 0);
-  const protoTot = v3T + v2T + sushiT + curveT + dodoT || 1;
+  const otherV2T = Number(stats?.other_v2_count ?? 0), v4T = Number(stats?.v4_count ?? 0);
+  const protoTot = v3T + v2T + sushiT + curveT + dodoT + otherV2T + v4T || 1;
   const protoPie = [
     { name: "Uniswap v3", value: v3T, fill: "#e91e8c" },
     { name: "Uniswap v2", value: v2T, fill: "#8b5cf6" },
     { name: "SushiSwap", value: sushiT, fill: "#f97316" },
     { name: "Curve", value: curveT, fill: "#10b981" },
     { name: "DODO", value: dodoT, fill: "#eab308" },
-  ].filter((e) => e.value > 0);
+    { name: "Other v2", value: otherV2T, fill: "#6b7280" },
+    { name: "Uniswap v4", value: v4T, fill: "#ec4899" },
+  ].filter((e) => e.value > 0 || e.name === "Uniswap v4"); // Keep Uniswap v4 as visual placeholder even if 0
 
   const pairsTot = pairs.reduce((s, p) => s + Number(p.sandwiches), 0) || 1;
   const pairsPie = pairs.slice(0, 12).map((p, i) => ({
@@ -453,7 +484,11 @@ export default function MevClient() {
   }));
 
   const TABS: { id: TabId; label: string }[] = [
-    { id: "overview", label: "Overview" },
+    { id: "overview", label: "Dune Overview" },
+    { id: "details", label: "Detailed Telemetry" },
+  ];
+
+  const SUB_TABS: { id: SubTabId; label: string }[] = [
     { id: "tokens", label: "Tokens" },
     { id: "pairs", label: "Token Pairs" },
     { id: "bots", label: "Bots" },
@@ -492,9 +527,9 @@ export default function MevClient() {
         </div>
       )}
 
-      {/* ── KPIs (4x2 Grid) ── */}
+      {/* ── KPIs (9-Column Responsive Grid) ── */}
       {stats && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-9">
           <Kpi
             tc={tc}
             label="Total Sandwiches"
@@ -503,6 +538,15 @@ export default function MevClient() {
             accent="text-pink-500"
             borderAccent="border-t-2 border-t-pink-500"
             tooltip="Total EIP-4844 sandwich transactions detected since the Dencun upgrade (block 19,426,587)."
+          />
+          <Kpi
+            tc={tc}
+            label="Sandwiched Vol"
+            value={fmtUsd(stats.total_victim_volume_usd)}
+            sub="all-time victim volume"
+            accent="text-purple-500"
+            borderAccent="border-t-2 border-t-purple-500"
+            tooltip="Estimated total USD volume of victim trades that were sandwiched."
           />
           <Kpi
             tc={tc}
@@ -578,6 +622,25 @@ export default function MevClient() {
         ))}
       </div>
 
+      {/* Secondary Sub-Tabs for Detailed Telemetry */}
+      {tab === "details" && (
+        <div className={`flex flex-wrap gap-1 px-4 py-3 ${tc.card} border ${tc.cardBorder} font-mono`}>
+          {SUB_TABS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSubTab(s.id)}
+              className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                subTab === s.id
+                  ? "bg-pink-500 text-white border-pink-500"
+                  : `${tc.text} border-transparent hover:${tc.kpiBg} hover:${tc.cardBorder}`
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ╔══════════════════════ OVERVIEW ══════════════════════════════╗ */}
       {tab === "overview" && (
         <div className="space-y-5">
@@ -601,79 +664,154 @@ export default function MevClient() {
             </div>
           </div>
 
-          {/* absolute stacked area */}
-          <Card
-            tc={tc}
-            title="Sandwiched Transactions"
-            sub="ethereum, Weekly"
-            tooltip="Weekly count of EIP-4844 sandwich transactions, broken down by decentralized exchange (DEX) protocol."
-          >
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={weeklyData}>
-                <defs>
-                  {[["gv3", "#e91e8c"], ["gv2", "#8b5cf6"], ["gs", "#f97316"], ["gc", "#10b981"], ["gd", "#eab308"]].map(([id, c]) => (
-                    <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={c} stopOpacity={0.55} />
-                      <stop offset="100%" stopColor={c} stopOpacity={0.04} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
-                <Tooltip {...TIP} />
-                <Legend wrapperStyle={LEG} />
-                <Area type="monotone" dataKey="v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="url(#gv3)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="url(#gv2)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="url(#gs)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="curve" name="Curve" stackId="1" stroke="#10b981" fill="url(#gc)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="dodo" name="DODO" stackId="1" stroke="#eab308" fill="url(#gd)" strokeWidth={1.5} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Card>
-
-          {/* 100% share + protocol donut */}
-          <div className="grid gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <Card
-                tc={tc}
-                title="Sandwiched Transactions per Protocol"
-                sub="ethereum, % share, Weekly"
-                tooltip="Weekly percentage share of sandwich volume across Uniswap v2/v3, SushiSwap, Curve, and DODO."
-              >
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={shareData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                    <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                    <Tooltip {...TIP} formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name]} />
-                    <Legend wrapperStyle={LEG} />
-                    <Area type="monotone" dataKey="v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="#e91e8c30" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="#8b5cf630" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="#f9731630" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="curve" name="Curve" stackId="1" stroke="#10b981" fill="#10b98130" strokeWidth={1.5} />
-                    <Area type="monotone" dataKey="dodo" name="DODO" stackId="1" stroke="#eab308" fill="#eab30830" strokeWidth={1.5} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Card>
-            </div>
-            <DonutCard
-              tc={tc}
-              title="Protocol Split"
-              sub="all-time"
-              data={protoPie}
-              total={protoTot}
-              tooltip="All-time distribution of sandwich transactions across DEX protocols."
-            />
-          </div>
-
-          {/* victim addresses + blocks % */}
+          {/* Row 1: Attack Frequency & Volume (2 columns) */}
           <div className="grid gap-5 lg:grid-cols-2">
             <Card
               tc={tc}
+              title="Sandwiched Volume (USD)"
+              sub={`ethereum, ${timeframe === "weekly" ? "Weekly" : "Daily"}`}
+              tooltip="Estimated total USD volume of victim trades that were sandwiched, broken down by protocol."
+            >
+              {weeklyData.some((r) => r.usd > 0) ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart data={weeklyData}>
+                    <defs>
+                      {[["v3Vol", "#e91e8c"], ["v2Vol", "#8b5cf6"], ["sushiVol", "#f97316"], ["curveVol", "#10b981"], ["dodoVol", "#eab308"], ["goVol", "#6b7280"], ["v4Vol", "#ec4899"]].map(([id, c]) => (
+                        <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={c} stopOpacity={0.55} />
+                          <stop offset="100%" stopColor={c} stopOpacity={0.04} />
+                        </linearGradient>
+                      ))}
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
+                    <Tooltip {...TIP} formatter={(v: number) => [fmtUsd(v), ""]} />
+                    <Legend wrapperStyle={LEG} />
+                    <Area type="monotone" dataKey="victim_usd_v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="url(#v3Vol)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="victim_usd_v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="url(#v2Vol)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="victim_usd_sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="url(#sushiVol)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="victim_usd_curve" name="Curve" stackId="1" stroke="#10b981" fill="url(#curveVol)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="victim_usd_dodo" name="DODO" stackId="1" stroke="#eab308" fill="url(#dodoVol)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="victim_usd_other_v2" name="Other v2" stackId="1" stroke="#6b7280" fill="url(#goVol)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="victim_usd_v4" name="Uniswap v4" stackId="1" stroke="#ec4899" fill="url(#v4Vol)" strokeWidth={1.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : <EmptyState tc={tc} msg="No USD volume data yet" />}
+            </Card>
+
+            <Card
+              tc={tc}
+              title="Sandwiched Transactions"
+              sub={`ethereum, ${timeframe === "weekly" ? "Weekly" : "Daily"}`}
+              tooltip="Count of EIP-4844 sandwich transactions, broken down by decentralized exchange (DEX) protocol."
+            >
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={weeklyData}>
+                  <defs>
+                    {[["gv3", "#e91e8c"], ["gv2", "#8b5cf6"], ["gs", "#f97316"], ["gc", "#10b981"], ["gd", "#eab308"], ["go", "#6b7280"], ["gv4", "#ec4899"]].map(([id, c]) => (
+                      <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.55} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.04} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                  <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtK} />
+                  <Tooltip {...TIP} />
+                  <Legend wrapperStyle={LEG} />
+                  <Area type="monotone" dataKey="v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="url(#gv3)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="url(#gv2)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="url(#gs)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="curve" name="Curve" stackId="1" stroke="#10b981" fill="url(#gc)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="dodo" name="DODO" stackId="1" stroke="#eab308" fill="url(#gd)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="other_v2" name="Other v2" stackId="1" stroke="#6b7280" fill="url(#go)" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="v4" name="Uniswap v4" stackId="1" stroke="#ec4899" fill="url(#gv4)" strokeWidth={1.5} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+          </div>
+
+          {/* Row 2: Block Portion and Protocol Share */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card
+              tc={tc}
+              title="Portion of Blocks with Sandwich Trades"
+              sub={`ethereum, % ${timeframe === "weekly" ? "weekly" : "daily"}`}
+              tooltip="Percentage of Ethereum blocks containing at least one sandwich trade."
+            >
+              {blkData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={blkData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                    <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip
+                      {...TIP}
+                      formatter={(v: number, name: string, entry: { payload?: { sw: number; total: number } }) =>
+                        name === "Sandwich"
+                          ? [`${v}%  (${fmt(entry.payload?.sw ?? 0)} / ${fmt(entry.payload?.total ?? 0)} blocks)`, "Blocks w/ sandwich"]
+                          : [`${v}%`, "Other blocks"]
+                      }
+                    />
+                    <Legend wrapperStyle={LEG} />
+                    <Area type="monotone" dataKey="other" name="Other" stackId="1" stroke="#10b981" fill="#10b98125" strokeWidth={1} />
+                    <Area type="monotone" dataKey="sandwich" name="Sandwich" stackId="1" stroke="#f43f5e" fill="#f43f5e55" strokeWidth={1.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : <EmptyState tc={tc} />}
+            </Card>
+
+            <Card
+              tc={tc}
+              title="Sandwiched Transactions per Protocol (% share)"
+              sub={`ethereum, % share, ${timeframe === "weekly" ? "Weekly" : "Daily"}`}
+              tooltip="Percentage share of sandwich transactions across Uniswap v2/v3, SushiSwap, Curve, DODO, and Other v2 over time."
+            >
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={shareData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                  <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip {...TIP} formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name]} />
+                  <Legend wrapperStyle={LEG} />
+                  <Area type="monotone" dataKey="v3" name="Uniswap v3" stackId="1" stroke="#e91e8c" fill="#e91e8c30" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="v2" name="Uniswap v2" stackId="1" stroke="#8b5cf6" fill="#8b5cf630" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="sushi" name="SushiSwap" stackId="1" stroke="#f97316" fill="#f9731630" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="curve" name="Curve" stackId="1" stroke="#10b981" fill="#10b98130" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="dodo" name="DODO" stackId="1" stroke="#eab308" fill="#eab30830" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="other_v2" name="Other v2" stackId="1" stroke="#6b7280" fill="#6b728030" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="v4" name="Uniswap v4" stackId="1" stroke="#ec4899" fill="#ec489930" strokeWidth={1.5} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+          </div>
+
+          {/* Row 3: Unique Victims and Active Bots */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card
+              tc={tc}
+              title="Sandwich Bots"
+              sub={`ethereum, ${timeframe === "weekly" ? "Weekly" : "Daily"} (active bots)`}
+              tooltip="Count of unique, active sandwich bot contracts executing trades."
+            >
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={weeklyData} barSize={10}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
+                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
+                  <YAxis tick={TICK} tickLine={false} axisLine={false} />
+                  <Tooltip {...TIP} />
+                  <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={0} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card
+              tc={tc}
               title="Sandwiched DEX Trading Addresses"
-              sub="ethereum, Weekly (unique victim txs)"
-              tooltip="Weekly count of unique victim transactions. Indicates the number of retail/institutional traders affected."
+              sub={`ethereum, ${timeframe === "weekly" ? "Weekly" : "Daily"} (unique victim txs)`}
+              tooltip="Count of unique victim transactions over time. Indicates the number of retail/institutional traders affected."
             >
               {weeklyData.some((r) => r.victims > 0) ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -693,106 +831,66 @@ export default function MevClient() {
                 </ResponsiveContainer>
               ) : <EmptyState tc={tc} msg="Available after backfill" />}
             </Card>
-
-            <Card
-              tc={tc}
-              title="Portion of Blocks with Sandwich Trades"
-              sub="ethereum, % weekly"
-              tooltip="Weekly percentage of Ethereum blocks containing at least one sandwich trade."
-            >
-              {blkData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={blkData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                    <YAxis tick={TICK} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                    <Tooltip
-                      {...TIP}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(v: number, name: string, entry: any) =>
-                        name === "Sandwich"
-                          ? [`${v}%  (${fmt(entry.payload?.sw ?? 0)} / ${fmt(entry.payload?.total ?? 0)} blocks)`, "Blocks w/ sandwich"]
-                          : [`${v}%`, "Other blocks"]
-                      }
-                    />
-                    <Legend wrapperStyle={LEG} />
-                    <Area type="monotone" dataKey="other" name="Other" stackId="1" stroke="#10b981" fill="#10b98125" strokeWidth={1} />
-                    <Area type="monotone" dataKey="sandwich" name="Sandwich" stackId="1" stroke="#f43f5e" fill="#f43f5e55" strokeWidth={1.5} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : <EmptyState tc={tc} />}
-            </Card>
           </div>
 
-          {/* bots weekly + USD */}
+          {/* Row 4: Sandwich Bots Economics & Protocol Split */}
           <div className="grid gap-5 lg:grid-cols-3">
-            <Card
-              tc={tc}
-              title="Sandwich Bots"
-              sub="ethereum, Weekly (active bots)"
-              tooltip="Weekly count of unique, active sandwich bot contracts executing trades."
-            >
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={weeklyData} barSize={10}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                  <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                  <YAxis tick={TICK} tickLine={false} axisLine={false} />
-                  <Tooltip {...TIP} />
-                  <Bar dataKey="bots" name="Active Bots" fill="#818cf8" radius={0} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card
-              tc={tc}
-              title="Weekly Bot Profits & Gas (USD)"
-              sub="estimated gross profit vs gas costs"
-              tooltip="Weekly breakdown of estimated bot net profits (cyan) vs. gas costs (orange). The total height of each bar represents the estimated gross revenue."
-            >
-              {weeklyData.some((r) => r.bot_profit_usd > 0) ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={weeklyData} barSize={10}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
-                    <XAxis dataKey="week" tick={TICK} tickLine={false} />
-                    <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
-                    <Tooltip {...TIP} formatter={(v: number, name: string) => [fmtUsd(v), name]} />
-                    <Legend wrapperStyle={LEG} />
-                    <Bar dataKey="bot_net_profit_usd" name="Net Profit" stackId="a" fill="#06b6d4" radius={0} />
-                    <Bar dataKey="bot_gas_usd" name="Gas Cost" stackId="a" fill="#f97316" radius={0} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <EmptyState tc={tc} msg="No profit data yet" />}
-            </Card>
-
-            <Card
-              tc={tc}
-              title="Weekly Victim Volume (USD)"
-              sub={weeklyData.some(r => r.usd > 0) ? "USDC/USDT/DAI/WETH pairs" : "Populates as backfill completes"}
-              tooltip="Weekly estimate of the total USD volume of victim trades that were sandwiched (only includes priced pairs)."
-            >
-              {weeklyData.some((r) => r.usd > 0) ? (
-                <>
-                  <p className={`mb-2 text-xs font-mono opacity-60 ${tc.faint}`}>
-                    {weeklyData.length > 0 ? weeklyData[weeklyData.length - 1].usdPct : 0}% priced in latest week
-                  </p>
-                  <ResponsiveContainer width="100%" height={170}>
+            <div className="lg:col-span-2">
+              <Card
+                tc={tc}
+                title="Bot Profits & Gas (USD)"
+                sub={`ethereum, estimated gross profit vs gas costs, ${timeframe === "weekly" ? "Weekly" : "Daily"}`}
+                tooltip="Breakdown of estimated bot net profits (cyan) vs. gas costs (orange). The total height of each bar represents the estimated gross revenue."
+              >
+                {weeklyData.some((r) => r.bot_profit_usd > 0) ? (
+                  <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={weeklyData} barSize={10}>
                       <CartesianGrid strokeDasharray="3 3" stroke={tc.grid} />
                       <XAxis dataKey="week" tick={TICK} tickLine={false} />
                       <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={fmtUsd} />
-                      <Tooltip {...TIP} formatter={(v: number) => [fmtUsd(v), "Victim Volume"]} />
-                      <Bar dataKey="usd" name="Victim USD" fill="#34d399" radius={0} />
+                      <Tooltip {...TIP} formatter={(v: number, name: string) => [fmtUsd(v), name]} />
+                      <Legend wrapperStyle={LEG} />
+                      <Bar dataKey="bot_net_profit_usd" name="Net Profit" stackId="a" fill="#06b6d4" radius={0} />
+                      <Bar dataKey="bot_gas_usd" name="Gas Cost" stackId="a" fill="#f97316" radius={0} />
                     </BarChart>
                   </ResponsiveContainer>
-                </>
-              ) : <EmptyState tc={tc} msg="No USD data yet" />}
-            </Card>
+                ) : <EmptyState tc={tc} msg="No profit data yet" />}
+              </Card>
+            </div>
+            <DonutCard
+              tc={tc}
+              title="Protocol Split"
+              sub="all-time"
+              data={protoPie}
+              total={protoTot}
+              tooltip="All-time distribution of sandwich transactions across DEX protocols."
+            />
+          </div>
+
+          {/* Row 5: Top Targeted Assets (Tokens & Pairs Donut Charts) */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <DonutCard
+              tc={tc}
+              title="Top Targeted ERC-20 Tokens"
+              sub="ethereum, all-time (Top 12)"
+              data={tokensPie}
+              total={tokensTot}
+              tooltip="Distribution of sandwich transactions across the top 12 targeted ERC-20 tokens."
+            />
+            <DonutCard
+              tc={tc}
+              title="Top Targeted Token Pairs"
+              sub="ethereum, all-time (Top 12)"
+              data={pairsPie}
+              total={pairsTot}
+              tooltip="Distribution of sandwich transactions across the top 12 targeted token pairs."
+            />
           </div>
         </div>
       )}
 
       {/* ╔══════════════════════ TOKENS ════════════════════════════════╗ */}
-      {tab === "tokens" && (
+      {tab === "details" && subTab === "tokens" && (
         <div className="grid gap-5 lg:grid-cols-3">
           <DonutCard
             tc={tc}
@@ -838,7 +936,7 @@ export default function MevClient() {
       )}
 
       {/* ╔══════════════════════ PAIRS ═════════════════════════════════╗ */}
-      {tab === "pairs" && (
+      {tab === "details" && subTab === "pairs" && (
         <div className="grid gap-5 lg:grid-cols-3">
           <DonutCard
             tc={tc}
@@ -887,7 +985,7 @@ export default function MevClient() {
       )}
 
       {/* ╔══════════════════════ BOTS ══════════════════════════════════╗ */}
-      {tab === "bots" && (
+      {tab === "details" && subTab === "bots" && (
         <div className="space-y-5">
           <Card
             tc={tc}
@@ -943,7 +1041,7 @@ export default function MevClient() {
       )}
 
       {/* ╔══════════════════════ POOLS ═════════════════════════════════╗ */}
-      {tab === "pools" && (
+      {tab === "details" && subTab === "pools" && (
         <div className="grid gap-5 lg:grid-cols-3">
           <Card
             tc={tc}
@@ -1010,7 +1108,7 @@ export default function MevClient() {
       )}
 
       {/* ╔══════════════════════ LIVE FEED ═════════════════════════════╗ */}
-      {tab === "recent" && (
+      {tab === "details" && subTab === "recent" && (
         <TableShell
           tc={tc} title="Live Sandwich Feed" sub="50 most recent · auto-refreshes every 30s"
           head={

@@ -697,7 +697,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-bold text-text-primary font-display">{u.name}</h3>
-                        <p className="text-[10px] text-text-tertiary mt-1 font-mono">{u.date.toUpperCase()} // BLOCK {u.block}</p>
+                        <p className="text-[10px] text-text-tertiary mt-1 font-mono">{u.date.toUpperCase()} · BLOCK {u.block}</p>
                       </div>
                       <span className="text-[8px] font-bold px-2 py-0.5 rounded-none border font-mono tracking-widest bg-background/60"
                         style={u.badgeStyle}>

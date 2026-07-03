@@ -22,6 +22,7 @@ import type {
   TxDetail,
   UnknownSender,
   WhaleWallet,
+  WhaleHistory,
 } from "@/types";
 import sql from "./db";
 import ch from "./clickhouse";
@@ -83,7 +84,7 @@ export async function getETHLiquidityHistory(days = 30): Promise<ETHLiquiditySna
 
 export async function getWhales(limit = 100): Promise<WhaleWallet[]> {
   try {
-    const rows = await sql<any[]>`
+    const rows = await sql<WhaleWallet[]>`
       SELECT
           w.id::text, w.address, w.balance_eth::float8, w.balance_usd::float8,
           w.label, w.category, w.is_verified, w.last_updated::text,
@@ -100,9 +101,9 @@ export async function getWhales(limit = 100): Promise<WhaleWallet[]> {
   }
 }
 
-export async function getWhaleHistory(days = 30): Promise<any[]> {
+export async function getWhaleHistory(days = 30): Promise<WhaleHistory[]> {
   try {
-    const rows = await sql<any[]>`
+    const rows = await sql<WhaleHistory[]>`
       SELECT
           s.address, w.label, s.balance_eth::float8, s.timestamp::text
       FROM whale_wallet_snapshots s
@@ -975,7 +976,12 @@ export async function getTransactionTypeStats(): Promise<TransactionTypeStat[]> 
         tx_type,
         toUInt64(count()) AS tx_count
       FROM ethereum.transactions FINAL
-      WHERE block_timestamp >= now() - INTERVAL 30 DAY
+      WHERE block_number >= (
+        SELECT min(number)
+        FROM ethereum.blocks
+        WHERE timestamp >= now() - INTERVAL 30 DAY
+          AND is_deleted = 0
+      )
         AND is_deleted = 0
       GROUP BY date, tx_type
       ORDER BY date ASC, tx_type ASC
@@ -1318,6 +1324,15 @@ export async function getBlockDetail(blockNumber: number): Promise<BlockDetail |
 }
 
 // ── DA Insights page queries ──────────────────────────────────────────────────
+interface DaMarketRow {
+  hour: string;
+  tx_count: string | number;
+  blobs_total: string | number;
+  avg_fee: string;
+  max_blobs_in_block: string | number;
+  avg_utilization: string | number;
+}
+
 // Uses block_blob_stats (per-block, no FINAL needed for analytics) — much faster than joining transactions
 export async function getDaMarketActivity(hours = 24): Promise<MarketHour[]> {
   try {
@@ -1345,8 +1360,8 @@ export async function getDaMarketActivity(hours = 24): Promise<MarketHour[]> {
       format: "JSONEachRow",
       query_params: { hours },
     });
-    const rows = await result.json<any>();
-    return rows.map((r: any) => ({
+    const rows = await result.json<DaMarketRow>();
+    return rows.map((r: DaMarketRow) => ({
       hour:               r.hour,
       tx_count:           Number(r.tx_count),
       blob_count:         Number(r.blobs_total),
