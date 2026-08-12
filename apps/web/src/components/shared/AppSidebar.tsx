@@ -20,6 +20,7 @@ import {
     BookOpen,
     Wallet,
     Zap,
+    Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSectionObserver } from '@/lib/useSectionObserver';
@@ -117,6 +118,11 @@ const NAV_GROUPS: NavGroup[] = [
                 href: '/mev',
                 label: 'MEV Tracker',
                 icon: Zap,
+            },
+            {
+                href: '/etm',
+                label: 'Encrypted Mempool',
+                icon: Lock,
             },
             {
                 href: '/market',

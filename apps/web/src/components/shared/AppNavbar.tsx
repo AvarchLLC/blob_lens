@@ -7,7 +7,7 @@ import {
   Search, BookOpen, Sun, Moon,
   LayoutDashboard, Activity, Trophy, BarChart3,
   FlaskConical, Landmark, Wallet, ShieldAlert, ShieldCheck,
-  Brain, HelpCircle, Layers, Zap,
+  Brain, HelpCircle, Layers, Zap, Lock,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ const PAGE_META: { match: string; title: string; icon: React.ElementType }[] = [
   { match: '/research',             title: 'Deep Research',   icon: FlaskConical },
   { match: '/rollup',               title: 'Rollup',          icon: Layers },
   { match: '/whale-watch',          title: 'Whale Watch',     icon: Activity },
+  { match: '/etm',                  title: 'Encrypted Mempool', icon: Lock },
   { match: '/mev',                  title: 'MEV Tracker',     icon: Zap },
   { match: '/compliance/ofac',      title: 'OFAC List',       icon: ShieldAlert },
   { match: '/rwa',                  title: 'RWA Valuation',   icon: Landmark },
