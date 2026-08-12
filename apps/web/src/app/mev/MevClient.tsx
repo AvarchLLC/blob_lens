@@ -484,7 +484,7 @@ export default function MevClient() {
   }));
 
   const TABS: { id: TabId; label: string }[] = [
-    { id: "overview", label: "Dune Overview" },
+    { id: "overview", label: "Overview" },
     { id: "details", label: "Detailed Telemetry" },
   ];
 
@@ -527,9 +527,40 @@ export default function MevClient() {
         </div>
       )}
 
-      {/* ── KPIs (9-Column Responsive Grid) ── */}
+      {/* ── Encrypted Mempool (EIP-8184 / Lucid) impact framing ────────── */}
       {stats && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-9">
+        <div className={`rounded-none border ${tc.cardBorder} ${tc.card} p-5`}>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-base">🔒</span>
+            <h3 className={`text-sm font-bold uppercase tracking-wider ${tc.text}`}>What an Encrypted Mempool Would Eliminate</h3>
+            <span className={`rounded-none border ${tc.cardBorder} px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>EIP-8184 · Lucid</span>
+          </div>
+          <p className={`mb-4 max-w-4xl text-xs leading-relaxed ${tc.muted}`}>
+            Sandwich attacks are only possible because pending transactions are visible in the public mempool. Protocol-enshrined encrypted mempools (EIP-8184 / Lucid) seal transactions until inclusion, removing the front-running surface these bots exploit. The figures below are the live, on-chain cost of that surface since Dencun — the baseline an encrypted mempool is designed to erase.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className={`rounded-none border ${tc.cardBorder} p-3`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>Extracted by sandwich bots</p>
+              <p className="mt-1 font-mono text-xl font-bold text-rose-500">${fmtK(stats.total_gross_profit_usd)}</p>
+              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>MEV encrypted mempools remove</p>
+            </div>
+            <div className={`rounded-none border ${tc.cardBorder} p-3`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>User volume put at risk</p>
+              <p className="mt-1 font-mono text-xl font-bold text-amber-500">${fmtK(stats.total_victim_volume_usd)}</p>
+              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>swaps exposed to front-running</p>
+            </div>
+            <div className={`rounded-none border ${tc.cardBorder} p-3`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>Users sandwiched</p>
+              <p className="mt-1 font-mono text-xl font-bold text-pink-500">{fmtK(stats.unique_victims)}</p>
+              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>distinct victim addresses</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── KPIs (responsive grid — wraps cleanly, no overflow) ── */}
+      {stats && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           <Kpi
             tc={tc}
             label="Total Sandwiches"
