@@ -188,6 +188,7 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
   const activeRollups = leaderboard.filter(r => r.rollup !== "UNKNOWN").length;
 
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     const el = document.querySelector("[data-landing-scroll]");
@@ -198,6 +199,10 @@ export function LandingClient({ stats, leaderboard, forecast, market }: Props) {
   }, []);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [terminalHistory]);
 
