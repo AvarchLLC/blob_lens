@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
             sumIf(s.sandwiches, s.protocol='dodo')         AS dodo_count,
             sumIf(s.sandwiches, s.protocol='other_v2')     AS other_v2_count,
             0                                              AS v4_count,
-            round(sum(s.gross_profit_usd) + sum(s.gross_profit_weth * coalesce(p.price_usd, 2000.0))) AS total_gross_profit_usd,
+            round(sum(s.gross_profit_usd)) AS total_gross_profit_usd,
             round(sum(s.gas_cost_weth * coalesce(p.price_usd, 2000.0))) AS total_gas_cost_usd,
             round(sum(s.victim_volume_weth * coalesce(p.price_usd, 2000.0))) AS total_victim_volume_usd
           FROM blob_lens.mev_daily_stats s
@@ -181,7 +181,7 @@ export async function GET(req: NextRequest) {
           round(sumIf(s.victim_volume_weth * coalesce(p.price_usd, 2000.0), s.protocol='other_v2')) AS victim_usd_other_v2,
           sum(s.victim_usd_count)                  AS usd_count,
           uniqMerge(s.unique_victims)              AS daily_victims,
-          round(sum(s.gross_profit_usd) + sum(s.gross_profit_weth * coalesce(p.price_usd, 2000.0))) AS bot_profit_usd,
+          round(sum(s.gross_profit_usd)) AS bot_profit_usd,
           round(sum(s.gas_cost_weth * coalesce(p.price_usd, 2000.0))) AS bot_gas_usd
         FROM blob_lens.mev_daily_stats s
         LEFT JOIN blob_lens.eth_daily_price p ON s.date = p.date
@@ -216,7 +216,7 @@ export async function GET(req: NextRequest) {
           round(sumIf(s.victim_volume_weth * coalesce(p.price_usd, 2000.0), s.protocol='other_v2')) AS victim_usd_other_v2,
           sum(s.victim_usd_count)                  AS usd_count,
           uniqMerge(s.unique_victims)              AS weekly_victims,
-          round(sum(s.gross_profit_usd) + sum(s.gross_profit_weth * coalesce(p.price_usd, 2000.0))) AS bot_profit_usd,
+          round(sum(s.gross_profit_usd)) AS bot_profit_usd,
           round(sum(s.gas_cost_weth * coalesce(p.price_usd, 2000.0))) AS bot_gas_usd
         FROM blob_lens.mev_daily_stats s
         LEFT JOIN blob_lens.eth_daily_price p ON s.date = p.date
