@@ -75,13 +75,15 @@ function Card({ tc, title, sub, badge, children, className = "" }: {
   );
 }
 
-function Kpi({ tc, label, value, sub, accent, borderAccent }: {
-  tc: TC; label: string; value: string; sub?: string; accent?: string; borderAccent?: string;
+function Kpi({ tc, label, value, sub, accent, borderAccent, usd }: {
+  tc: TC; label: string; value: string; sub?: string; accent?: string; borderAccent?: string; usd?: boolean;
 }) {
   return (
     <div className={`rounded-none border ${tc.kpiBg} ${tc.kpiBorder} ${borderAccent ?? "border-t-2 border-t-white/10"} px-5 py-4`}>
       <p className={`text-[10px] font-bold uppercase tracking-widest font-mono ${tc.muted}`}>{label}</p>
-      <p className={`mt-2 font-mono text-2xl font-bold ${accent ?? tc.text}`}>{value}</p>
+      <p className={`mt-2 font-mono text-2xl font-bold ${accent ?? tc.text}`}>
+        {value}{usd && <span className={`ml-1 align-middle text-[11px] font-bold ${tc.faint}`}>USD</span>}
+      </p>
       {sub && <p className={`mt-1 text-[11px] font-mono ${tc.faint}`}>{sub}</p>}
     </div>
   );
@@ -152,25 +154,32 @@ export default function EtmClient() {
   const [err, setErr] = useState<string | null>(null);
   const [metric, setMetric] = useState<MetricId>("extracted");
   const [gran, setGran] = useState<"daily" | "weekly">("daily");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    (async () => {
+    let alive = true;
+    const load = async () => {
       try {
         const [mevStats, t, s] = await Promise.all([
           fetch("/api/mev?type=stats", { cache: "no-store" }).then((r) => r.json()),
           get<{ rows: TrendRow[] }>("trend", "&days=90"),
           get<Sealed>("sealed"),
         ]);
+        if (!alive) return;
         setStats(mevStats);
         setTrend(t.rows ?? []);
         setSealed(s);
+        setLastUpdated(new Date());
       } catch (e) {
-        setErr((e as Error).message);
+        if (alive) setErr((e as Error).message);
       }
-    })();
+    };
+    load();
+    const iv = setInterval(load, 30_000);
+    return () => { alive = false; clearInterval(iv); };
   }, []);
 
   // All-time baseline (vetted, matches MEV tracker).
@@ -230,10 +239,22 @@ export default function EtmClient() {
         title="🔒 Encrypted Mempool Console"
         summary="EIP-8184 (Lucid) observability — the MEV surface encrypted mempools erase, the block space they reserve, and the protocol telemetry to verify them once live."
       >
-        <div className="flex flex-wrap gap-2 font-mono">
-          {["EIP-8184 · Lucid", "Research → Devnet", "Baseline: live"].map((t) => (
-            <span key={t} className={`rounded-none border ${tc.cardBorder} px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>{t}</span>
-          ))}
+        <div className="flex flex-col items-start gap-2 font-mono sm:items-end">
+          <div className={`flex items-center gap-2 rounded-none border ${tc.cardBorder} ${tc.card} px-2.5 py-1`}>
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${tc.text}`}>Baseline live</span>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>
+              · updates every 30s{lastUpdated ? ` · synced ${lastUpdated.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {["EIP-8184 · Lucid", "Research → Devnet", "USD values"].map((t) => (
+              <span key={t} className={`rounded-none border ${tc.cardBorder} px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>{t}</span>
+            ))}
+          </div>
         </div>
       </PageHeader>
 
@@ -260,8 +281,8 @@ export default function EtmClient() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi tc={tc} label="Sandwich Attacks" value={fmtK(at.total_attacks)} sub={`${fmtK(d30.attacks)} in last 30d`} accent="text-pink-500" borderAccent="border-t-2 border-t-pink-500" />
           <Kpi tc={tc} label="Users Sandwiched" value={fmtK(at.unique_victims)} sub="distinct victim addresses" accent="text-purple-500" borderAccent="border-t-2 border-t-purple-500" />
-          <Kpi tc={tc} label="Order Flow at Risk" value={fmtUsd(at.victim_volume_usd)} sub="victim swap volume exposed" accent="text-amber-500" borderAccent="border-t-2 border-t-amber-500" />
-          <Kpi tc={tc} label="Value Extracted" value={fmtUsd(at.extracted_usd)} sub={`${fmtUsd(d30.extracted_usd)} in last 30d`} accent="text-rose-500" borderAccent="border-t-2 border-t-rose-500" />
+          <Kpi tc={tc} label="Order Flow at Risk" value={fmtUsd(at.victim_volume_usd)} usd sub="victim swap volume exposed" accent="text-amber-500" borderAccent="border-t-2 border-t-amber-500" />
+          <Kpi tc={tc} label="Value Extracted" value={fmtUsd(at.extracted_usd)} usd sub={`${fmtUsd(d30.extracted_usd)} USD in last 30d`} accent="text-rose-500" borderAccent="border-t-2 border-t-rose-500" />
         </div>
         <p className={`mt-2 text-[11px] leading-relaxed ${tc.muted}`}>
           Sandwich attacks exist <span className="font-bold">only because pending transactions are public before inclusion.</span> Sealing them until inclusion (EIP-8184) removes this front-running surface — the figures above are its live, on-chain cost.

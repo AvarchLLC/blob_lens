@@ -115,8 +115,8 @@ const NAV_GROUPS: NavGroup[] = [
                 icon: Activity,
             },
             {
-                href: '/mev',
-                label: 'MEV Tracker',
+                href: '/mempool',
+                label: 'Mempool',
                 icon: Zap,
             },
             {
