@@ -229,14 +229,16 @@ function Card({ tc, title, sub, children, className = "", tooltip }: {
   );
 }
 
-function Kpi({ tc, label, value, sub, accent, borderAccent, tooltip }: { tc: TC; label: string; value: string; sub?: string; accent?: string; borderAccent?: string; tooltip?: string }) {
+function Kpi({ tc, label, value, sub, accent, borderAccent, tooltip, usd }: { tc: TC; label: string; value: string; sub?: string; accent?: string; borderAccent?: string; tooltip?: string; usd?: boolean }) {
   return (
     <div className={`rounded-none border ${tc.kpiBg} ${tc.kpiBorder} ${borderAccent ?? "border-t border-t-white/10"} px-5 py-4 hover:scale-[1.02] hover:shadow-md transition-all duration-200`}>
       <div className="flex items-center justify-between">
         <p className={`text-[10px] font-bold uppercase tracking-widest font-mono ${tc.muted}`}>{label}</p>
         {tooltip && <InfoTooltip text={tooltip} tc={tc} />}
       </div>
-      <p className={`mt-1.5 text-2xl font-bold tabular-nums font-mono ${accent ?? tc.text}`}>{value}</p>
+      <p className={`mt-1.5 text-2xl font-bold tabular-nums font-mono ${accent ?? tc.text}`}>
+        {value}{usd && <span className={`ml-1 align-middle text-[11px] font-bold ${tc.faint}`}>USD</span>}
+      </p>
       {sub && <p className={`mt-0.5 text-xs font-mono opacity-60 ${tc.faint}`}>{sub}</p>}
     </div>
   );
@@ -337,6 +339,7 @@ export default function MevClient() {
   const [tab, setTab] = useState<TabId>("overview");
   const [timeframe, setTimeframe] = useState<"daily" | "weekly">("daily");
   const [subTab, setSubTab] = useState<SubTabId>("tokens");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -353,6 +356,7 @@ export default function MevClient() {
       ]);
       setStats(s); setWeekly(w); setBlocksPct(bp); setBots(b);
       setPools(po); setPairs(pa); setTokens(tk); setRecent(r); setProgress(pr);
+      setLastUpdated(new Date());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -499,17 +503,22 @@ export default function MevClient() {
   return (
     <div className="animate-page-in space-y-6">
       <PageHeader
-        meta="MEV Observability Feed"
-        title="🥪 MEV Sandwich Tracker"
-        summary="Native on-chain detection — Uniswap v2/v3, SushiSwap, Curve, DODO · all sandwiches since Dencun"
+        meta="Mempool Observability"
+        title="🔓 Mempool"
+        summary="Ethereum's public mempool exposes traders to MEV. Encrypted mempools (EIP-8184 / Lucid) can eliminate it — here's the live surface they remove, measured on-chain since Dencun."
       >
-        <div className="flex flex-wrap gap-2 font-mono">
-          {[
-            "Source: ethereum.logs",
-            "Refreshes 30s",
-          ].map((t) => (
-            <span key={t} className={`rounded-none border ${tc.cardBorder} px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>{t}</span>
-          ))}
+        <div className="flex flex-col items-start gap-2 font-mono sm:items-end">
+          <div className={`flex items-center gap-2 rounded-none border ${tc.cardBorder} ${tc.card} px-2.5 py-1`}>
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${tc.text}`}>Live</span>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>
+              · updates every 30s{lastUpdated ? ` · synced ${lastUpdated.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}
+            </span>
+          </div>
+          <span className={`rounded-none border ${tc.cardBorder} px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>Source: ethereum.logs · all values in USD</span>
         </div>
       </PageHeader>
 
@@ -527,32 +536,33 @@ export default function MevClient() {
         </div>
       )}
 
-      {/* ── Encrypted Mempool (EIP-8184 / Lucid) impact framing ────────── */}
+      {/* ── The solution, led positive: Encrypted Mempool (EIP-8184 / Lucid) ── */}
       {stats && (
         <div className={`rounded-none border ${tc.cardBorder} ${tc.card} p-5`}>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-base">🔒</span>
-            <h3 className={`text-sm font-bold uppercase tracking-wider ${tc.text}`}>What an Encrypted Mempool Would Eliminate</h3>
+            <h3 className={`text-sm font-bold uppercase tracking-wider ${tc.text}`}>Encrypted Mempools Eliminate This MEV</h3>
             <span className={`rounded-none border ${tc.cardBorder} px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>EIP-8184 · Lucid</span>
+            <a href="/etm" className={`rounded-none border ${tc.cardBorder} px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500 hover:underline`}>Encrypted Mempool Console →</a>
           </div>
           <p className={`mb-4 max-w-4xl text-xs leading-relaxed ${tc.muted}`}>
-            Sandwich attacks are only possible because pending transactions are visible in the public mempool. Protocol-enshrined encrypted mempools (EIP-8184 / Lucid) seal transactions until inclusion, removing the front-running surface these bots exploit. The figures below are the live, on-chain cost of that surface since Dencun — the baseline an encrypted mempool is designed to erase.
+            Encrypted mempools (EIP-8184 / Lucid) seal transactions until inclusion, so front-running bots can no longer see pending trades — <span className={`font-bold ${tc.text}`}>removing the sandwich-MEV surface entirely.</span> Sandwich attacks are only possible because the public mempool exposes transactions before they&apos;re included. The figures below are the live, on-chain cost of that exposure since Dencun — exactly what encryption erases.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className={`rounded-none border ${tc.cardBorder} p-3`}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>Extracted by sandwich bots</p>
-              <p className="mt-1 font-mono text-xl font-bold text-rose-500">${fmtK(stats.total_gross_profit_usd)}</p>
-              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>MEV encrypted mempools remove</p>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>MEV removed once encrypted</p>
+              <p className="mt-1 font-mono text-xl font-bold text-emerald-500">{fmtUsd(stats.total_gross_profit_usd)} <span className="text-[11px] font-bold text-emerald-500/60">USD</span></p>
+              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>extracted by sandwich bots today</p>
             </div>
             <div className={`rounded-none border ${tc.cardBorder} p-3`}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>User volume put at risk</p>
-              <p className="mt-1 font-mono text-xl font-bold text-amber-500">${fmtK(stats.total_victim_volume_usd)}</p>
-              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>swaps exposed to front-running</p>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>Order flow protected</p>
+              <p className="mt-1 font-mono text-xl font-bold text-emerald-500">{fmtUsd(stats.total_victim_volume_usd)} <span className="text-[11px] font-bold text-emerald-500/60">USD</span></p>
+              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>swap volume no longer exposed</p>
             </div>
             <div className={`rounded-none border ${tc.cardBorder} p-3`}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>Users sandwiched</p>
-              <p className="mt-1 font-mono text-xl font-bold text-pink-500">{fmtK(stats.unique_victims)}</p>
-              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>distinct victim addresses</p>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${tc.faint}`}>Traders shielded</p>
+              <p className="mt-1 font-mono text-xl font-bold text-emerald-500">{fmtK(stats.unique_victims)}</p>
+              <p className={`mt-0.5 text-[11px] ${tc.muted}`}>distinct addresses sandwiched to date</p>
             </div>
           </div>
         </div>
@@ -574,6 +584,7 @@ export default function MevClient() {
             tc={tc}
             label="Sandwiched Vol"
             value={fmtUsd(stats.total_victim_volume_usd)}
+            usd
             sub="all-time victim volume"
             accent="text-purple-500"
             borderAccent="border-t-2 border-t-purple-500"
@@ -583,6 +594,7 @@ export default function MevClient() {
             tc={tc}
             label="Gross Revenue"
             value={fmtUsd(stats.total_gross_profit_usd)}
+            usd
             sub="estimated bot revenue"
             accent="text-emerald-500"
             borderAccent="border-t-2 border-t-emerald-500"
@@ -592,6 +604,7 @@ export default function MevClient() {
             tc={tc}
             label="Net Bot Profit"
             value={fmtUsd(Number(stats.total_gross_profit_usd) - Number(stats.total_gas_cost_usd))}
+            usd
             sub="revenue minus gas"
             accent="text-cyan-400"
             borderAccent="border-t-2 border-t-cyan-400"
@@ -639,6 +652,64 @@ export default function MevClient() {
             borderAccent="border-t border-t-slate-200 dark:border-t-white/15"
             tooltip="Average number of sandwich transactions per 1,000 Ethereum blocks."
           />
+        </div>
+      )}
+
+      {/* ── Protocol attack leaderboard ─────────────────────────────── */}
+      {stats && protoTot > 1 && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className={`rounded-none border ${tc.cardBorder} ${tc.card} p-5 lg:col-span-2`}>
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h3 className={`text-[13px] font-bold uppercase tracking-wider font-mono ${tc.text}`}>Protocol Attack Leaderboard</h3>
+              <span className={`rounded-none border ${tc.cardBorder} px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${tc.faint}`}>most attacked → most protected</span>
+            </div>
+            <p className={`mb-4 text-[11px] leading-relaxed ${tc.muted}`}>
+              Where sandwich MEV concentrates today. These are the venues an encrypted mempool protects first — the higher the bar, the more front-running removed once transactions are sealed.
+            </p>
+            <div className="space-y-2.5">
+              {[...protoPie].sort((a, b) => b.value - a.value).map((p, i) => {
+                const pct = (p.value / protoTot) * 100;
+                return (
+                  <div key={p.name} className="flex items-center gap-3">
+                    <span className={`w-5 shrink-0 text-right font-mono text-[11px] font-bold ${i === 0 ? "text-pink-500" : tc.faint}`}>{i + 1}</span>
+                    <span className={`w-28 shrink-0 truncate font-mono text-[12px] font-bold ${tc.text}`}>{p.name}</span>
+                    <div className={`relative h-5 flex-1 ${tc.kpiBg} overflow-hidden`}>
+                      <div className="h-full transition-all" style={{ width: `${Math.max(1.5, pct)}%`, background: p.fill }} />
+                    </div>
+                    <span className={`w-16 shrink-0 text-right font-mono text-[11px] tabular-nums ${tc.muted}`}>{fmtK(p.value)}</span>
+                    <span className={`w-12 shrink-0 text-right font-mono text-[11px] font-bold tabular-nums ${tc.text}`}>{pct.toFixed(1)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={`mt-3 text-[10px] font-mono ${tc.faint}`}>Ranked by sandwich count since Dencun · {fmtK(stats.total_sandwiches)} attacks across {fmtK(stats.unique_pools)} pools</p>
+          </div>
+
+          {/* Enterprise Usability — Lucid / privacy & security reporting */}
+          <div className={`rounded-none border ${tc.cardBorder} ${tc.card} p-5`}>
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="text-base">🏛️</span>
+              <h3 className={`text-[13px] font-bold uppercase tracking-wider font-mono ${tc.text}`}>Enterprise Usability</h3>
+            </div>
+            <p className={`mb-4 text-[11px] leading-relaxed ${tc.muted}`}>
+              For institutions, mempool privacy is a <span className={`font-bold ${tc.text}`}>security &amp; compliance</span> concern. <span className="font-bold">Lucid (EIP-8184)</span> encrypted mempools turn front-running exposure into an auditable, controllable risk.
+            </p>
+            <div className="space-y-3">
+              {[
+                { t: "Order-flow privacy", d: "Large trades stay sealed until inclusion — no leakage of positions or strategy to front-runners." },
+                { t: "MEV exposure reporting", d: "Quantify, per desk or wallet, how much value was lost to sandwiching — evidence for risk & audit reporting." },
+                { t: "EIP-8184 readiness", d: "Track the encrypted-mempool rollout and verify protection once it ships, on the Encrypted Mempool Console." },
+              ].map((x) => (
+                <div key={x.t} className={`rounded-none border ${tc.cardBorder} ${tc.kpiBg} p-3`}>
+                  <p className={`text-[11px] font-bold uppercase tracking-wide font-mono ${tc.text}`}>{x.t}</p>
+                  <p className={`mt-1 text-[11px] leading-relaxed ${tc.muted}`}>{x.d}</p>
+                </div>
+              ))}
+            </div>
+            <a href="/etm" className={`mt-4 inline-flex items-center gap-1.5 rounded-none border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500 hover:bg-emerald-500/20`}>
+              Open Encrypted Mempool Console →
+            </a>
+          </div>
         </div>
       )}
 

@@ -24,7 +24,7 @@ const PAGE_META: { match: string; title: string; icon: React.ElementType }[] = [
   { match: '/rollup',               title: 'Rollup',          icon: Layers },
   { match: '/whale-watch',          title: 'Whale Watch',     icon: Activity },
   { match: '/etm',                  title: 'Encrypted Mempool', icon: Lock },
-  { match: '/mev',                  title: 'MEV Tracker',     icon: Zap },
+  { match: '/mempool',              title: 'Mempool',         icon: Zap },
   { match: '/compliance/ofac',      title: 'OFAC List',       icon: ShieldAlert },
   { match: '/rwa',                  title: 'RWA Valuation',   icon: Landmark },
   { match: '/eth-liquidity',        title: 'ETH Liquidity',   icon: Wallet },
