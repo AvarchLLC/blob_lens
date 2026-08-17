@@ -141,7 +141,7 @@ jobs:
               else
                 pnpm install --no-frozen-lockfile
               fi
-              pnpm --filter web build
+              pnpm --filter @blob-lens/web build
             else
               echo "==> Skipping web build (no changes)"
             fi

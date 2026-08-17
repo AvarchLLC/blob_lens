@@ -1,133 +1,130 @@
-import type { Metadata } from "next";
-import { Lora, Geist_Mono, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
-import { AppShell } from "@/components/shared/AppShell";
-import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import {
+  GeistPixelSquare,
+  GeistPixelGrid,
+  GeistPixelCircle,
+  GeistPixelTriangle,
+  GeistPixelLine,
+} from "geist/font/pixel";
 import "./globals.css";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AppNavbar } from "@/components/shared/app-navbar";
+import { AppFooter } from "@/components/shared/app-footer";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const lora = Lora({
-  variable: "--font-lora",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://bloblens.com";
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAFAFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#07090D" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
-  // ... rest of metadata unchanged
-  metadataBase: new URL(APP_URL),
-
+  metadataBase: new URL("https://bloblens.io"),
   title: {
-    default: "BlobLens — EIP-4844 Blob Analytics",
+    default: "BlobLens — Ethereum Blob Analytics & Observability",
     template: "%s | BlobLens",
   },
   description:
-    "Real-time EIP-4844 blob market analytics. Track rollup efficiency, forecast congestion, and monitor DA costs across Base, Arbitrum, OP Mainnet, zkSync, Starknet, and 40+ rollups.",
-
+    "Real-time telemetry, fee market analytics, and regime indicators for Ethereum's EIP-4844 blob storage layer.",
   keywords: [
-    "EIP-4844", "blob transactions", "blob fees", "blob gas",
-    "Ethereum", "rollup analytics", "Layer 2", "L2", "data availability",
-    "DA cost", "KZG commitments", "excess_blob_gas", "congestion forecast",
-    "Base", "Arbitrum", "OP Mainnet", "zkSync Era", "Starknet", "Linea",
-    "blob market", "open source", "blockchain analytics",
+    "Ethereum",
+    "BlobLens",
+    "EIP-4844",
+    "Danksharding",
+    "Blob Gas",
+    "Fee Market",
+    "Rollups",
+    "Layer 2",
+    "Arbitrum",
+    "Optimism",
+    "Base",
+    "ClickHouse",
+    "Reth",
   ],
-
-  authors: [{ name: "Avarch LLC", url: "https://github.com/AvarchLLC" }],
-  creator: "Avarch LLC",
-  publisher: "Avarch LLC",
-
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
-  },
-
+  authors: [{ name: "BlobLens Protocol Labs" }],
+  manifest: "/site.webmanifest",
   icons: {
     icon: [
-      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon/favicon.ico", type: "image/x-icon" }
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: "/favicon/apple-touch-icon.png",
-    shortcut: "/favicon/favicon.ico",
-  },
-  manifest: "/favicon/site.webmanifest",
-
-  openGraph: {
-    type: "website",
-    url: APP_URL,
-    siteName: "BlobLens",
-    title: "BlobLens — EIP-4844 Blob Analytics",
-    description:
-      "Real-time EIP-4844 blob market analytics. Track rollup efficiency, forecast congestion, and monitor DA costs across 40+ rollups.",
-    images: [
+    shortcut: ["/favicon.ico"],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
       {
-        url: "/bloblens.png",
-        width: 1200,
-        height: 630,
-        alt: "BlobLens — EIP-4844 Blob Analytics Dashboard",
-        type: "image/png",
+        rel: "apple-touch-icon",
+        url: "/apple-touch-icon.png",
+      },
+      {
+        rel: "android-chrome-192",
+        url: "/android-chrome-192x192.png",
+      },
+      {
+        rel: "android-chrome-512",
+        url: "/android-chrome-512x512.png",
       },
     ],
-    locale: "en_US",
   },
-
+  openGraph: {
+    title: "BlobLens — Ethereum Blob Analytics & Observability",
+    description:
+      "Real-time telemetry, fee market analytics, and storage regimes for Ethereum EIP-4844 blobs & L2 rollups.",
+    url: "https://bloblens.io",
+    siteName: "BlobLens",
+    images: [
+      {
+        url: "/android-chrome-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "BlobLens Icon",
+      },
+    ],
+    type: "website",
+  },
   twitter: {
     card: "summary_large_image",
-    title: "BlobLens — EIP-4844 Blob Analytics",
+    title: "BlobLens — Ethereum Blob Observatory",
     description:
-      "Real-time EIP-4844 blob market analytics. Track rollup efficiency, forecast congestion, and monitor DA costs across 40+ rollups.",
-    images: ["/bloblens.png"],
+      "Real-time telemetry, fee market analytics, and storage regimes for Ethereum EIP-4844 blobs & L2 rollups.",
+    images: ["/android-chrome-512x512.png"],
   },
-
-  alternates: {
-    canonical: "/",
-  },
-
-  category: "technology",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${plusJakartaSans.variable} ${geistMono.variable} ${lora.variable} antialiased`}
       suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable} ${GeistPixelSquare.variable} ${GeistPixelGrid.variable} ${GeistPixelCircle.variable} ${GeistPixelTriangle.variable} ${GeistPixelLine.variable} h-full antialiased`}
     >
-      <body className="h-screen bg-background text-foreground overflow-hidden" suppressHydrationWarning>
-        <ThemeProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+      <body className="min-h-full flex flex-col bg-[var(--surface-0)] text-[var(--text-primary)]">
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
+          <QueryProvider>
+            <AppNavbar />
+            <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              {children}
+            </main>
+            <AppFooter />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
-

@@ -1,94 +1,103 @@
+"use client";
+
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, RefreshCw, Radio } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Home, RotateCcw } from "lucide-react";
+
+const GRID = Array.from({ length: 120 }, (_, i) => i);
 
 export default function NotFound() {
+  const router = useRouter();
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#07090E] text-text-secondary relative overflow-hidden px-4">
-      {/* Radial ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[140px] pointer-events-none" />
-      
-      {/* Tech grid overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
+    <div className="relative flex flex-col items-center justify-center min-h-[72vh] px-4 overflow-hidden select-none">
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes orbit {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.2; transform: scale(0.95); }
-          50% { opacity: 0.4; transform: scale(1.05); }
-        }
-      `}} />
-
-      <div className="flex flex-col items-center gap-8 max-w-lg text-center relative z-10">
-        
-        {/* Animated Wireframe / Pruned Blob Graphic */}
-        <div className="relative h-40 w-40 flex items-center justify-center">
-          {/* Pulsing glow behind */}
-          <div className="absolute inset-0 bg-primary/10 rounded-full blur-2xl animate-[pulse-slow_4s_infinite_ease-in-out]" />
-          
-          {/* Orbiting ring */}
-          <div 
-            className="absolute inset-2 border border-dashed border-primary/30 rounded-full"
-            style={{ animation: "orbit 20s infinite linear" }}
-          />
-
-          {/* Innermost rotating logo frame */}
-          <div className="relative z-10 h-16 w-16 opacity-80">
-            <Image
-              src="/brand/bloblens-logo.svg"
-              alt="BlobLens"
-              width={64}
-              height={64}
-              priority
-            />
-          </div>
+      {/* Background dot grid */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-[0.035]">
+        <div className="grid grid-cols-[repeat(20,1fr)] gap-6 p-8 w-full">
+          {GRID.map(i => (
+            <span key={i} className="w-1 h-1 rounded-full bg-[var(--primary)] block" />
+          ))}
         </div>
-
-        {/* Text Details */}
-        <div className="space-y-3.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-none">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-red-400">Error 404 · Blob Not Found</span>
-          </div>
-          
-          <h2 className="text-2xl font-mono font-bold text-text-primary tracking-tight">
-            Lost In Data Availability Space
-          </h2>
-          
-          <p className="text-xs text-text-secondary/70 max-w-sm mx-auto leading-relaxed">
-            The block, transaction, or telemetry route you are looking for has been pruned from the active epoch or never existed.
-          </p>
-        </div>
-
-        {/* Monospace Code Terminal Block */}
-        <div className="w-full bg-[#0C0E14] border border-white/5 p-4 rounded-sm font-mono text-left text-[10px] text-text-tertiary space-y-1">
-          <p className="text-primary">$ get-blob --hash latest</p>
-          <p className="text-red-400">ERR_BLOB_PRUNED: Target hash not found in ClickHouse index.</p>
-          <p>SYSTEM_STATUS: Operational. DA nodes syncing normally.</p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
-          <Link 
-            href="/" 
-            className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-black font-mono font-bold text-xs uppercase tracking-wider hover:bg-primary/95 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Return to Telemetry
-          </Link>
-          <Link 
-            href="/explore" 
-            className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 text-text-primary font-mono text-xs uppercase tracking-wider hover:bg-white/10 transition-colors"
-          >
-            <Radio className="h-4 w-4" />
-            Live Explorer
-          </Link>
-        </div>
-
       </div>
+
+      {/* Terminal card */}
+      <div className="relative w-full max-w-xl border border-[var(--border)] bg-[var(--surface-1)] rounded-[8px] overflow-hidden shadow-2xl">
+
+        {/* Title bar */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-sunken)]">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
+          </div>
+          <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-widest">
+            bloblens — node/error
+          </span>
+          <span className="text-[10px] font-mono text-[var(--text-muted)]">●</span>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 sm:p-8 font-mono space-y-6">
+
+          {/* Error code */}
+          <div className="space-y-1">
+            <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.2em]">
+              // ethereum.blob_node.routing_error
+            </p>
+            <h1 className="text-7xl sm:text-8xl font-bold tracking-tighter tabular-nums leading-none text-[var(--text-primary)]">
+              404
+            </h1>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="inline-flex items-center px-2 py-0.5 bg-[var(--danger-bg)] border border-[var(--danger)] text-[var(--danger)] text-[10px] font-mono font-bold rounded-[3px] uppercase tracking-wider">
+                BLOB_NOT_FOUND
+              </span>
+              <span className="text-[10px] text-[var(--text-muted)]">exit code 1</span>
+            </div>
+          </div>
+
+          {/* Diagnostics */}
+          <div className="border border-[var(--border)] rounded-[4px] overflow-hidden text-[11px]">
+            {[
+              ["CHAIN",      "Ethereum Mainnet"],
+              ["BLOCK",      "latest"],
+              ["STATUS",     "BLOB_PRUNED"],
+              ["TTL",        "~18 days (EIP-4844)"],
+              ["RESOLUTION", "Return to dashboard"],
+            ].map(([k, v], i) => (
+              <div key={k} className={`flex items-center gap-4 px-3 py-2 ${i % 2 === 0 ? "bg-[var(--surface-sunken)]" : "bg-[var(--surface-1)]"}`}>
+                <span className="w-24 shrink-0 text-[var(--text-muted)] uppercase tracking-wider text-[10px]">{k}</span>
+                <span className="text-[var(--text-secondary)]">{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Flavor */}
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            The blob you're looking for has been pruned from this node.
+            Blob data expires after ~18 days per EIP-4844 — it was never
+            meant to live forever.
+          </p>
+
+          {/* Actions */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Link href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-[var(--primary-fg)] text-xs font-mono font-bold rounded-[4px] hover:opacity-90 transition-opacity">
+              <Home className="w-3.5 h-3.5" />
+              Return to Dashboard
+            </Link>
+            <button onClick={() => router.back()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--surface-sunken)] border border-[var(--border)] text-[var(--text-secondary)] text-xs font-mono rounded-[4px] hover:border-[var(--primary-border)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+              <RotateCcw className="w-3.5 h-3.5" />
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer hint */}
+      <p className="mt-6 text-[10px] font-mono text-[var(--text-muted)] tracking-wider">
+        BlobLens · Ethereum EIP-4844 Observatory
+      </p>
     </div>
   );
 }
