@@ -33,7 +33,7 @@ services:
 
   blob-lens:
     build:
-      context: ./apps/api
+      context: ./apps/api_v1
       dockerfile: Dockerfile
       args:
         RUST_BACKTRACE: 1

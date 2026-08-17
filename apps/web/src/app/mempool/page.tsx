@@ -1,14 +1,12 @@
-import MevClient from "./MevClient";
+import { Metadata } from "next";
+import { MempoolClient } from "./mempool-client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 30;
-
-export const metadata = {
-  title: "Mempool · BlobLens",
+export const metadata: Metadata = {
+  title: "Encrypted Mempool & MEV Observability | BlobLens",
   description:
-    "Ethereum mempool observability — the MEV that public mempools expose, and how encrypted mempools (EIP-8184 / Lucid) eliminate it. Live sandwich detection since Dencun.",
+    "Ethereum mempool & EIP-8184 (Lucid) encrypted mempool observatory — tracking the MEV surface encryption erases, public vs private order flow, builder concentration, and decryptor committee health.",
 };
 
-export default function MevPage() {
-  return <MevClient />;
+export default function MempoolPage() {
+  return <MempoolClient />;
 }

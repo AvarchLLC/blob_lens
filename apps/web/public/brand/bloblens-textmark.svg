@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 50" width="320" height="50">
+  <text x="5" y="36" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="30" letter-spacing="3" fill="currentColor">BLOB L</text>
+  <!-- Custom 3-Line E Signal -->
+  <rect x="162" y="14" width="18" height="4.5" rx="1.5" fill="#63F3FF"/>
+  <rect x="162" y="23" width="18" height="4.5" rx="1.5" fill="#63F3FF"/>
+  <rect x="162" y="32" width="18" height="4.5" rx="1.5" fill="#63F3FF"/>
+  <text x="188" y="36" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="30" letter-spacing="3" fill="currentColor">NS</text>
+</svg>

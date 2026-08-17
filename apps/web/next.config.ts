@@ -1,12 +1,8 @@
 import type { NextConfig } from "next";
+import "./src/env";
 
 const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      // The MEV analytics section was renamed to "Mempool". Preserve old links.
-      { source: "/mev", destination: "/mempool", permanent: true },
-    ];
-  },
+  transpilePackages: ["@t3-oss/env-nextjs", "@t3-oss/env-core"],
 };
 
 export default nextConfig;
