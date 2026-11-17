@@ -7,6 +7,9 @@ apps/exex-node/target/
 apps/exex-node/Cargo.lock
 **/*.rs.bk
 *.pdb
+docs
+apps/web/blob.md
+apps/web/DESIGN.md
 
 # ── Environment ──────────────────────────────────────────────────────────────
 .env
