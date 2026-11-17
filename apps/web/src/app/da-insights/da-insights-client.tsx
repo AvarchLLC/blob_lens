@@ -571,9 +571,6 @@ export function DaInsightsClient() {
       <div className="flex flex-col gap-3 pb-4 border-b border-dashed border-[var(--border)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
-            <span className="px-2 py-0.5 font-bold tracking-widest text-[var(--primary-text)] bg-[var(--primary-bg)] border border-[var(--primary-border)] uppercase rounded-[4px]">
-              [ EIP-4844 ROLLUP DA OBSERVATORY ]
-            </span>
             <span className="px-2 py-0.5 border border-[var(--border)] rounded-[4px] text-[var(--text-secondary)]">
               L2 ROLLUP THROUGHPUT &amp; COMPRESSION EFFICIENCY
             </span>

@@ -7,6 +7,9 @@ apps/exex-node/target/
 apps/exex-node/Cargo.lock
 **/*.rs.bk
 *.pdb
+docs
+apps/web/blob.md
+apps/web/DESIGN.md
 
 # ── Environment ──────────────────────────────────────────────────────────────
 .env
@@ -49,6 +52,7 @@ env/
 venv/
 
 # ── Planning / scratch docs (not for version control) ────────────────────────
+docs/GAS_INVARIANT_AUDIT_PLAN.md
 MEV_DATA_COMPARISON.md
 DATA_ANALYTICS_AUDIT.md
 DASHBOARD_PLAN.md
