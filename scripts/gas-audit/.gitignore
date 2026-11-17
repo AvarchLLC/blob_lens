@@ -1,0 +1,7 @@
+# Secrets and run artifacts — never commit from the gas-audit tool.
+.env
+outputs/
+targets/
+replayer/revm/
+replayer/target/
+*.log

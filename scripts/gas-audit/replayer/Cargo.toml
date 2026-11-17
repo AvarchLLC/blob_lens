@@ -1,0 +1,20 @@
+[package]
+name = "gas-replayer"
+version = "0.1.0"
+edition = "2021"
+
+# DRAFT. Build only after bootstrap-replayer.sh confirms revm@glamsterdam-devnet-8
+# compiles on ba-data, then pin `revm` to the cloned path and match the `alloy`
+# version to the one revm pulls (the project's past pain was an alloy version
+# conflict — resolve it here, not by guessing).
+[dependencies]
+# revm = { path = "revm/crates/revm" }        # <- enable after clone, pin to branch
+alloy = { version = "1.0", features = ["full", "rpc-types-trace", "provider-debug-api"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+eyre = "0.6"
+
+[[bin]]
+name = "gas-replayer"
+path = "src/main.rs"
