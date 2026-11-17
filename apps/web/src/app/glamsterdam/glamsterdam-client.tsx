@@ -155,14 +155,11 @@ export function GlamsterdamClient() {
   }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="mx-auto max-w-5xl py-6">
+    <div className="mx-auto w-full max-w-7xl py-6">
       {/* Hero */}
       <div className="space-y-2.5">
-        <span className="inline-flex items-center gap-1.5 rounded-[3px] border border-[var(--border)] bg-[var(--surface-sunken)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
-          <FlaskConical className="h-3 w-3" /> Repricing impact · EIP-8037/8038 · Glamsterdam
-        </span>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-[2rem]">What Glamsterdam breaks</h1>
-        <p className="max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
           Ethereum&apos;s next upgrade makes on-chain storage cost more gas. We re-ran real,
           recent transactions under both today&apos;s rules and the new rules. Most apps just
           need to send a bit more gas, but <span className="font-semibold text-[var(--text-primary)]">smart-contract wallets (Account Abstraction)

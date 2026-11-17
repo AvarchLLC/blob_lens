@@ -214,9 +214,6 @@ export function EncryptedMempoolClient() {
       <div className="flex flex-col gap-3 pb-4 border-b border-dashed border-[var(--border)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-            <span className="px-2.5 py-1 font-bold tracking-widest text-[var(--primary-text)] bg-[var(--primary-bg)] border border-[var(--primary-border)] uppercase rounded-[4px]">
-              [ EIP-8184 / LUCID ENCRYPTED MEMPOOL ]
-            </span>
             <span className="px-2.5 py-1 border border-[var(--border)] rounded-[4px] text-[var(--text-secondary)]">
               PRE-EXECUTION PRIVACY &amp; MEV DISPLACEMENT
             </span>

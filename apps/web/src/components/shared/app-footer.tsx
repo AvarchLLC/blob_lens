@@ -1,10 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import {
-  Cpu,
-  Database,
-  Server,
-  ShieldCheck,
   Code2,
   BookOpen,
   Terminal,
@@ -70,28 +66,7 @@ export function AppFooter() {
               </div>
             </div>
 
-            {/* Column 2: Architecture */}
-            <div className="flex flex-col gap-3">
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                Architecture
-              </span>
-              <div className="flex flex-col gap-2 text-xs">
-                <span className="text-[var(--text-muted)] flex items-center justify-between">
-                  Reth ExEx <span className="font-mono text-[10px]">(Rust)</span>
-                </span>
-                <span className="text-[var(--text-muted)] flex items-center justify-between">
-                  ClickHouse <span className="font-mono text-[10px]">(OLAP)</span>
-                </span>
-                <span className="text-[var(--text-muted)] flex items-center justify-between">
-                  Beacon Engine <span className="font-mono text-[10px]">(gRPC)</span>
-                </span>
-                <span className="text-[var(--text-muted)] flex items-center justify-between">
-                  Next.js App <span className="font-mono text-[10px]">(Turbo)</span>
-                </span>
-              </div>
-            </div>
-
-            {/* Column 3: Resources */}
+            {/* Column 2: Resources */}
             <div className="flex flex-col gap-3">
               <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--text-primary)]">
                 Resources
@@ -127,49 +102,6 @@ export function AppFooter() {
               </div>
             </div>
 
-          </div>
-        </div>
-
-        {/* ── System Status & Stack Telemetry Card ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-[var(--surface-sunken)] border border-dashed border-[var(--border)] rounded-[8px]">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-[6px] bg-[var(--surface-1)] border border-[var(--border)] text-[var(--primary-text)] shrink-0">
-              <Cpu className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider truncate">Node Indexer</span>
-              <span className="text-xs font-semibold font-mono text-[var(--text-primary)] truncate">Reth ExEx (Rust)</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-[6px] bg-[var(--surface-1)] border border-[var(--border)] text-[var(--series-5)] shrink-0">
-              <Database className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider truncate">Analytics Engine</span>
-              <span className="text-xs font-semibold font-mono text-[var(--text-primary)] truncate">ClickHouse MV</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-[6px] bg-[var(--surface-1)] border border-[var(--border)] text-[var(--series-1)] shrink-0">
-              <Server className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider truncate">Backend Gateway</span>
-              <span className="text-xs font-semibold font-mono text-[var(--text-primary)] truncate">Axum / Tokio API</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-[6px] bg-[var(--surface-1)] border border-[var(--border)] text-[var(--success)] shrink-0">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider truncate">Protocol Standard</span>
-              <span className="text-xs font-semibold font-mono text-[var(--text-primary)] truncate">EIP-4844 / Pectra</span>
-            </div>
           </div>
         </div>
 

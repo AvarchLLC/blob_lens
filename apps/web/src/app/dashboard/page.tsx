@@ -24,9 +24,6 @@ export default function DashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-dashed border-[var(--border)]">
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-            <span className="px-2.5 py-1 font-bold tracking-widest text-[var(--primary-text)] bg-[var(--primary-bg)] border border-[var(--primary-border)] uppercase rounded-[4px]">
-              [ EIP-4844 / EIP-7691 TELEMETRY ]
-            </span>
             <span className="px-2.5 py-1 border border-[var(--border)] rounded-[4px] text-[var(--text-secondary)]">
               SLOT #9,832,104
             </span>
